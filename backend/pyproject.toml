@@ -30,6 +30,9 @@ dependencies = [
     "orjson>=3.10.3",
 ]
 
+[tool.vercel]
+entrypoint = "backend.app.main:app"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2.0",
