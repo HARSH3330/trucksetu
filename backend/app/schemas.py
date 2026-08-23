@@ -177,8 +177,41 @@ class BookingCreate(BaseModel):
 
 class DriverAssignment(BaseModel):
     driver_id: uuid.UUID
-    vehicle_registration: str = Field(min_length=5, max_length=30)
+    carrier_vehicle_id: uuid.UUID
     actor_id: uuid.UUID
+
+
+class CarrierVehicleCreate(BaseModel):
+    provider_id: uuid.UUID
+    vehicle_category_id: uuid.UUID
+    registration_number: str = Field(min_length=5, max_length=30, pattern=r"^[A-Za-z0-9 -]+$")
+    body_type: str = Field(pattern="^(open|closed|container)$")
+    maximum_payload_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
+    internal_length_m: Decimal = Field(gt=0, le=30, max_digits=7, decimal_places=3)
+    internal_width_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
+    internal_height_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
+    maximum_volume_m3: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=3)
+    permit_territories: list[str] = Field(min_length=1, max_length=50)
+    service_areas: list[str] = Field(min_length=1, max_length=50)
+    rc_expires_on: date
+    insurance_expires_on: date
+    fitness_expires_on: date
+    pollution_expires_on: date
+    permit_expires_on: date
+
+    @model_validator(mode="after")
+    def validate_vehicle_volume(self) -> "CarrierVehicleCreate":
+        computed = (self.internal_length_m * self.internal_width_m * self.internal_height_m).quantize(Decimal("0.001"))
+        if self.maximum_volume_m3 is None:
+            self.maximum_volume_m3 = computed
+        elif self.maximum_volume_m3 > computed:
+            raise ValueError("Maximum cargo volume cannot exceed internal body volume")
+        return self
+
+
+class VehicleReview(BaseModel):
+    status: str = Field(pattern="^(approved|suspended|rejected)$")
+    reason: str = Field(min_length=10, max_length=2000)
 
 
 class TripStatusUpdate(BaseModel):
@@ -217,8 +250,9 @@ class InvoiceCreate(BaseModel):
 class AvailableRouteCreate(BaseModel):
     provider_id: uuid.UUID
     vehicle_category_id: uuid.UUID
+    carrier_vehicle_id: uuid.UUID
     driver_id: uuid.UUID | None = None
-    vehicle_registration: str = Field(min_length=5, max_length=30)
+    vehicle_registration: str | None = Field(default=None, min_length=5, max_length=30)
     origin_address: str = Field(min_length=3, max_length=500)
     origin_city: str = Field(min_length=2, max_length=100)
     destination_address: str = Field(min_length=3, max_length=500)
@@ -265,7 +299,27 @@ class CapacityReservationCreate(BaseModel):
     cargo_type: str = Field(min_length=2, max_length=100)
     weight_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
     volume_m3: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
+    match_evaluation_id: uuid.UUID
     idempotency_key: str = Field(min_length=12, max_length=100)
+
+
+class SharedMatchMetrics(BaseModel):
+    added_distance_km: Decimal = Field(ge=0, le=500, max_digits=8, decimal_places=2)
+    added_time_minutes: int = Field(ge=0, le=1440)
+    pickup_window_feasible: bool
+    delivery_deadline_feasible: bool
+    existing_commitments_feasible: bool
+    route_fit_percent: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
+    additional_toll_permit_cost: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
+    handling_waiting_allowance: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
+    dedicated_comparable_price: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    proposed_shared_price: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    source: str = Field(default="admin_review", pattern="^(admin_review|routing_provider)$")
+
+
+class MatchOverride(BaseModel):
+    eligible: bool
+    reason: str = Field(min_length=20, max_length=2000)
 
 
 class ReviewCreate(BaseModel):

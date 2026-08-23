@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.models import CargoItem, RequestStop, TransportRequest, VehicleCategory
+from app.models import CargoItem, RequestStop, TransportRequest, User, VehicleCategory
 from app.schemas import TransportRequestCreate, TransportRequestSummary, VehicleCategoryRead
+from app.api.auth import require_roles
 
 router = APIRouter(prefix="/api/v1", tags=["customer marketplace"])
 
@@ -50,7 +51,9 @@ async def vehicle_categories(db: AsyncSession = Depends(get_db)) -> list[Vehicle
 
 
 @router.post("/requests", response_model=TransportRequestSummary, status_code=status.HTTP_201_CREATED)
-async def create_request(payload: TransportRequestCreate, db: AsyncSession = Depends(get_db)) -> TransportRequestSummary:
+async def create_request(payload: TransportRequestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> TransportRequestSummary:
+    if payload.customer_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
+        raise HTTPException(status_code=403, detail="You can create requirements only for your own account")
     if payload.vehicle_category_id:
         category = await db.get(VehicleCategory, payload.vehicle_category_id)
         if category is None or not category.active:

@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # ── Database ─────────────────────────────────────────
     DATABASE_URL: str = "postgresql+psycopg://trucksetu:password@localhost:5432/trucksetu_db"
+    MIGRATION_DATABASE_URL: str = ""
 
     # ── Redis ────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -106,6 +107,13 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",")]
         return v
 
+    @field_validator("DATABASE_URL", "MIGRATION_DATABASE_URL", mode="before")
+    @classmethod
+    def use_psycopg3_sqlalchemy_driver(cls, value: str) -> str:
+        if value and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        return value
+
     @field_validator("TRUSTED_HOSTS", mode="before")
     @classmethod
     def parse_hosts(cls, v: str | List[str]) -> List[str]:
@@ -131,6 +139,10 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.APP_ENV == "development"
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.MIGRATION_DATABASE_URL or self.DATABASE_URL
 
 
 @lru_cache

@@ -289,8 +289,38 @@ class DriverProfile(Base):
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     masked_mobile: Mapped[str] = mapped_column(String(20), nullable=False)
     licence_number: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    licence_expires_on: Mapped[date | None] = mapped_column(Date)
     kyc_status: Mapped[str] = mapped_column(String(30), nullable=False, default="registered")
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class CarrierVehicle(Base):
+    __tablename__ = "carrier_vehicles"
+    __table_args__ = (Index("ix_carrier_vehicle_provider_status", "provider_id", "status"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    provider_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("provider_profiles.id"), nullable=False, index=True)
+    vehicle_category_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("vehicle_categories.id"), nullable=False)
+    registration_number: Mapped[str] = mapped_column(String(30), nullable=False, unique=True, index=True)
+    body_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    maximum_payload_tonnes: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
+    internal_length_m: Mapped[Decimal] = mapped_column(Numeric(7, 3), nullable=False)
+    internal_width_m: Mapped[Decimal] = mapped_column(Numeric(7, 3), nullable=False)
+    internal_height_m: Mapped[Decimal] = mapped_column(Numeric(7, 3), nullable=False)
+    maximum_volume_m3: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
+    permit_territories: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    service_areas: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    rc_expires_on: Mapped[date] = mapped_column(Date, nullable=False)
+    insurance_expires_on: Mapped[date] = mapped_column(Date, nullable=False)
+    fitness_expires_on: Mapped[date] = mapped_column(Date, nullable=False)
+    pollution_expires_on: Mapped[date] = mapped_column(Date, nullable=False)
+    permit_expires_on: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Booking(Base):
@@ -336,6 +366,7 @@ class Trip(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     allocation_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("booking_allocations.id", ondelete="CASCADE"), nullable=False, index=True)
     driver_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("driver_profiles.id"))
+    carrier_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("carrier_vehicles.id"), index=True)
     vehicle_registration: Mapped[str | None] = mapped_column(String(30))
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="booking_confirmed")
     last_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -474,6 +505,7 @@ class AvailableRoute(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     provider_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("provider_profiles.id"), nullable=False, index=True)
     vehicle_category_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("vehicle_categories.id"), nullable=False)
+    carrier_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("carrier_vehicles.id"), index=True)
     driver_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("driver_profiles.id"))
     vehicle_registration: Mapped[str] = mapped_column(String(30), nullable=False)
     origin_address: Mapped[str] = mapped_column(Text, nullable=False)
@@ -510,6 +542,7 @@ class CapacityReservation(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     available_route_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("available_routes.id"), nullable=False)
+    match_evaluation_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("shared_match_evaluations.id"), unique=True)
     customer_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
     cargo_type: Mapped[str] = mapped_column(String(100), nullable=False)
     weight_tonnes: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
@@ -517,6 +550,31 @@ class CapacityReservation(Base):
     agreed_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="reserved")
     idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SharedMatchEvaluation(Base):
+    __tablename__ = "shared_match_evaluations"
+    __table_args__ = (
+        Index("ix_shared_match_request_eligible", "request_id", "eligible", "expires_at"),
+        Index("ix_shared_match_route_created", "available_route_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    request_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("transport_requests.id", ondelete="CASCADE"), nullable=False)
+    available_route_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("available_routes.id", ondelete="CASCADE"), nullable=False)
+    evaluated_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+    source: Mapped[str] = mapped_column(String(30), nullable=False)
+    eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    score: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    rejection_reasons: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    explanation: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    route_metrics: Mapped[dict] = mapped_column(JSON, nullable=False)
+    economics: Mapped[dict] = mapped_column(JSON, nullable=False)
+    overridden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    override_reason: Mapped[str | None] = mapped_column(Text)
+    overridden_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

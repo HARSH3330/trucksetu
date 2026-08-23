@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.domain import cancellation_snapshot, ensure_review_allowed
 from app.models import ApplicationSetting, AvailableRoute, Booking, BookingAllocation, Cancellation, CapacityReservation, Dispute, DisputeMessage, Payment, Review, SafetyReport, Trip
 from app.schemas import CancellationCreate, DisputeCreate, DisputeMessageCreate, ReviewCreate, SafetyReportCreate
+from app.services.capacity import restore_capacity
 
 router = APIRouter(prefix="/api/v1", tags=["trust and safety"])
 
@@ -75,10 +76,7 @@ async def cancel_booking(booking_id:uuid.UUID,payload:CancellationCreate,db:Asyn
         if reservation and reservation.status == "confirmed":
             route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == reservation.available_route_id).with_for_update())
             if route:
-                route.remaining_capacity_tonnes = min(route.total_capacity_tonnes, route.remaining_capacity_tonnes + reservation.weight_tonnes)
-                route.remaining_volume_m3 = min(route.total_volume_m3, route.remaining_volume_m3 + reservation.volume_m3)
-                if route.status == "full":
-                    route.status = "active"
+                restore_capacity(route, reservation)
             reservation.status = "released"
     booking.status="cancelled";db.add(item);await db.flush()
     return {"cancellation_id":str(item.id),"fee":str(amounts["fee"]),"refund":str(amounts["refund"]),"status":"cancelled"}

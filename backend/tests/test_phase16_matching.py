@@ -3,7 +3,9 @@ from decimal import Decimal
 
 import pytest
 
-from app.services.matching import MatchCandidateInput, evaluate_shared_match
+from datetime import UTC, datetime, timedelta
+
+from app.services.matching import MatchCandidateInput, evaluate_shared_match, simulate_time_insertion
 
 
 def valid_candidate() -> MatchCandidateInput:
@@ -55,3 +57,20 @@ def test_match_rejections_are_recorded(change: dict[str, object], reason: str) -
 def test_shared_option_requires_meaningful_saving() -> None:
     decision = evaluate_shared_match(replace(valid_candidate(), proposed_shared_price=Decimal("1700")))
     assert "minimum_customer_saving_not_met" in decision.rejection_reasons
+
+
+def test_stop_insertion_protects_new_and_existing_deadlines() -> None:
+    departure = datetime(2026, 9, 1, 10, 0, tzinfo=UTC)
+    decision = simulate_time_insertion(
+        departure,
+        departure + timedelta(hours=1),
+        departure + timedelta(hours=4),
+        departure + timedelta(minutes=15),
+        departure + timedelta(hours=1),
+        departure + timedelta(hours=5),
+        30,
+        (departure + timedelta(hours=4, minutes=15),),
+    )
+    assert decision.pickup_window_feasible is True
+    assert decision.delivery_deadline_feasible is True
+    assert decision.existing_commitments_feasible is False

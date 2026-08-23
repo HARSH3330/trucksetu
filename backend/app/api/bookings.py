@@ -14,8 +14,10 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import generate_otp, hash_otp, verify_otp
 from app.domain import TripStatus, available_allocation, ensure_trip_transition
-from app.models import Booking, BookingAllocation, CapacityReservation, DriverProfile, Quote, TransportRequest, Trip, TripOtp, TripStatusHistory
+from app.models import Booking, BookingAllocation, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, Quote, TransportRequest, Trip, TripOtp, TripStatusHistory, User
 from app.schemas import BookingCreate, DriverAssignment, OtpVerify, TripStatusUpdate
+from app.api.auth import require_roles
+from app.api.vehicles import vehicle_is_document_eligible
 
 router = APIRouter(prefix="/api/v1", tags=["bookings and trips"])
 
@@ -25,7 +27,9 @@ def _booking_id() -> str:
 
 
 @router.post("/requests/{request_id}/bookings", status_code=status.HTTP_201_CREATED)
-async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, object]:
+    if payload.customer_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
+        raise HTTPException(status_code=403, detail="You can create bookings only for your own account")
     request = await db.scalar(
         select(TransportRequest).where(TransportRequest.id == request_id).with_for_update().options(selectinload(TransportRequest.stops), selectinload(TransportRequest.cargo))
     )
@@ -91,15 +95,32 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
 
 
 @router.post("/trips/{trip_id}/assign-driver")
-async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("provider", "fleet_owner", "admin", "superadmin"))) -> dict[str, str]:
     trip = await db.scalar(select(Trip).where(Trip.id == trip_id).with_for_update())
     driver = await db.get(DriverProfile, payload.driver_id)
     if trip is None or driver is None:
         raise HTTPException(status_code=404, detail="Trip or driver not found")
+    allocation = await db.get(BookingAllocation, trip.allocation_id)
+    provider = await db.get(ProviderProfile, allocation.provider_id) if allocation else None
+    if provider is None or (provider.user_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"})):
+        raise HTTPException(status_code=403, detail="You cannot assign a driver to another provider's trip")
+    if driver.provider_id != provider.id:
+        raise HTTPException(status_code=422, detail="Driver does not belong to the allocated provider")
+    vehicle = await db.get(CarrierVehicle, payload.carrier_vehicle_id)
+    booking = await db.get(Booking, allocation.booking_id)
+    request = await db.get(TransportRequest, booking.request_id) if booking else None
+    trip_end = request.delivery_deadline_at if request and request.delivery_deadline_at else datetime.now(UTC)
+    if driver.licence_expires_on is None or driver.licence_expires_on < trip_end.date():
+        raise HTTPException(status_code=422, detail="Driver licence must remain valid through the trip")
+    if vehicle is None or vehicle.provider_id != provider.id or not vehicle_is_document_eligible(vehicle, trip_end.date()):
+        raise HTTPException(status_code=422, detail="Select an approved provider vehicle with documents valid through the trip")
+    quote = await db.get(Quote, allocation.quote_id)
+    if quote and vehicle.vehicle_category_id != quote.vehicle_category_id:
+        raise HTTPException(status_code=422, detail="Assigned vehicle category does not match the accepted quotation")
     if not driver.active or driver.kyc_status != "verified":
         raise HTTPException(status_code=403, detail="Only a verified active driver can be assigned")
     ensure_trip_transition(TripStatus(trip.status), TripStatus.DRIVER_ASSIGNED)
-    trip.driver_id, trip.vehicle_registration, trip.status = driver.id, payload.vehicle_registration.upper(), TripStatus.DRIVER_ASSIGNED.value
+    trip.driver_id, trip.carrier_vehicle_id, trip.vehicle_registration, trip.status = driver.id, vehicle.id, vehicle.registration_number, TripStatus.DRIVER_ASSIGNED.value
     trip.history.append(TripStatusHistory(status=trip.status, changed_by=payload.actor_id, notes="Driver and vehicle assigned"))
     return {"status": trip.status}
 

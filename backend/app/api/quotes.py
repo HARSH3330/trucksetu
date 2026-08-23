@@ -9,9 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.models import Negotiation, ProviderProfile, Quote, QuoteVersion, TransportRequest, VehicleCategory
+from app.models import Negotiation, ProviderProfile, Quote, QuoteVersion, TransportRequest, User, VehicleCategory
 from app.schemas import CounterOfferCreate, QuoteCreate, QuoteRead, QuoteUpdate
 from app.domain import ensure_provider_can_quote, next_quote_version
+from app.api.auth import require_roles
 
 router = APIRouter(prefix="/api/v1", tags=["quotations"])
 
@@ -30,7 +31,7 @@ def _read(quote: Quote) -> QuoteRead:
 
 
 @router.post("/requests/{request_id}/quotes", response_model=QuoteRead, status_code=status.HTTP_201_CREATED)
-async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSession = Depends(get_db)) -> QuoteRead:
+async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("provider", "fleet_owner", "admin", "superadmin"))) -> QuoteRead:
     request = await db.get(TransportRequest, request_id)
     provider = await db.get(ProviderProfile, payload.provider_id)
     vehicle = await db.get(VehicleCategory, payload.vehicle_category_id)
@@ -38,6 +39,8 @@ async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSes
         raise HTTPException(status_code=404, detail="Request not found")
     if provider is None:
         raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.user_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
+        raise HTTPException(status_code=403, detail="You can quote only for your provider account")
     try:
         ensure_provider_can_quote(provider.kyc_status, provider.active, request.status)
     except PermissionError:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 
@@ -76,6 +77,33 @@ class MatchDecision:
     customer_saving_percent: Decimal
     carrier_receives: Decimal
     explanation: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TimeInsertionDecision:
+    pickup_window_feasible: bool
+    delivery_deadline_feasible: bool
+    existing_commitments_feasible: bool
+    projected_arrival: datetime
+
+
+def simulate_time_insertion(
+    route_departure: datetime,
+    route_departure_window_end: datetime,
+    route_expected_arrival: datetime,
+    shipment_earliest_pickup: datetime,
+    shipment_latest_pickup: datetime,
+    shipment_delivery_deadline: datetime,
+    added_time_minutes: int,
+    existing_delivery_deadlines: tuple[datetime, ...] = (),
+) -> TimeInsertionDecision:
+    if added_time_minutes < 0:
+        raise ValueError("Added time cannot be negative")
+    pickup_feasible = shipment_earliest_pickup <= route_departure_window_end and shipment_latest_pickup >= route_departure
+    projected_arrival = route_expected_arrival + timedelta(minutes=added_time_minutes)
+    delivery_feasible = projected_arrival <= shipment_delivery_deadline
+    existing_feasible = all(projected_arrival <= deadline for deadline in existing_delivery_deadlines)
+    return TimeInsertionDecision(pickup_feasible, delivery_feasible, existing_feasible, projected_arrival)
 
 
 def _cargo_compatible(requested: str, existing: tuple[str, ...]) -> bool:
