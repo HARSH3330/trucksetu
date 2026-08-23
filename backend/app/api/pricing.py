@@ -19,8 +19,10 @@ RULE_KEY = "trip_price_suggestion"
 DEFAULT_RULE: dict[str, object] = {
     "minimum_fare": "2500",
     "per_km_rate": "50",
-    "loading_charge": "500",
-    "unloading_charge": "500",
+    "loading_base_charge": "100",
+    "loading_per_parcel": "7",
+    "unloading_base_charge": "100",
+    "unloading_per_parcel": "7",
     "included_stops": 2,
     "extra_stop_charge": "500",
     "night_charge": "500",
@@ -37,6 +39,7 @@ class SuggestionInput(BaseModel):
     vehicle_count: int = Field(default=1, ge=1, le=100)
     loading: bool = False
     unloading: bool = False
+    package_count: int = Field(default=0, ge=0, le=100000)
     night_trip: bool = False
     expected_waiting_hours: Decimal = Field(default=Decimal("0"), ge=0, le=48)
 
@@ -44,8 +47,10 @@ class SuggestionInput(BaseModel):
 class RuleUpdate(BaseModel):
     minimum_fare: Decimal = Field(gt=0)
     per_km_rate: Decimal = Field(gt=0)
-    loading_charge: Decimal = Field(default=Decimal("500"), ge=0)
-    unloading_charge: Decimal = Field(default=Decimal("500"), ge=0)
+    loading_base_charge: Decimal = Field(default=Decimal("100"), ge=0)
+    loading_per_parcel: Decimal = Field(default=Decimal("7"), ge=0)
+    unloading_base_charge: Decimal = Field(default=Decimal("100"), ge=0)
+    unloading_per_parcel: Decimal = Field(default=Decimal("7"), ge=0)
     included_stops: int = Field(default=2, ge=0, le=20)
     extra_stop_charge: Decimal = Field(default=Decimal("500"), ge=0)
     night_charge: Decimal = Field(default=Decimal("500"), ge=0)
@@ -85,7 +90,9 @@ async def compute_route(payload: SuggestionInput) -> dict[str, object]:
 @router.post("/suggest")
 async def suggest(payload: SuggestionInput, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
     route = await compute_route(payload); rule = await active_rule(db)
-    amounts = trip_price_suggestion(Decimal(route["distance_km"]), payload.vehicle_count, len(payload.stops), payload.loading, payload.unloading, payload.night_trip, payload.expected_waiting_hours, rule)
+    if (payload.loading or payload.unloading) and payload.package_count < 1:
+        raise HTTPException(422, "Parcel count is required for loading or unloading assistance")
+    amounts = trip_price_suggestion(Decimal(route["distance_km"]), payload.vehicle_count, len(payload.stops), payload.loading, payload.unloading, payload.package_count, payload.night_trip, payload.expected_waiting_hours, rule)
     breakdown = {key: str(value) for key, value in amounts.items() if key not in {"suggested_low", "suggested_high"}}
     item = TripPriceEstimate(pickup_text=payload.pickup, destination_text=payload.destination, stop_count=len(payload.stops), distance_km=route["distance_km"], duration_minutes=route["duration_minutes"], route_polyline=route["polyline"], rule_snapshot=rule, breakdown=breakdown, suggested_low=amounts["suggested_low"], suggested_high=amounts["suggested_high"])
     db.add(item); await db.flush()
