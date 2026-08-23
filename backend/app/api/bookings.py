@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import generate_otp, hash_otp, verify_otp
 from app.domain import TripStatus, available_allocation, ensure_trip_transition
-from app.models import Booking, BookingAllocation, DriverProfile, Quote, TransportRequest, Trip, TripOtp, TripStatusHistory
+from app.models import Booking, BookingAllocation, CapacityReservation, DriverProfile, Quote, TransportRequest, Trip, TripOtp, TripStatusHistory
 from app.schemas import BookingCreate, DriverAssignment, OtpVerify, TripStatusUpdate
 
 router = APIRouter(prefix="/api/v1", tags=["bookings and trips"])
@@ -49,8 +49,18 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     total = Decimal("0")
+    shared_quotes = [quote for quote in quotes if quote.service_mode == "SHARED_CAPACITY"]
+    reservation = None
+    if shared_quotes:
+        if payload.capacity_reservation_id is None:
+            raise HTTPException(status_code=422, detail="A valid capacity hold is required for shared capacity")
+        reservation = await db.scalar(select(CapacityReservation).where(CapacityReservation.id == payload.capacity_reservation_id).with_for_update())
+        if reservation is None or reservation.customer_id != payload.customer_id or reservation.status != "reserved" or reservation.expires_at <= datetime.now(UTC):
+            raise HTTPException(status_code=409, detail="The shared-capacity hold is invalid or has expired")
     booking = Booking(
         public_id=_booking_id(), request_id=request.id, customer_id=payload.customer_id,
+        booking_mode=shared_quotes[0].service_mode if shared_quotes else "FULL_VEHICLE",
+        schedule_mode=request.schedule_mode, capacity_reservation_id=reservation.id if reservation else None,
         total_amount=Decimal("0"), customer_snapshot={"customer_id": str(payload.customer_id)},
         route_snapshot={"pickup": request.pickup_address, "destination": request.destination_address, "stops": [stop.address for stop in request.stops]},
         cargo_snapshot={"category": request.cargo.category, "description": request.cargo.description, "weight_tonnes": str(request.cargo.weight_tonnes)},
@@ -71,6 +81,8 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
         quote.status = "accepted"
         total += agreed
     booking.total_amount = total
+    if reservation:
+        reservation.status = "confirmed"
     if new_total == request.vehicle_count:
         request.status = "allocated"
     db.add(booking)

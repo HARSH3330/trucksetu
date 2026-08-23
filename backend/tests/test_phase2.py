@@ -15,8 +15,10 @@ def test_hazardous_cargo_requires_instructions() -> None:
             pickup_city="Delhi",
             destination_address="Jaipur, Rajasthan",
             destination_city="Jaipur",
+            booking_mode="FULL_VEHICLE",
+            schedule_mode="NOW",
             pickup_date="2026-08-22",
-            cargo=CargoCreate(category="Chemicals", description="Industrial solvent", weight_tonnes=Decimal("3"), hazardous=True),
+            cargo=CargoCreate(category="Chemicals", description="Industrial solvent", weight_tonnes=Decimal("3"), length_m=1, width_m=1, height_m=1, hazardous=True),
         )
 
 

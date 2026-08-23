@@ -8,7 +8,6 @@ from decimal import Decimal
 import httpx
 
 from app.core.config import settings
-from app.domain import financial_snapshot
 
 
 class PaymentGateway(ABC):
@@ -35,4 +34,3 @@ def verify_razorpay_signature(body: bytes, signature: str) -> bool:
         return False
     expected = hmac.new(settings.RAZORPAY_KEY_SECRET.encode(), body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
-

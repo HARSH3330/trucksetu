@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/v1", tags=["quotations"])
 def _read(quote: Quote) -> QuoteRead:
     return QuoteRead(
         id=quote.id, provider_name=quote.provider.display_name,
+        service_mode=quote.service_mode,
         verified=quote.provider.kyc_status == "verified", rating=quote.provider.rating,
         completed_trips=quote.provider.completed_trips,
         cancellation_percent=quote.provider.cancellation_percent,
@@ -47,8 +48,13 @@ async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSes
         raise HTTPException(status_code=422, detail="Selected vehicle is unavailable")
     if payload.vehicles_offered > request.vehicle_count:
         raise HTTPException(status_code=422, detail="Offered vehicles exceed the request quantity")
+    if request.booking_mode == "FULL_VEHICLE" and payload.service_mode != "FULL_VEHICLE":
+        raise HTTPException(status_code=422, detail="This request accepts full-vehicle quotations only")
+    if request.booking_mode == "SHARED_CAPACITY" and payload.service_mode != "SHARED_CAPACITY":
+        raise HTTPException(status_code=422, detail="This request accepts shared-capacity quotations only")
     quote = Quote(
         request_id=request_id, provider_id=payload.provider_id,
+        service_mode=payload.service_mode,
         vehicle_category_id=payload.vehicle_category_id, final_price=payload.final_price,
         vehicles_offered=payload.vehicles_offered,
         estimated_pickup=datetime.fromisoformat(payload.estimated_pickup),

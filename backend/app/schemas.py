@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field, model_validator
@@ -19,12 +19,34 @@ class CargoCreate(BaseModel):
     description: str = Field(min_length=3, max_length=2000)
     weight_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
     packages: int | None = Field(default=None, ge=1)
+    length_m: Decimal = Field(gt=0, le=30, max_digits=7, decimal_places=3)
+    width_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
+    height_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
+    dimensions_are_per_package: bool = False
+    volume_m3: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=3)
     fragile: bool = False
     perishable: bool = False
+    high_value: bool = False
+    stackable: bool = True
     hazardous: bool = False
     temperature_controlled: bool = False
     loading_assistance: bool = False
     unloading_assistance: bool = False
+    pickup_floor: int | None = Field(default=None, ge=0, le=100)
+    pickup_has_lift: bool | None = None
+    vehicle_body_requirement: str | None = Field(default=None, pattern="^(open|closed|container|any)$")
+    delivery_instructions: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def compute_and_validate_volume(self) -> "CargoCreate":
+        multiplier = self.packages if self.dimensions_are_per_package else 1
+        if self.dimensions_are_per_package and not self.packages:
+            raise ValueError("Package count is required when dimensions are per package")
+        computed = (self.length_m * self.width_m * self.height_m * Decimal(multiplier)).quantize(Decimal("0.001"))
+        if self.volume_m3 is not None and abs(self.volume_m3 - computed) > Decimal("0.01"):
+            raise ValueError("Provided volume does not match the supplied dimensions")
+        self.volume_m3 = computed
+        return self
 
 
 class TransportRequestCreate(BaseModel):
@@ -33,9 +55,15 @@ class TransportRequestCreate(BaseModel):
     pickup_city: str = Field(min_length=2, max_length=100)
     destination_address: str = Field(min_length=3, max_length=500)
     destination_city: str = Field(min_length=2, max_length=100)
+    booking_mode: str = Field(pattern="^(FULL_VEHICLE|SHARED_CAPACITY|EITHER)$")
+    schedule_mode: str = Field(pattern="^(NOW|SCHEDULED)$")
     pickup_date: date
     pickup_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     flexible_schedule: bool = False
+    earliest_pickup_at: datetime | None = None
+    latest_pickup_at: datetime | None = None
+    delivery_deadline_at: datetime | None = None
+    maximum_added_time_minutes: int | None = Field(default=None, ge=0, le=1440)
     vehicle_category_id: uuid.UUID | None = None
     vehicle_count: int = Field(default=1, ge=1, le=100)
     budget_amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
@@ -45,9 +73,19 @@ class TransportRequestCreate(BaseModel):
     publish: bool = False
 
     @model_validator(mode="after")
-    def validate_hazardous_requirements(self) -> TransportRequestCreate:
-        if self.cargo.hazardous and not self.special_instructions:
-            raise ValueError("Hazardous cargo requires handling instructions")
+    def validate_pilot_request(self) -> "TransportRequestCreate":
+        restricted_terms = {"chemical", "chemicals", "fuel", "explosive", "explosives", "animal", "animals", "loose bulk"}
+        if self.cargo.hazardous or self.cargo.temperature_controlled or self.cargo.category.strip().casefold() in restricted_terms:
+            raise ValueError("This cargo needs specialist handling and is not available in the controlled pilot")
+        if self.schedule_mode == "SCHEDULED":
+            if not (self.earliest_pickup_at and self.latest_pickup_at and self.delivery_deadline_at):
+                raise ValueError("Scheduled transport requires pickup window and delivery deadline")
+            if not self.earliest_pickup_at < self.latest_pickup_at <= self.delivery_deadline_at:
+                raise ValueError("Pickup window and delivery deadline must be in chronological order")
+        elif any((self.earliest_pickup_at, self.latest_pickup_at)):
+            raise ValueError("Immediate transport uses a system-estimated pickup window")
+        if self.booking_mode in {"SHARED_CAPACITY", "EITHER"} and self.maximum_added_time_minutes is None:
+            raise ValueError("Shared-capacity requests require a maximum acceptable added time")
         return self
 
 
@@ -55,6 +93,8 @@ class TransportRequestSummary(BaseModel):
     id: uuid.UUID
     public_id: str
     status: str
+    booking_mode: str
+    schedule_mode: str
     pickup_address: str
     pickup_city: str
     destination_address: str
@@ -66,6 +106,7 @@ class TransportRequestSummary(BaseModel):
     currency: str
     cargo_category: str
     cargo_weight_tonnes: Decimal
+    cargo_volume_m3: Decimal | None
     stop_count: int
 
 
@@ -75,12 +116,17 @@ class VehicleCategoryRead(BaseModel):
     body_type: str
     min_capacity_tonnes: Decimal
     max_capacity_tonnes: Decimal
+    internal_length_m: Decimal | None
+    internal_width_m: Decimal | None
+    internal_height_m: Decimal | None
+    max_volume_m3: Decimal | None
     description: str | None
 
 
 class QuoteCreate(BaseModel):
     provider_id: uuid.UUID
     vehicle_category_id: uuid.UUID
+    service_mode: str = Field(pattern="^(FULL_VEHICLE|SHARED_CAPACITY)$")
     final_price: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     vehicles_offered: int = Field(ge=1, le=100)
     estimated_pickup: str
@@ -98,6 +144,7 @@ class QuoteUpdate(BaseModel):
 
 class QuoteRead(BaseModel):
     id: uuid.UUID
+    service_mode: str
     provider_name: str
     verified: bool
     rating: Decimal
@@ -125,6 +172,7 @@ class AllocationCreate(BaseModel):
 class BookingCreate(BaseModel):
     customer_id: uuid.UUID
     allocations: list[AllocationCreate] = Field(min_length=1, max_length=100)
+    capacity_reservation_id: uuid.UUID | None = None
 
 
 class DriverAssignment(BaseModel):
@@ -177,12 +225,23 @@ class AvailableRouteCreate(BaseModel):
     destination_city: str = Field(min_length=2, max_length=100)
     intermediate_cities: list[str] = Field(default_factory=list, max_length=20)
     departure_at: str
+    departure_window_end: str
+    expected_arrival_at: str
+    route_geometry: str | None = Field(default=None, max_length=20000)
+    repeat_schedule: dict | None = None
+    maximum_deviation_km: Decimal = Field(ge=0, le=200, max_digits=8, decimal_places=2)
+    maximum_added_time_minutes: int = Field(ge=0, le=1440)
     total_capacity_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
     available_capacity_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
+    total_volume_m3: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
+    available_volume_m3: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
     minimum_booking_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
     allowed_cargo_types: list[str] = Field(min_length=1, max_length=50)
     price_amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     price_basis: str = Field(pattern="^(per_tonne|per_kg|complete_capacity|negotiated)$")
+    minimum_acceptable_earning: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
+    service_areas: list[str] = Field(default_factory=list, max_length=50)
+    permit_territories: list[str] = Field(default_factory=list, max_length=50)
     notes: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")
@@ -191,6 +250,13 @@ class AvailableRouteCreate(BaseModel):
             raise ValueError("Available capacity cannot exceed total vehicle capacity")
         if self.minimum_booking_tonnes > self.available_capacity_tonnes:
             raise ValueError("Minimum booking cannot exceed available capacity")
+        if self.available_volume_m3 > self.total_volume_m3:
+            raise ValueError("Available volume cannot exceed total vehicle volume")
+        departure = datetime.fromisoformat(self.departure_at)
+        departure_end = datetime.fromisoformat(self.departure_window_end)
+        arrival = datetime.fromisoformat(self.expected_arrival_at)
+        if not departure < departure_end <= arrival:
+            raise ValueError("Route departure and arrival windows must be in chronological order")
         return self
 
 
@@ -198,6 +264,7 @@ class CapacityReservationCreate(BaseModel):
     customer_id: uuid.UUID
     cargo_type: str = Field(min_length=2, max_length=100)
     weight_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
+    volume_m3: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
     idempotency_key: str = Field(min_length=12, max_length=100)
 
 

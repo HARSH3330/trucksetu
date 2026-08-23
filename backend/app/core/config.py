@@ -76,6 +76,18 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int = 120
     TRUSTED_HOSTS: List[str] = ["localhost", "127.0.0.1"]
 
+    # ── Controlled pilot feature flags ────────────────────
+    ENABLE_SHARED_CAPACITY: bool = True
+    ENABLE_IMMEDIATE_BOOKING: bool = True
+    ENABLE_LIVE_GPS: bool = False
+    ENABLE_AUTOMATED_PAYOUTS: bool = False
+    ENABLE_AUTOMATED_KYC: bool = False
+    ENABLE_INTERSTATE: bool = False
+    ENABLE_PROMOTIONS: bool = False
+    ENABLE_HAZARDOUS_CARGO: bool = False
+    PILOT_ORIGIN_CITIES: List[str] = ["Delhi"]
+    PILOT_DESTINATION_CITIES: List[str] = ["Delhi", "Gurugram", "Noida"]
+
     # ── Celery ────────────────────────────────────────────
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
@@ -98,6 +110,11 @@ class Settings(BaseSettings):
     @classmethod
     def parse_hosts(cls, v: str | List[str]) -> List[str]:
         return [item.strip() for item in v.split(",")] if isinstance(v, str) else v
+
+    @field_validator("PILOT_ORIGIN_CITIES", "PILOT_DESTINATION_CITIES", mode="before")
+    @classmethod
+    def parse_pilot_cities(cls, v: str | List[str]) -> List[str]:
+        return [item.strip() for item in v.split(",") if item.strip()] if isinstance(v, str) else v
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":

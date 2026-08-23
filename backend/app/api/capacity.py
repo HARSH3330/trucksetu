@@ -20,6 +20,12 @@ def _route_read(item: AvailableRoute, score: int = 0) -> dict[str, object]:
     return {"id": str(item.id), "origin": item.origin_city, "destination": item.destination_city,
             "route_cities": item.ordered_route_cities, "departure_at": item.departure_at.isoformat(),
             "remaining_capacity_tonnes": str(item.remaining_capacity_tonnes),
+            "remaining_volume_m3": str(item.remaining_volume_m3),
+            "maximum_deviation_km": str(item.maximum_deviation_km),
+            "maximum_added_time_minutes": item.maximum_added_time_minutes,
+            "departure_window_end": item.departure_window_end.isoformat() if item.departure_window_end else None,
+            "expected_arrival_at": item.expected_arrival_at.isoformat() if item.expected_arrival_at else None,
+            "minimum_acceptable_earning": str(item.minimum_acceptable_earning),
             "minimum_booking_tonnes": str(item.minimum_booking_tonnes), "price_amount": str(item.price_amount),
             "price_basis": item.price_basis, "allowed_cargo_types": item.allowed_cargo_types, "match_score": score}
 
@@ -43,10 +49,17 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
         origin_city=payload.origin_city, destination_address=payload.destination_address,
         destination_city=payload.destination_city,
         ordered_route_cities=[payload.origin_city, *payload.intermediate_cities, payload.destination_city],
-        departure_at=datetime.fromisoformat(payload.departure_at), total_capacity_tonnes=payload.total_capacity_tonnes,
+        departure_at=datetime.fromisoformat(payload.departure_at),
+        departure_window_end=datetime.fromisoformat(payload.departure_window_end),
+        expected_arrival_at=datetime.fromisoformat(payload.expected_arrival_at), route_geometry=payload.route_geometry,
+        repeat_schedule=payload.repeat_schedule, maximum_deviation_km=payload.maximum_deviation_km,
+        maximum_added_time_minutes=payload.maximum_added_time_minutes, total_capacity_tonnes=payload.total_capacity_tonnes,
         remaining_capacity_tonnes=payload.available_capacity_tonnes,
+        total_volume_m3=payload.total_volume_m3, remaining_volume_m3=payload.available_volume_m3,
         minimum_booking_tonnes=payload.minimum_booking_tonnes, allowed_cargo_types=payload.allowed_cargo_types,
-        price_amount=payload.price_amount, price_basis=payload.price_basis, notes=payload.notes)
+        price_amount=payload.price_amount, price_basis=payload.price_basis,
+        minimum_acceptable_earning=payload.minimum_acceptable_earning, service_areas=payload.service_areas,
+        permit_territories=payload.permit_territories, notes=payload.notes)
     db.add(item);await db.flush()
     return _route_read(item)
 
@@ -65,17 +78,27 @@ async def search_routes(origin: str = Query(min_length=2, max_length=100), desti
 @router.post("/available-routes/{route_id}/reservations", status_code=status.HTTP_201_CREATED)
 async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservationCreate, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     existing=await db.scalar(select(CapacityReservation).where(CapacityReservation.idempotency_key==payload.idempotency_key))
-    if existing:return {"reservation_id":str(existing.id),"status":existing.status,"remaining_capacity_tonnes":"unchanged"}
+    if existing:
+        if existing.status == "reserved" and existing.expires_at <= datetime.now(UTC):
+            expired_route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == existing.available_route_id).with_for_update())
+            if expired_route:
+                expired_route.remaining_capacity_tonnes = min(expired_route.total_capacity_tonnes, expired_route.remaining_capacity_tonnes + existing.weight_tonnes)
+                expired_route.remaining_volume_m3 = min(expired_route.total_volume_m3, expired_route.remaining_volume_m3 + existing.volume_m3)
+                if expired_route.status == "full": expired_route.status = "active"
+            existing.status = "expired"
+        return {"reservation_id":str(existing.id),"status":existing.status,"remaining_capacity_tonnes":"unchanged"}
     route=await db.scalar(select(AvailableRoute).where(AvailableRoute.id==route_id).with_for_update())
     if route is None or route.status!="active":raise HTTPException(status_code=409,detail="This route is no longer available")
     if payload.cargo_type.casefold() not in [item.casefold() for item in route.allowed_cargo_types]:raise HTTPException(status_code=422,detail="This route does not accept the selected cargo type")
+    if payload.volume_m3 > route.remaining_volume_m3:raise HTTPException(status_code=409,detail="Not enough safe volume remains on this route")
     try:new_remaining=reserve_capacity(route.remaining_capacity_tonnes,payload.weight_tonnes,route.minimum_booking_tonnes)
     except ValueError as exc:raise HTTPException(status_code=409,detail=str(exc)) from exc
     if route.price_basis=="per_tonne":agreed=(route.price_amount*payload.weight_tonnes).quantize(Decimal("0.01"))
     elif route.price_basis=="per_kg":agreed=(route.price_amount*payload.weight_tonnes*Decimal("1000")).quantize(Decimal("0.01"))
     else:agreed=route.price_amount
     route.remaining_capacity_tonnes=new_remaining
-    if new_remaining < route.minimum_booking_tonnes:route.status="full"
-    reservation=CapacityReservation(available_route_id=route.id,customer_id=payload.customer_id,cargo_type=payload.cargo_type,weight_tonnes=payload.weight_tonnes,agreed_amount=agreed,idempotency_key=payload.idempotency_key,expires_at=datetime.now(UTC)+timedelta(minutes=15))
+    route.remaining_volume_m3 -= payload.volume_m3
+    if new_remaining < route.minimum_booking_tonnes or route.remaining_volume_m3 <= 0:route.status="full"
+    reservation=CapacityReservation(available_route_id=route.id,customer_id=payload.customer_id,cargo_type=payload.cargo_type,weight_tonnes=payload.weight_tonnes,volume_m3=payload.volume_m3,agreed_amount=agreed,idempotency_key=payload.idempotency_key,expires_at=datetime.now(UTC)+timedelta(minutes=15))
     db.add(reservation);await db.flush()
-    return {"reservation_id":str(reservation.id),"status":reservation.status,"agreed_amount":str(agreed),"remaining_capacity_tonnes":str(new_remaining),"expires_in_minutes":"15"}
+    return {"reservation_id":str(reservation.id),"status":reservation.status,"agreed_amount":str(agreed),"remaining_capacity_tonnes":str(new_remaining),"remaining_volume_m3":str(route.remaining_volume_m3),"expires_in_minutes":"15"}
