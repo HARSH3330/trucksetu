@@ -2,8 +2,8 @@ from app.api.kyc import DOCUMENT_TYPES, REQUIRED, ApplicationInput
 from app.services.storage import ALLOWED_CONTENT_TYPES
 
 
-def test_individual_provider_requires_identity_licence_and_bank() -> None:
-    assert REQUIRED["individual"] == {"aadhaar", "pan", "driving_licence", "bank_proof"}
+def test_driver_requires_identity_and_licence() -> None:
+    assert REQUIRED["driver"] == {"aadhaar", "pan", "driving_licence"}
 
 
 def test_company_verification_requires_gst() -> None:

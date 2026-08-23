@@ -173,6 +173,44 @@ def fair_price_range(prices: list[Decimal], fallback_per_km_tonne: Decimal | Non
     raise ValueError("Not enough information to estimate a fair price")
 
 
+def trip_price_suggestion(
+    distance_km: Decimal,
+    vehicle_count: int,
+    stop_count: int,
+    loading: bool,
+    unloading: bool,
+    night_trip: bool,
+    waiting_hours: Decimal,
+    rule: dict[str, object],
+) -> dict[str, Decimal]:
+    """Build an advisory marketplace range; providers still set the final quote."""
+    if distance_km <= 0 or vehicle_count <= 0 or stop_count < 0 or waiting_hours < 0:
+        raise ValueError("Distance, vehicle count, stops and waiting time must be valid")
+    money = lambda key, default: Decimal(str(rule.get(key, default)))
+    per_km = money("per_km_rate", "50")
+    minimum = money("minimum_fare", "2500")
+    base = max(minimum, distance_km * per_km) * Decimal(vehicle_count)
+    loading_amount = money("loading_charge", "500") if loading else Decimal("0")
+    unloading_amount = money("unloading_charge", "500") if unloading else Decimal("0")
+    included_stops = int(rule.get("included_stops", 2))
+    extra_stops = money("extra_stop_charge", "500") * Decimal(max(0, stop_count - included_stops))
+    night = money("night_charge", "500") if night_trip else Decimal("0")
+    free_waiting = money("free_waiting_hours", "1")
+    waiting = money("waiting_charge_per_hour", "500") * max(Decimal("0"), waiting_hours - free_waiting)
+    subtotal = base + loading_amount + unloading_amount + extra_stops + night + waiting
+    spread = money("range_percent", "10") / Decimal("100")
+    return {
+        "base_trip": base.quantize(Decimal("0.01")),
+        "loading": loading_amount.quantize(Decimal("0.01")),
+        "unloading": unloading_amount.quantize(Decimal("0.01")),
+        "extra_stops": extra_stops.quantize(Decimal("0.01")),
+        "night": night.quantize(Decimal("0.01")),
+        "waiting": waiting.quantize(Decimal("0.01")),
+        "suggested_low": (subtotal * (Decimal("1") - spread)).quantize(Decimal("0.01")),
+        "suggested_high": (subtotal * (Decimal("1") + spread)).quantize(Decimal("0.01")),
+    }
+
+
 def quotation_risk_flags(price: Decimal, fair_low: Decimal, fair_high: Decimal, cancellation_percent: Decimal, dispute_count: int) -> list[str]:
     flags: list[str] = []
     if price < fair_low * Decimal("0.65"): flags.append("price_dramatically_below_range")

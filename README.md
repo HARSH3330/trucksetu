@@ -23,6 +23,7 @@ TruckSetu is a mobile-first marketplace for heavy-vehicle logistics in India. It
 - Phase 10 request tracing, structured logs, security headers, rate limits, real readiness probes, audit logs, event analytics, CI gates, migrations, container health and backup tooling
 - Phase 11 persistent accounts, public-role controls, email verification, lockout protection, typed access tokens, rotating refresh sessions, protected admin analytics, and a live API-backed sign-in experience
 - Phase 12 provider KYC applications, private direct-to-storage uploads, role-scoped document access, admin decision history, resubmission/suspension handling, and expiry monitoring
+- Phase 13 manual driver/owner KYC policy and Google Routes-based advisory trip pricing with separately itemised loading, unloading, waiting, extra-stop and night charges; providers continue to set the final quotation
 - Environment template with no committed credentials
 
 The visual marketplace uses realistic demonstration records so the product can be evaluated without third-party credentials. They are clearly presented as interface data; the API does not fake successful bookings or payments.
@@ -84,5 +85,6 @@ Before accepting real transactions, complete malware scanning for uploaded docum
 - Phase 10 production-hardening foundation: implemented
 - Phase 11 identity and launch-readiness integration: implemented
 - Phase 12 provider verification and document compliance: implemented
+- Phase 13 marketplace trip suggestions and launch KYC policy: implemented
 
 The technical production-hardening foundation is present, but this does not constitute a penetration test, legal certification or operational readiness approval. See `SECURITY.md` and `DEPLOYMENT.md` for the mandatory launch checklist.

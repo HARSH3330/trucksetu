@@ -26,6 +26,7 @@ from app.api.ai import router as ai_router
 from app.api.operations import router as operations_router
 from app.api.auth import router as auth_router
 from app.api.kyc import router as kyc_router
+from app.api.pricing import router as pricing_router
 
 
 @asynccontextmanager
@@ -55,6 +56,7 @@ app.include_router(ai_router)
 app.include_router(operations_router)
 app.include_router(auth_router)
 app.include_router(kyc_router)
+app.include_router(pricing_router)
 
 
 class TransitionRequest(BaseModel):

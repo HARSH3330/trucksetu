@@ -17,12 +17,17 @@ from app.services.storage import PrivateDocumentStorage
 
 router = APIRouter(prefix="/api/v1/kyc", tags=["provider verification"])
 DOCUMENT_TYPES = {"aadhaar", "pan", "driving_licence", "vehicle_rc", "vehicle_insurance", "fitness_certificate", "commercial_permit", "pollution_certificate", "bank_proof", "gst_certificate"}
-REQUIRED = {"individual": {"aadhaar", "pan", "driving_licence", "bank_proof"}, "fleet": {"pan", "bank_proof", "gst_certificate"}, "company": {"pan", "bank_proof", "gst_certificate"}}
+REQUIRED = {
+    "driver": {"aadhaar", "pan", "driving_licence"},
+    "owner": {"aadhaar", "pan", "vehicle_rc"},
+    "fleet": {"pan", "vehicle_rc", "gst_certificate"},
+    "company": {"pan", "vehicle_rc", "gst_certificate"},
+}
 
 
 class ApplicationInput(BaseModel):
     legal_name: str = Field(min_length=2, max_length=160)
-    provider_type: Literal["individual", "fleet", "company"] = "individual"
+    provider_type: Literal["driver", "owner", "fleet", "company"] = "driver"
     pan_last_four: str | None = Field(default=None, pattern=r"^[A-Z0-9]{4}$")
     gstin: str | None = Field(default=None, pattern=r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$")
 
@@ -104,7 +109,7 @@ async def submit(application_id: uuid.UUID, user: Annotated[User, Depends(curren
     provider, item = await own_application(user, db)
     if not item or item.id != application_id or item.status not in {"registered", "resubmit_required"}: raise HTTPException(409, "Application cannot be submitted")
     present = {d.document_type for d in item.documents if d.status != "rejected"}
-    missing = REQUIRED.get(provider.provider_type, REQUIRED["individual"]) - present
+    missing = REQUIRED.get(provider.provider_type, REQUIRED["driver"]) - present
     if missing: raise HTTPException(422, {"message": "Required documents are missing", "missing": sorted(missing)})
     item.status = "under_review"; item.submitted_at = datetime.now(UTC); provider.kyc_status = "under_review"
     return view(item)

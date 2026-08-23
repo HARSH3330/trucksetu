@@ -358,6 +358,24 @@ class ApplicationSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class TripPriceEstimate(Base):
+    __tablename__ = "trip_price_estimates"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    request_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("transport_requests.id", ondelete="SET NULL"), index=True)
+    pickup_text: Mapped[str] = mapped_column(String(500), nullable=False)
+    destination_text: Mapped[str] = mapped_column(String(500), nullable=False)
+    stop_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    distance_km: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    route_polyline: Mapped[str | None] = mapped_column(Text)
+    rule_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    breakdown: Mapped[dict] = mapped_column(JSON, nullable=False)
+    suggested_low: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    suggested_high: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Payment(Base):
     __tablename__ = "payments"
     __table_args__ = (Index("ix_payments_booking_status", "booking_id", "status"),)
