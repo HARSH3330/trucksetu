@@ -1,6 +1,6 @@
-# TruckSetu
+# TransivoX
 
-TruckSetu is a mobile-first marketplace for heavy-vehicle logistics in India. It supports both sides of the market: customers can publish transport requirements and compare quotes, while verified transporters can publish routes with spare capacity.
+TransivoX is a mobile-first marketplace for heavy-vehicle logistics in India. It supports both sides of the market: customers can publish transport requirements and compare quotes, while verified transporters can publish routes with spare capacity.
 
 ## Included in this working foundation
 

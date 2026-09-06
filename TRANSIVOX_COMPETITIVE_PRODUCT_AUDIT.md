@@ -1,4 +1,4 @@
-# TruckSetu competitive product audit
+# TransivoX competitive product audit
 
 **Assessment date:** 23 August 2026  
 **Market:** Delhi and NCR, with selected interstate lanes  
@@ -6,7 +6,7 @@
 
 ## Executive verdict
 
-TruckSetu has the backend foundations of a carpool-for-goods marketplace, but the current customer experience does not yet explain or safely operate that model end to end. The product already supports demand posting, competitive carrier quotes, planned-route publication, weight-based capacity reservation, KYC review, booking allocation, OTP trip events, payments, commission, disputes and reviews. Those are meaningful strengths.
+TransivoX has the backend foundations of a carpool-for-goods marketplace, but the current customer experience does not yet explain or safely operate that model end to end. The product already supports demand posting, competitive carrier quotes, planned-route publication, weight-based capacity reservation, KYC review, booking allocation, OTP trip events, payments, commission, disputes and reviews. Those are meaningful strengths.
 
 However, the booking wizard does not ask whether the customer wants a **full vehicle** or **shared capacity**; cargo volume and dimensions are absent; planned routes track remaining weight but not remaining volume; and matching does not yet prove cargo compatibility, feasible stop sequencing or delivery-window compliance. Pricing is a useful advisory FTL-like estimate, but it is not a complete landed price and there is no defensible shared-capacity formula. Therefore:
 
@@ -30,8 +30,8 @@ Do not use “cheapest”, “safest”, “guaranteed delivery” or “live GP
 - **[Reported by users]:** third-party user report. No user-report claims are relied upon in this audit.
 - **[Inference]:** reasoned conclusion, not a confirmed competitor capability.
 - **[Unable to verify]:** not reliably established from current public material.
-- **[TruckSetu—code]:** found in the repository’s models, APIs or frontend implementation.
-- **[TruckSetu—UI structure]:** found in frontend source. The live browser inspection service was unavailable during this assessment, so visual-quality judgements are structural rather than a claim of completed desktop/mobile rendered QA.
+- **[TransivoX—code]:** found in the repository’s models, APIs or frontend implementation.
+- **[TransivoX—UI structure]:** found in frontend source. The live browser inspection service was unavailable during this assessment, so visual-quality judgements are structural rather than a claim of completed desktop/mobile rendered QA.
 
 Public marketing numbers remain vendor claims even when they appear on an official source.
 
@@ -54,16 +54,16 @@ Porter is the convenience benchmark. Vahak and TruckSuvidha are marketplace benc
 
 | Capability | My application | Porter | Other relevant competitors | Industry expectation | Gap | Recommended action |
 |---|---|---|---|---|---|---|
-| Customer registration | [TruckSetu—code] Persistent auth exists | [Confirmed—public] digital booking | Borzo [Observed—public interface] web ordering; others vary | OTP/mobile-first, low friction | Production identity/OTP and recovery need deployment validation | Mobile OTP, consent, recovery, duplicate-account controls |
-| Driver/carrier registration | [TruckSetu—code] roles and provider profile | [Confirmed—public] partner onboarding | Vahak/Delhivery Axle [Confirmed—public] | Separate owner, driver, fleet roles | Role hand-off and assisted onboarding unclear | Guided role-specific onboarding and WhatsApp fallback |
-| KYC | [TruckSetu—code] manual queue, documents and review events | [Confirmed—public] DL, PAN, address/bank and commercial vehicle documents listed [source](https://porter.in/partners) | Axle [Confirmed—public] basic details + KYC | Manual approval, expiry, audit trail | Malware scan, production storage and document authenticity checks | Keep manual approval; add secure object storage, scan, expiry jobs, four-eye review for overrides |
-| Vehicle onboarding | [TruckSetu—code] provider/vehicle concepts, approval UI | [Confirmed—public] RC, fitness, insurance, PUC | Other marketplaces support truck attachment [Confirmed—public] | Vehicle type, body, dimensions, payload, docs | Capacity dimensions/body/permit coverage insufficient | Add internal dimensions, body type, axle/payload, permits, service area and expiry blocks |
-| Booking process | [TruckSetu—UI structure] 4-step demand wizard then quotes | Porter [Observed—public interface] pickup/drop/stops/receiver/vehicle/goods | Borzo simple order; freight markets post-and-bid | Short path with progressive detail | Mode choice missing at start | Begin with “Full vehicle” / “Shared capacity”; preserve details across steps |
+| Customer registration | [TransivoX—code] Persistent auth exists | [Confirmed—public] digital booking | Borzo [Observed—public interface] web ordering; others vary | OTP/mobile-first, low friction | Production identity/OTP and recovery need deployment validation | Mobile OTP, consent, recovery, duplicate-account controls |
+| Driver/carrier registration | [TransivoX—code] roles and provider profile | [Confirmed—public] partner onboarding | Vahak/Delhivery Axle [Confirmed—public] | Separate owner, driver, fleet roles | Role hand-off and assisted onboarding unclear | Guided role-specific onboarding and WhatsApp fallback |
+| KYC | [TransivoX—code] manual queue, documents and review events | [Confirmed—public] DL, PAN, address/bank and commercial vehicle documents listed [source](https://porter.in/partners) | Axle [Confirmed—public] basic details + KYC | Manual approval, expiry, audit trail | Malware scan, production storage and document authenticity checks | Keep manual approval; add secure object storage, scan, expiry jobs, four-eye review for overrides |
+| Vehicle onboarding | [TransivoX—code] provider/vehicle concepts, approval UI | [Confirmed—public] RC, fitness, insurance, PUC | Other marketplaces support truck attachment [Confirmed—public] | Vehicle type, body, dimensions, payload, docs | Capacity dimensions/body/permit coverage insufficient | Add internal dimensions, body type, axle/payload, permits, service area and expiry blocks |
+| Booking process | [TransivoX—UI structure] 4-step demand wizard then quotes | Porter [Observed—public interface] pickup/drop/stops/receiver/vehicle/goods | Borzo simple order; freight markets post-and-bid | Short path with progressive detail | Mode choice missing at start | Begin with “Full vehicle” / “Shared capacity”; preserve details across steps |
 | Immediate booking | Not explicit | Porter Spot [Confirmed—public] on-demand; FAQ says no advance Spot booking [source](https://porter.in/spot-faq) | Borzo express [Confirmed—public] | “Now” with supply/ETA | Missing | Add Now/Schedule; only offer Now when eligible supply is online |
 | Scheduled booking | Date/time exists | Porter Spot advance booking [Confirmed—public: unavailable] | Borzo scheduled [Confirmed—public] | Time window, not a brittle single minute | No pickup window or deadline | Add earliest/latest pickup and required delivery-by |
 | Full-vehicle booking | Implicit default | [Confirmed—public] core mini-truck flow | Delhivery FTL [Confirmed—public] | Dedicated vehicle clearly labelled | Customer cannot explicitly select it | Add mode field persisted through quote, booking, invoice |
 | Shared-capacity booking | Route/capacity module exists | [Unable to verify] comparable public consumer shared-truck mode | Vahak part load and Delhivery PTL [Confirmed—public] | Weight + volume + SLA + consolidation rules | Not complete/safe | Limit V1 to approved corridors and cargo classes; build compatibility and volume controls |
-| Planned-route posting | [TruckSetu—code] available routes | [Unable to verify] | Vahak/Axle use lane/load concepts [Confirmed—public] | Route, departure window, deviation, capacity | Deviation/volume/stop schedule incomplete | Add route polyline, departure window, max deviation and remaining volume |
+| Planned-route posting | [TransivoX—code] available routes | [Unable to verify] | Vahak/Axle use lane/load concepts [Confirmed—public] | Route, departure window, deviation, capacity | Deviation/volume/stop schedule incomplete | Add route polyline, departure window, max deviation and remaining volume |
 | Demand posting | Implemented | Porter is direct request [Observed—public interface] | Vahak/TruckSuvidha [Confirmed—public] | Complete shipment requirement | Missing dimensional and legal fields | Add fields specified in matching section |
 | Carrier quotations | Implemented with versions/counteroffers | [Unable to verify] consumer carrier bidding | Vahak/Axle [Confirmed—public] offers/bids | All-in comparable quote and expiry | Quote components/conditions can vary | Enforce quote schema and “all-in except…” declaration |
 | Fixed pricing | Advisory range, not final | [Confirmed—public] estimate/upfront pricing approach | Delhivery FTL rate lookup [Confirmed—public] | Label estimated, quoted or final | Current mode semantics unclear | Use three explicit price states and lock final snapshot |
@@ -200,7 +200,7 @@ For each weekly benchmark:
 4. Repeat at least three times per scenario over multiple days; record whether supply was unavailable.
 5. Compare median landed price and successful fulfillment, not the lowest screenshot.
 6. Store only public or manually and lawfully collected information. Do not scrape, automate competitor apps or bypass controls.
-7. Track carrier payable and TruckSetu contribution margin beside customer price.
+7. Track carrier payable and TransivoX contribution margin beside customer price.
 
 ## Final price presentation
 
@@ -262,7 +262,7 @@ Do not introduce machine learning until enough completed outcomes exist. The fir
 
 ### Failure prevention
 
-- Weight double-booking has a promising transactional reservation foundation [TruckSetu—code]; extend the same lock to volume and time-slot feasibility.
+- Weight double-booking has a promising transactional reservation foundation [TransivoX—code]; extend the same lock to volume and time-slot feasibility.
 - Never mix food/pharma with chemicals, odorous/contaminating cargo, loose construction goods or other incompatible classes.
 - Re-run sequence feasibility after every reservation/cancellation.
 - Block assignment when provider, driver or vehicle status is not verified/active or any required document expires before trip completion.
@@ -348,17 +348,17 @@ Measure by mode, lane, vehicle and customer segment:
 
 | Offer | Who funds it | Cap/duration | Fraud risk/control | Success metric / stop rule |
 |---|---|---|---|---|
-| 0% carrier commission | TruckSetu foregone revenue | First 10 completed trips or 30 days; max ₹2,000/carrier | Duplicate carriers/collusion; KYC, vehicle uniqueness, completed paid trip only | Retained active supply; stop if response/retention does not improve |
+| 0% carrier commission | TransivoX foregone revenue | First 10 completed trips or 30 days; max ₹2,000/carrier | Duplicate carriers/collusion; KYC, vehicle uniqueness, completed paid trip only | Retained active supply; stop if response/retention does not improve |
 | Fast payout | Working capital/operations | T+1 after valid POD for low-risk trips | Fake POD/refund exposure; reserve, POD and anomaly review | Carrier retention and response; stop/limit after elevated disputes |
 | First-booking customer credit | Marketing budget | min(10%, ₹300), one verified business/mobile/payment identity | Multi-account/self-dealing; device/payment/address controls | Second paid booking within 30 days; stop channel if CAC exceeds contribution target |
 | Referral | Marketing budget | Pay after referred party’s second completed trip; ₹250–₹500 cap | Ring fraud; relationship/device/payment checks | Incremental retained users, not registrations |
-| Shared-capacity discount | TruckSetu or carrier explicitly | Up to ₹300 and 20 pilot bookings/route | Relabeling FTL, fake matches; require route/capacity record | Match rate, saving, repeat; stop if post-incentive margin or reliability fails |
-| Guaranteed carrier earning | TruckSetu | Avoid initially; if tested, one shift/zone with written cap | Idle/collusive check-ins | Incremental completed GMV per guarantee rupee; stop rapidly if uneconomic |
+| Shared-capacity discount | TransivoX or carrier explicitly | Up to ₹300 and 20 pilot bookings/route | Relabeling FTL, fake matches; require route/capacity record | Match rate, saving, repeat; stop if post-incentive margin or reliability fails |
+| Guaranteed carrier earning | TransivoX | Avoid initially; if tested, one shift/zone with written cap | Idle/collusive check-ins | Incremental completed GMV per guarantee rupee; stop rapidly if uneconomic |
 
 ## Differentiation
 
 1. **Competitors already do well:** Porter sets the on-demand convenience and Delhi vehicle-choice expectation [Confirmed—public]. Vahak/TruckSuvidha make load posting and carrier discovery familiar [Confirmed—public]. Delhivery demonstrates PTL/FTL, ePOD, tracking and a carrier load exchange at scale [Confirmed—public]. BlackBuck offers a broader fleet ecosystem [Confirmed—public].
-2. **TruckSetu currently does better in its product blueprint:** one architecture combines multi-carrier quote comparison, counteroffers, planned spare-capacity routes, booking allocations, manual KYC review and configurable marketplace commission.
+2. **TransivoX currently does better in its product blueprint:** one architecture combines multi-carrier quote comparison, counteroffers, planned spare-capacity routes, booking allocations, manual KYC review and configurable marketplace commission.
 3. **It currently does worse:** supply certainty, instant fulfillment, GPS tracking, operational proof, payout experience, dimensional capacity safety, price completeness, legal/trust content and mobile-tested simplicity.
 4. **Equal, not differentiated:** registration, generic truck categories, demand posting, ratings, OTP, notifications and a low headline price.
 5. **Customers will value:** qualified choices, a genuinely lower shared price, predictable arrival, no surprise fees, verified carrier/vehicle and fast problem resolution.
@@ -404,7 +404,7 @@ Copy only industry-standard interaction patterns: short address entry, vehicle c
 - **Is pricing competitive, transparent and sustainable?** Competitiveness is unproven without controlled quotes. Transparency is partial. Sustainability cannot be established until deadhead, tolls/permits, time, payout, refunds/support and contribution margin are measured. The current handling rule is implemented correctly.
 - **Does the UI meet Porter-like trust/convenience?** Not yet. The structure is promising, but supply certainty, mobile rendered proof, final-price clarity, tracking, support and public trust evidence lag the benchmark.
 - **What do established competitors do better?** Liquidity, fulfillment certainty, app familiarity, live operational networks, tracking/POD and public service clarity.
-- **What can TruckSetu do better?** Give customers transparent carrier choice plus a verifiably compatible, economically fair shared-capacity alternative while improving carrier return-route earnings.
+- **What can TransivoX do better?** Give customers transparent carrier choice plus a verifiably compatible, economically fair shared-capacity alternative while improving carrier return-route earnings.
 - **What must be copied only as a pattern?** Familiar booking steps, map/address interactions, vehicle capacity cards, OTP, tracking timelines and transparent checkout.
 - **What must not be copied?** Branding, wording, visual identity, proprietary rate/matching logic, competitor data or unsupported superlatives.
 - **What should be redesigned before the pilot?** Mode/schedule selection, dimensional cargo capture, price confirmation, quote normalization, carrier match cards, route capacity view, payout ledger and support/POD.

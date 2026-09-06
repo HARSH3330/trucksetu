@@ -96,7 +96,7 @@ async def suggest(payload: SuggestionInput, db: AsyncSession = Depends(get_db)) 
     breakdown = {key: str(value) for key, value in amounts.items() if key not in {"suggested_low", "suggested_high"}}
     item = TripPriceEstimate(pickup_text=payload.pickup, destination_text=payload.destination, stop_count=len(payload.stops), distance_km=route["distance_km"], duration_minutes=route["duration_minutes"], route_polyline=route["polyline"], rule_snapshot=rule, breakdown=breakdown, suggested_low=amounts["suggested_low"], suggested_high=amounts["suggested_high"])
     db.add(item); await db.flush()
-    return {"estimate_id": str(item.id), "distance_km": str(route["distance_km"]), "duration_minutes": route["duration_minutes"], "suggested_low": str(amounts["suggested_low"]), "suggested_high": str(amounts["suggested_high"]), "breakdown": breakdown, "currency": "INR", "advisory_only": True, "message": "This is a TruckSetu suggestion. Transporters set their own final quotation."}
+    return {"estimate_id": str(item.id), "distance_km": str(route["distance_km"]), "duration_minutes": route["duration_minutes"], "suggested_low": str(amounts["suggested_low"]), "suggested_high": str(amounts["suggested_high"]), "breakdown": breakdown, "currency": "INR", "advisory_only": True, "message": "This is a TransivoX suggestion. Transporters set their own final quotation."}
 
 
 @router.put("/admin/rule")

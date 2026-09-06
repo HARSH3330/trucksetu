@@ -37,7 +37,7 @@ class SmtpEmailProvider(ChannelProvider):
     async def send(self, recipient: str, message: str) -> str:
         if not settings.SMTP_HOST or not settings.EMAIL_FROM:
             raise RuntimeError("Email provider is not configured")
-        email=EmailMessage();email["From"]=settings.EMAIL_FROM;email["To"]=recipient;email["Subject"]="TruckSetu booking update";email.set_content(message)
+        email=EmailMessage();email["From"]=settings.EMAIL_FROM;email["To"]=recipient;email["Subject"]="TransivoX booking update";email.set_content(message)
         def deliver() -> None:
             with smtplib.SMTP(settings.SMTP_HOST,settings.SMTP_PORT,timeout=15) as client:
                 client.starttls()

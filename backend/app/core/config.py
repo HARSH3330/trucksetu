@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     # ── App ──────────────────────────────────────────────
-    APP_NAME: str = "TruckSetu"
+    APP_NAME: str = "TransivoX"
     APP_ENV: str = "development"
     DEBUG: bool = True
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     SENTRY_DSN: str = ""
 
     # ── Seed Admin ────────────────────────────────────────
-    FIRST_SUPERADMIN_EMAIL: str = "admin@trucksetu.in"
+    FIRST_SUPERADMIN_EMAIL: str = "admin@transivox.in"
     FIRST_SUPERADMIN_PASSWORD: str = "Admin@123"
 
     @field_validator("ALLOWED_ORIGINS", mode="before")

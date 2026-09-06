@@ -12,7 +12,7 @@ from starlette.responses import JSONResponse, Response
 
 from app.core.config import settings
 
-logger=logging.getLogger("trucksetu.http")
+logger=logging.getLogger("transivox.http")
 _requests:dict[str,deque[float]]=defaultdict(deque)
 
 
