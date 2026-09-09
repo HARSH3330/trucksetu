@@ -10,12 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import acquire_idempotency_lock, get_db
 from app.domain import reserve_capacity, route_match_score
 from app.models import AvailableRoute, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, SharedMatchEvaluation, TransportRequest, User, VehicleCategory
 from app.api.auth import require_roles
 from app.api.vehicles import vehicle_is_document_eligible
-from app.services.capacity import restore_capacity
+from app.services.capacity import release_expired_capacity_holds, release_reservation
 from app.schemas import AvailableRouteCreate, CapacityReservationCreate
 
 router = APIRouter(prefix="/api/v1", tags=["available capacity"])
@@ -48,7 +48,7 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
         raise HTTPException(status_code=403, detail="You can publish routes only for your provider account")
     if vehicle is None or not vehicle.active:
         raise HTTPException(status_code=422, detail="Vehicle category is unavailable")
-    arrival = datetime.fromisoformat(payload.expected_arrival_at)
+    arrival = payload.expected_arrival_at
     if carrier_vehicle is None or carrier_vehicle.provider_id != provider.id or carrier_vehicle.vehicle_category_id != vehicle.id:
         raise HTTPException(status_code=422, detail="Select an approved vehicle belonging to this provider")
     if not vehicle_is_document_eligible(carrier_vehicle, arrival.date()):
@@ -72,9 +72,9 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
         origin_city=payload.origin_city, destination_address=payload.destination_address,
         destination_city=payload.destination_city,
         ordered_route_cities=[payload.origin_city, *payload.intermediate_cities, payload.destination_city],
-        departure_at=datetime.fromisoformat(payload.departure_at),
-        departure_window_end=datetime.fromisoformat(payload.departure_window_end),
-        expected_arrival_at=datetime.fromisoformat(payload.expected_arrival_at), route_geometry=payload.route_geometry,
+        departure_at=payload.departure_at,
+        departure_window_end=payload.departure_window_end,
+        expected_arrival_at=payload.expected_arrival_at, route_geometry=payload.route_geometry,
         repeat_schedule=payload.repeat_schedule, maximum_deviation_km=payload.maximum_deviation_km,
         maximum_added_time_minutes=payload.maximum_added_time_minutes, total_capacity_tonnes=payload.total_capacity_tonnes,
         remaining_capacity_tonnes=payload.available_capacity_tonnes,
@@ -100,15 +100,17 @@ async def search_routes(origin: str = Query(min_length=2, max_length=100), desti
 
 @router.post("/available-routes/{route_id}/reservations", status_code=status.HTTP_201_CREATED)
 async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservationCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
-    if user.id != payload.customer_id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
-        raise HTTPException(status_code=403, detail="You can reserve capacity only for your own account")
+    await acquire_idempotency_lock(db, payload.idempotency_key)
     existing=await db.scalar(select(CapacityReservation).where(CapacityReservation.idempotency_key==payload.idempotency_key))
     if existing:
+        if existing.customer_id != user.id or existing.available_route_id != route_id:
+            raise HTTPException(status_code=409, detail="Idempotency key was already used for another operation")
         if existing.status == "reserved" and existing.expires_at <= datetime.now(UTC):
             expired_route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == existing.available_route_id).with_for_update())
             if expired_route:
-                restore_capacity(expired_route, existing)
-            existing.status = "expired"
+                release_reservation(expired_route, existing, "expired")
+            else:
+                existing.status = "expired"
         return {"reservation_id":str(existing.id),"status":existing.status,"remaining_capacity_tonnes":"unchanged"}
     route=await db.scalar(select(AvailableRoute).where(AvailableRoute.id==route_id).with_for_update())
     if route is None or route.status!="active":raise HTTPException(status_code=409,detail="This route is no longer available")
@@ -116,7 +118,7 @@ async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservati
     if match is None or match.request_id is None or match.available_route_id != route.id or not match.eligible or match.expires_at <= datetime.now(UTC):
         raise HTTPException(status_code=409, detail="A current eligible match decision is required")
     shipment = await db.scalar(select(TransportRequest).where(TransportRequest.id == match.request_id).options(selectinload(TransportRequest.cargo)))
-    if shipment is None or shipment.customer_id != payload.customer_id:
+    if shipment is None or shipment.customer_id != user.id:
         raise HTTPException(status_code=403, detail="Match decision does not belong to this customer request")
     if payload.weight_tonnes != shipment.cargo.weight_tonnes or payload.volume_m3 != shipment.cargo.volume_m3:
         raise HTTPException(status_code=422, detail="Reserved weight and volume must match the evaluated shipment")
@@ -137,6 +139,11 @@ async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservati
     route.remaining_capacity_tonnes=new_remaining
     route.remaining_volume_m3 -= payload.volume_m3
     if new_remaining < route.minimum_booking_tonnes or route.remaining_volume_m3 <= 0:route.status="full"
-    reservation=CapacityReservation(available_route_id=route.id,match_evaluation_id=match.id,customer_id=payload.customer_id,cargo_type=payload.cargo_type,weight_tonnes=payload.weight_tonnes,volume_m3=payload.volume_m3,agreed_amount=agreed,idempotency_key=payload.idempotency_key,expires_at=datetime.now(UTC)+timedelta(minutes=15))
+    reservation=CapacityReservation(available_route_id=route.id,match_evaluation_id=match.id,customer_id=user.id,cargo_type=payload.cargo_type,weight_tonnes=payload.weight_tonnes,volume_m3=payload.volume_m3,agreed_amount=agreed,idempotency_key=payload.idempotency_key,expires_at=datetime.now(UTC)+timedelta(minutes=15))
     db.add(reservation);await db.flush()
     return {"reservation_id":str(reservation.id),"status":reservation.status,"agreed_amount":str(agreed),"remaining_capacity_tonnes":str(new_remaining),"remaining_volume_m3":str(route.remaining_volume_m3),"expires_in_minutes":"15"}
+
+
+@router.post("/admin/capacity/release-expired")
+async def release_expired(_: User = Depends(require_roles("admin", "superadmin")), db: AsyncSession = Depends(get_db)) -> dict[str, int]:
+    return {"released": await release_expired_capacity_holds(db)}

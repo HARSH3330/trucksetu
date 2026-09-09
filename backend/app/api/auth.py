@@ -7,13 +7,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import create_access_token, create_refresh_token, generate_otp, get_password_hash, hash_otp, hash_token, verify_otp, verify_password, verify_token
+from app.core.rate_limit import enforce_rate_limit
+from app.core.security import create_access_token, create_refresh_token, generate_otp, get_password_hash, hash_otp, hash_token, token_hash_matches, verify_otp, verify_password, verify_token
 from app.models import AccountVerification, RefreshSession, User, UserRole
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -27,6 +28,13 @@ class SignupInput(BaseModel):
     mobile: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
     password: str = Field(min_length=10, max_length=72)
     role: str = "customer"
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, value: str) -> str:
+        if not any(c.islower() for c in value) or not any(c.isupper() for c in value) or not any(c.isdigit() for c in value):
+            raise ValueError("Password must include uppercase, lowercase, and numeric characters")
+        return value
 
 
 class LoginInput(BaseModel):
@@ -57,6 +65,7 @@ async def issue_session(user: User, request: Request, db: AsyncSession, family_i
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+    await enforce_rate_limit(request, "signup", settings.SIGNUP_RATE_LIMIT, 3600, payload.email)
     role = payload.role.lower()
     if role not in PUBLIC_ROLES:
         raise HTTPException(400, "This role cannot be self-assigned")
@@ -76,6 +85,7 @@ async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depe
 
 @router.post("/login")
 async def login(payload: LoginInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+    await enforce_rate_limit(request, "login", settings.LOGIN_RATE_LIMIT, 900, payload.email)
     user = await db.scalar(select(User).where(User.email == payload.email.lower()))
     now = datetime.now(UTC)
     if not user or not verify_password(payload.password, user.password_hash):
@@ -91,11 +101,13 @@ async def login(payload: LoginInput, request: Request, db: AsyncSession = Depend
 
 @router.post("/refresh")
 async def refresh(payload: RefreshInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+    await enforce_rate_limit(request, "refresh", settings.REFRESH_RATE_LIMIT, 60)
     try: claims = verify_token(payload.refresh_token, "refresh")
     except JWTError as exc: raise HTTPException(401, "Invalid refresh token") from exc
     session = await db.scalar(select(RefreshSession).where(RefreshSession.jti == claims.get("jti")).with_for_update())
     now = datetime.now(UTC)
-    if not session or session.revoked_at or session.expires_at <= now or session.token_hash != hash_token(payload.refresh_token):
+    claims_match = bool(session and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id)
+    if not session or session.revoked_at or session.expires_at <= now or not claims_match or not token_hash_matches(payload.refresh_token, session.token_hash):
         if session: await db.execute(update(RefreshSession).where(RefreshSession.family_id == session.family_id).values(revoked_at=now))
         raise HTTPException(401, "Refresh session is no longer valid")
     user = await db.get(User, session.user_id)
@@ -107,7 +119,8 @@ async def refresh(payload: RefreshInput, request: Request, db: AsyncSession = De
 
 
 @router.post("/verify-email")
-async def verify_email(payload: VerifyInput, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
+async def verify_email(payload: VerifyInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
+    await enforce_rate_limit(request, "verify-email", settings.VERIFICATION_RATE_LIMIT, 600, payload.email)
     user = await db.scalar(select(User).where(User.email == payload.email.lower()))
     if not user: raise HTTPException(400, "Invalid or expired verification code")
     item = await db.scalar(select(AccountVerification).where(AccountVerification.user_id == user.id, AccountVerification.channel == "email", AccountVerification.used_at.is_(None)).order_by(AccountVerification.created_at.desc()).with_for_update())
@@ -141,5 +154,11 @@ async def me(user: Annotated[User, Depends(current_user)]) -> dict[str, object]:
 async def logout(payload: RefreshInput, db: AsyncSession = Depends(get_db)) -> None:
     try: claims = verify_token(payload.refresh_token, "refresh")
     except JWTError: return
-    session = await db.scalar(select(RefreshSession).where(RefreshSession.jti == claims.get("jti")))
-    if session and not session.revoked_at: session.revoked_at = datetime.now(UTC)
+    session = await db.scalar(select(RefreshSession).where(RefreshSession.jti == claims.get("jti")).with_for_update())
+    if session and not session.revoked_at and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id and token_hash_matches(payload.refresh_token, session.token_hash):
+        session.revoked_at = datetime.now(UTC)
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+async def logout_all(user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db)) -> None:
+    await db.execute(update(RefreshSession).where(RefreshSession.user_id == user.id, RefreshSession.revoked_at.is_(None)).values(revoked_at=datetime.now(UTC)))

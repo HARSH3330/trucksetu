@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text, Uuid, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -285,6 +285,7 @@ class DriverProfile(Base):
     __tablename__ = "driver_profiles"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), unique=True, index=True)
     provider_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("provider_profiles.id"), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     masked_mobile: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -464,6 +465,19 @@ class PaymentEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class PaymentRefund(Base):
+    __tablename__ = "payment_refunds"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    booking_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("bookings.id"), nullable=False, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    method: Mapped[str] = mapped_column(String(30), nullable=False)
+    reference: Mapped[str] = mapped_column(String(100), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="processed")
+    created_by: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Commission(Base):
     __tablename__ = "commissions"
 
@@ -500,6 +514,8 @@ class AvailableRoute(Base):
     __tablename__ = "available_routes"
     __table_args__ = (
         Index("ix_available_routes_search", "origin_city", "destination_city", "departure_at", "status"),
+        CheckConstraint("remaining_capacity_tonnes >= 0 AND remaining_capacity_tonnes <= total_capacity_tonnes", name="ck_route_remaining_capacity"),
+        CheckConstraint("remaining_volume_m3 >= 0 AND remaining_volume_m3 <= total_volume_m3", name="ck_route_remaining_volume"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -538,7 +554,11 @@ class AvailableRoute(Base):
 
 class CapacityReservation(Base):
     __tablename__ = "capacity_reservations"
-    __table_args__ = (Index("ix_capacity_reservations_route_status", "available_route_id", "status"),)
+    __table_args__ = (
+        Index("ix_capacity_reservations_route_status", "available_route_id", "status"),
+        CheckConstraint("weight_tonnes > 0 AND volume_m3 >= 0", name="ck_reservation_positive_capacity"),
+        CheckConstraint("status IN ('reserved','confirmed','expired','released')", name="ck_reservation_status"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     available_route_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("available_routes.id"), nullable=False)

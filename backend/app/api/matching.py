@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -106,8 +106,7 @@ async def evaluate_route_match(
         for category in await db.scalars(
             select(CapacityReservation.cargo_type).where(
                 CapacityReservation.available_route_id == route.id,
-                CapacityReservation.status.in_(("reserved", "confirmed")),
-                CapacityReservation.expires_at > datetime.now(UTC),
+                or_(CapacityReservation.status == "confirmed", and_(CapacityReservation.status == "reserved", CapacityReservation.expires_at > datetime.now(UTC))),
             )
         )
     )
@@ -116,8 +115,7 @@ async def evaluate_route_match(
         .join(CapacityReservation, CapacityReservation.match_evaluation_id == SharedMatchEvaluation.id)
         .where(
             CapacityReservation.available_route_id == route.id,
-            CapacityReservation.status.in_(("reserved", "confirmed")),
-            CapacityReservation.expires_at > datetime.now(UTC),
+            or_(CapacityReservation.status == "confirmed", and_(CapacityReservation.status == "reserved", CapacityReservation.expires_at > datetime.now(UTC))),
         )
     ))
     existing_requests = list(await db.scalars(select(TransportRequest).where(TransportRequest.id.in_(existing_request_ids)))) if existing_request_ids else []

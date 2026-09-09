@@ -187,13 +187,14 @@ def trip_price_suggestion(
     """Build an advisory marketplace range; providers still set the final quote."""
     if distance_km <= 0 or vehicle_count <= 0 or stop_count < 0 or package_count < 0 or waiting_hours < 0:
         raise ValueError("Distance, vehicle count, parcels, stops and waiting time must be valid")
-    money = lambda key, default: Decimal(str(rule.get(key, default)))
+    def money(key: str, default: str) -> Decimal:
+        return Decimal(str(rule.get(key, default)))
     per_km = money("per_km_rate", "50")
     minimum = money("minimum_fare", "2500")
     base = max(minimum, distance_km * per_km) * Decimal(vehicle_count)
     loading_amount = (money("loading_base_charge", "100") + money("loading_per_parcel", "7") * Decimal(package_count)) if loading else Decimal("0")
     unloading_amount = (money("unloading_base_charge", "100") + money("unloading_per_parcel", "7") * Decimal(package_count)) if unloading else Decimal("0")
-    included_stops = int(rule.get("included_stops", 2))
+    included_stops = int(str(rule.get("included_stops", 2)))
     extra_stops = money("extra_stop_charge", "500") * Decimal(max(0, stop_count - included_stops))
     night = money("night_charge", "500") if night_trip else Decimal("0")
     free_waiting = money("free_waiting_hours", "1")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -60,10 +60,14 @@ async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSes
         service_mode=payload.service_mode,
         vehicle_category_id=payload.vehicle_category_id, final_price=payload.final_price,
         vehicles_offered=payload.vehicles_offered,
-        estimated_pickup=datetime.fromisoformat(payload.estimated_pickup),
-        estimated_delivery=datetime.fromisoformat(payload.estimated_delivery),
+        estimated_pickup=payload.estimated_pickup,
+        estimated_delivery=payload.estimated_delivery,
         notes=payload.notes, inclusions=payload.inclusions, exclusions=payload.exclusions,
     )
+    if payload.estimated_pickup < (request.earliest_pickup_at or datetime.now(UTC)):
+        raise HTTPException(status_code=422, detail="Estimated pickup is before the customer's pickup window")
+    if request.delivery_deadline_at and payload.estimated_delivery > request.delivery_deadline_at:
+        raise HTTPException(status_code=422, detail="Estimated delivery exceeds the customer's deadline")
     quote.versions.append(QuoteVersion(version=1, final_price=payload.final_price, vehicles_offered=payload.vehicles_offered, notes=payload.notes))
     db.add(quote)
     await db.flush()
@@ -72,10 +76,12 @@ async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSes
 
 
 @router.patch("/quotes/{quote_id}", response_model=QuoteRead)
-async def edit_quote(quote_id: uuid.UUID, payload: QuoteUpdate, db: AsyncSession = Depends(get_db)) -> QuoteRead:
+async def edit_quote(quote_id: uuid.UUID, payload: QuoteUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("provider", "fleet_owner", "admin", "superadmin"))) -> QuoteRead:
     quote = await db.scalar(select(Quote).where(Quote.id == quote_id).with_for_update().options(selectinload(Quote.provider), selectinload(Quote.vehicle_category)))
     if quote is None:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    if quote.provider.user_id != user.id and not {r.role for r in user.roles}.intersection({"admin", "superadmin"}):
+        raise HTTPException(status_code=403, detail="You cannot edit another provider's quotation")
     try:
         quote.version = next_quote_version(quote.version, quote.status)
     except ValueError as exc:
@@ -87,17 +93,33 @@ async def edit_quote(quote_id: uuid.UUID, payload: QuoteUpdate, db: AsyncSession
 
 
 @router.get("/requests/{request_id}/quotes", response_model=list[QuoteRead])
-async def compare_quotes(request_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> list[QuoteRead]:
+async def compare_quotes(request_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> list[QuoteRead]:
+    request = await db.get(TransportRequest, request_id)
+    if request is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if request.customer_id != user.id and not {r.role for r in user.roles}.intersection({"admin", "superadmin"}):
+        raise HTTPException(status_code=403, detail="Only the request owner can compare quotations")
     query = select(Quote).where(Quote.request_id == request_id, Quote.status == "active").options(selectinload(Quote.provider), selectinload(Quote.vehicle_category)).order_by(Quote.final_price)
     return [_read(item) for item in await db.scalars(query)]
 
 
 @router.post("/quotes/{quote_id}/counter-offers", status_code=status.HTTP_201_CREATED)
-async def counter_offer(quote_id: uuid.UUID, payload: CounterOfferCreate, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+async def counter_offer(quote_id: uuid.UUID, payload: CounterOfferCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "provider", "fleet_owner", "admin", "superadmin"))) -> dict[str, str]:
     quote = await db.get(Quote, quote_id)
     if quote is None or quote.status != "active":
         raise HTTPException(status_code=409, detail="This quotation is no longer negotiable")
-    item = Negotiation(quote_id=quote_id, **payload.model_dump())
+    request = await db.get(TransportRequest, quote.request_id)
+    provider = await db.get(ProviderProfile, quote.provider_id)
+    is_admin = bool({r.role for r in user.roles}.intersection({"admin", "superadmin"}))
+    if request and request.customer_id == user.id:
+        sender_role = "customer"
+    elif provider and provider.user_id == user.id:
+        sender_role = "provider"
+    elif is_admin:
+        sender_role = payload.sender_role
+    else:
+        raise HTTPException(status_code=403, detail="Only quotation parties can negotiate")
+    item = Negotiation(quote_id=quote_id, sender_role=sender_role, amount=payload.amount, message=payload.message)
     db.add(item)
     await db.flush()
     return {"id": str(item.id), "status": item.status}

@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [tool.vercel]
-entrypoint = "backend.app.main:app"
+entrypoint = "app.main:app"
 
 [project.optional-dependencies]
 dev = [

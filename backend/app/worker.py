@@ -3,7 +3,7 @@ import asyncio
 from celery import Celery
 
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import get_session_factory
 from app.services.capacity import release_expired_capacity_holds
 
 celery_app=Celery("transivox",broker=settings.CELERY_BROKER_URL,backend=settings.CELERY_RESULT_BACKEND)
@@ -16,7 +16,7 @@ def health_check()->dict[str,str]:
 
 
 async def _release_expired() -> int:
-    async with AsyncSessionLocal() as db:
+    async with get_session_factory()() as db:
         try:
             released = await release_expired_capacity_holds(db)
             await db.commit()

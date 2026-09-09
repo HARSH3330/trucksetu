@@ -15,6 +15,15 @@ def restore_capacity(route: AvailableRoute, reservation: CapacityReservation) ->
         route.status = "active"
 
 
+def release_reservation(route: AvailableRoute, reservation: CapacityReservation, target_status: str) -> bool:
+    """Restore a held/confirmed reservation once and record its terminal state."""
+    if reservation.status not in {"reserved", "confirmed"}:
+        return False
+    restore_capacity(route, reservation)
+    reservation.status = target_status
+    return True
+
+
 async def release_expired_capacity_holds(db: AsyncSession, limit: int = 200) -> int:
     reservations = list(await db.scalars(
         select(CapacityReservation)
@@ -26,6 +35,7 @@ async def release_expired_capacity_holds(db: AsyncSession, limit: int = 200) -> 
     for reservation in reservations:
         route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == reservation.available_route_id).with_for_update())
         if route:
-            restore_capacity(route, reservation)
-        reservation.status = "expired"
+            release_reservation(route, reservation, "expired")
+        else:
+            reservation.status = "expired"
     return len(reservations)

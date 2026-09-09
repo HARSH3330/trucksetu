@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.config import settings
+from app.core.time import india_now
 from app.models import CargoItem, RequestStop, TransportRequest, User, VehicleCategory
 from app.schemas import TransportRequestCreate, TransportRequestSummary, VehicleCategoryRead
 from app.api.auth import require_roles
@@ -52,8 +54,14 @@ async def vehicle_categories(db: AsyncSession = Depends(get_db)) -> list[Vehicle
 
 @router.post("/requests", response_model=TransportRequestSummary, status_code=status.HTTP_201_CREATED)
 async def create_request(payload: TransportRequestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> TransportRequestSummary:
-    if payload.customer_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
-        raise HTTPException(status_code=403, detail="You can create requirements only for your own account")
+    earliest_pickup = payload.earliest_pickup_at
+    latest_pickup = payload.latest_pickup_at
+    delivery_deadline = payload.delivery_deadline_at
+    if payload.schedule_mode == "NOW":
+        now = datetime.now(UTC)
+        earliest_pickup = now + timedelta(minutes=settings.NOW_PICKUP_LEAD_MINUTES)
+        latest_pickup = now + timedelta(minutes=settings.NOW_PICKUP_WINDOW_MINUTES)
+        delivery_deadline = delivery_deadline or now + timedelta(hours=settings.NOW_DELIVERY_WINDOW_HOURS)
     if payload.vehicle_category_id:
         category = await db.get(VehicleCategory, payload.vehicle_category_id)
         if category is None or not category.active:
@@ -64,21 +72,21 @@ async def create_request(payload: TransportRequestCreate, db: AsyncSession = Dep
                 detail=f"{category.name} can carry up to {category.max_capacity_tonnes} tonnes, but this cargo is {payload.cargo.weight_tonnes} tonnes.",
             )
     item = TransportRequest(
-        customer_id=payload.customer_id,
+        customer_id=user.id,
         public_id=_public_id(),
         status="published" if payload.publish else "draft",
         pickup_address=payload.pickup_address,
         pickup_city=payload.pickup_city,
         destination_address=payload.destination_address,
         destination_city=payload.destination_city,
-        pickup_date=payload.pickup_date,
+        pickup_date=india_now().date() if payload.schedule_mode == "NOW" else payload.pickup_date,
         pickup_time=payload.pickup_time,
         flexible_schedule=payload.flexible_schedule,
         booking_mode=payload.booking_mode,
         schedule_mode=payload.schedule_mode,
-        earliest_pickup_at=payload.earliest_pickup_at,
-        latest_pickup_at=payload.latest_pickup_at,
-        delivery_deadline_at=payload.delivery_deadline_at,
+        earliest_pickup_at=earliest_pickup,
+        latest_pickup_at=latest_pickup,
+        delivery_deadline_at=delivery_deadline,
         maximum_added_time_minutes=payload.maximum_added_time_minutes,
         vehicle_category_id=payload.vehicle_category_id,
         vehicle_count=payload.vehicle_count,

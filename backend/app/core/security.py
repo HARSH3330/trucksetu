@@ -3,6 +3,7 @@ from __future__ import annotations
 import secrets
 import string
 import hashlib
+import hmac
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -49,13 +50,13 @@ def create_access_token(
         if expires_delta
         else timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire, "iat": datetime.now(UTC), "jti": str(uuid.uuid4()), "type": "access", "iss": settings.JWT_ISSUER, "aud": settings.JWT_AUDIENCE})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def create_refresh_token(user_id: str, jti: str | None = None, family_id: str | None = None) -> str:
     expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode = {"sub": user_id, "jti": jti or str(uuid.uuid4()), "family": family_id or str(uuid.uuid4()), "exp": expire, "type": "refresh"}
+    to_encode = {"sub": user_id, "jti": jti or str(uuid.uuid4()), "family": family_id or str(uuid.uuid4()), "exp": expire, "iat": datetime.now(UTC), "type": "refresh", "iss": settings.JWT_ISSUER, "aud": settings.JWT_AUDIENCE}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -63,10 +64,14 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def token_hash_matches(token: str, expected_hash: str) -> bool:
+    return hmac.compare_digest(hash_token(token), expected_hash)
+
+
 def verify_token(token: str, token_type: str = "access") -> dict[str, Any]:
     """Decode and verify a JWT token. Raises JWTError on failure."""
     payload: dict[str, Any] = jwt.decode(
-        token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], issuer=settings.JWT_ISSUER, audience=settings.JWT_AUDIENCE
     )
     if payload.get("type") != token_type:
         raise JWTError("Invalid token type")
@@ -79,5 +84,7 @@ def decode_token_unsafe(token: str) -> dict[str, Any]:
         token,
         settings.SECRET_KEY,
         algorithms=[settings.ALGORITHM],
+        audience=settings.JWT_AUDIENCE,
+        issuer=settings.JWT_ISSUER,
         options={"verify_exp": False},
     )

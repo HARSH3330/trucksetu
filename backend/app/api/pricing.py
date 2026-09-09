@@ -4,13 +4,14 @@ from decimal import Decimal
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_roles
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import enforce_rate_limit
 from app.domain import trip_price_suggestion
 from app.models import ApplicationSetting, TripPriceEstimate, User
 
@@ -88,7 +89,8 @@ async def compute_route(payload: SuggestionInput) -> dict[str, object]:
 
 
 @router.post("/suggest")
-async def suggest(payload: SuggestionInput, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+async def suggest(payload: SuggestionInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+    await enforce_rate_limit(request, "pricing", settings.PRICING_RATE_LIMIT, 60)
     route = await compute_route(payload); rule = await active_rule(db)
     if (payload.loading or payload.unloading) and payload.package_count < 1:
         raise HTTPException(422, "Parcel count is required for loading or unloading assistance")

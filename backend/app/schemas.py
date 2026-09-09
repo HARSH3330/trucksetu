@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+
+from app.core.config import settings
+from app.core.time import INDIA, utc_datetime
 
 
 class StopCreate(BaseModel):
@@ -50,7 +53,6 @@ class CargoCreate(BaseModel):
 
 
 class TransportRequestCreate(BaseModel):
-    customer_id: uuid.UUID
     pickup_address: str = Field(min_length=3, max_length=500)
     pickup_city: str = Field(min_length=2, max_length=100)
     destination_address: str = Field(min_length=3, max_length=500)
@@ -72,6 +74,11 @@ class TransportRequestCreate(BaseModel):
     cargo: CargoCreate
     publish: bool = False
 
+    @field_validator("earliest_pickup_at", "latest_pickup_at", "delivery_deadline_at")
+    @classmethod
+    def normalize_schedule(cls, value: datetime | None) -> datetime | None:
+        return utc_datetime(value) if value else None
+
     @model_validator(mode="after")
     def validate_pilot_request(self) -> "TransportRequestCreate":
         restricted_terms = {"chemical", "chemicals", "fuel", "explosive", "explosives", "animal", "animals", "loose bulk"}
@@ -82,8 +89,14 @@ class TransportRequestCreate(BaseModel):
                 raise ValueError("Scheduled transport requires pickup window and delivery deadline")
             if not self.earliest_pickup_at < self.latest_pickup_at <= self.delivery_deadline_at:
                 raise ValueError("Pickup window and delivery deadline must be in chronological order")
+            if self.earliest_pickup_at < datetime.now(UTC) + timedelta(minutes=settings.SCHEDULE_MIN_LEAD_MINUTES):
+                raise ValueError("Scheduled pickup must allow the configured minimum lead time")
+            if self.pickup_date != self.earliest_pickup_at.astimezone(INDIA).date():
+                raise ValueError("Pickup date must match the pickup window in India time")
         elif any((self.earliest_pickup_at, self.latest_pickup_at)):
             raise ValueError("Immediate transport uses a system-estimated pickup window")
+        elif self.delivery_deadline_at and self.delivery_deadline_at <= datetime.now(UTC) + timedelta(minutes=settings.NOW_PICKUP_WINDOW_MINUTES):
+            raise ValueError("Immediate delivery deadline must be after the estimated pickup window")
         if self.booking_mode in {"SHARED_CAPACITY", "EITHER"} and self.maximum_added_time_minutes is None:
             raise ValueError("Shared-capacity requests require a maximum acceptable added time")
         return self
@@ -129,11 +142,22 @@ class QuoteCreate(BaseModel):
     service_mode: str = Field(pattern="^(FULL_VEHICLE|SHARED_CAPACITY)$")
     final_price: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     vehicles_offered: int = Field(ge=1, le=100)
-    estimated_pickup: str
-    estimated_delivery: str
+    estimated_pickup: datetime
+    estimated_delivery: datetime
     notes: str | None = Field(default=None, max_length=2000)
     inclusions: str | None = Field(default=None, max_length=2000)
     exclusions: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("estimated_pickup", "estimated_delivery")
+    @classmethod
+    def normalize_estimate(cls, value: datetime) -> datetime:
+        return utc_datetime(value)
+
+    @model_validator(mode="after")
+    def validate_estimate(self) -> "QuoteCreate":
+        if self.estimated_pickup >= self.estimated_delivery:
+            raise ValueError("Estimated delivery must be after pickup")
+        return self
 
 
 class QuoteUpdate(BaseModel):
@@ -170,7 +194,6 @@ class AllocationCreate(BaseModel):
 
 
 class BookingCreate(BaseModel):
-    customer_id: uuid.UUID
     allocations: list[AllocationCreate] = Field(min_length=1, max_length=100)
     capacity_reservation_id: uuid.UUID | None = None
 
@@ -178,7 +201,19 @@ class BookingCreate(BaseModel):
 class DriverAssignment(BaseModel):
     driver_id: uuid.UUID
     carrier_vehicle_id: uuid.UUID
-    actor_id: uuid.UUID
+
+
+class DriverLinkCreate(BaseModel):
+    email: EmailStr
+    licence_number: str = Field(min_length=5, max_length=50, pattern=r"^[A-Za-z0-9 -]+$")
+    licence_expires_on: date
+
+    @field_validator("licence_expires_on")
+    @classmethod
+    def licence_must_be_current(cls, value: date) -> date:
+        if value < date.today():
+            raise ValueError("Driver licence is expired")
+        return value
 
 
 class CarrierVehicleCreate(BaseModel):
@@ -216,7 +251,6 @@ class VehicleReview(BaseModel):
 
 class TripStatusUpdate(BaseModel):
     target: str
-    actor_id: uuid.UUID
     notes: str | None = Field(default=None, max_length=1000)
     location_text: str | None = Field(default=None, max_length=250)
 
@@ -224,7 +258,6 @@ class TripStatusUpdate(BaseModel):
 class OtpVerify(BaseModel):
     otp_type: str = Field(pattern="^(pickup|delivery)$")
     code: str = Field(pattern=r"^\d{6}$")
-    actor_id: uuid.UUID
 
 
 class PaymentIntentCreate(BaseModel):
@@ -237,7 +270,6 @@ class OfflinePaymentCreate(BaseModel):
     method: str = Field(pattern="^(cash|bank_transfer|direct_upi)$")
     amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     reference: str | None = Field(default=None, max_length=100)
-    actor_id: uuid.UUID
     idempotency_key: str = Field(min_length=12, max_length=100)
 
 
@@ -245,6 +277,13 @@ class InvoiceCreate(BaseModel):
     legal_name: str = Field(min_length=2, max_length=200)
     gstin: str | None = Field(default=None, pattern=r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$")
     billing_address: str = Field(min_length=10, max_length=1000)
+
+
+class ManualRefundCreate(BaseModel):
+    amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    method: str = Field(pattern="^(bank_transfer|upi|cash|razorpay)$")
+    reference: str = Field(min_length=3, max_length=100)
+    idempotency_key: str = Field(min_length=12, max_length=100)
 
 
 class AvailableRouteCreate(BaseModel):
@@ -258,9 +297,9 @@ class AvailableRouteCreate(BaseModel):
     destination_address: str = Field(min_length=3, max_length=500)
     destination_city: str = Field(min_length=2, max_length=100)
     intermediate_cities: list[str] = Field(default_factory=list, max_length=20)
-    departure_at: str
-    departure_window_end: str
-    expected_arrival_at: str
+    departure_at: datetime
+    departure_window_end: datetime
+    expected_arrival_at: datetime
     route_geometry: str | None = Field(default=None, max_length=20000)
     repeat_schedule: dict | None = None
     maximum_deviation_km: Decimal = Field(ge=0, le=200, max_digits=8, decimal_places=2)
@@ -286,16 +325,17 @@ class AvailableRouteCreate(BaseModel):
             raise ValueError("Minimum booking cannot exceed available capacity")
         if self.available_volume_m3 > self.total_volume_m3:
             raise ValueError("Available volume cannot exceed total vehicle volume")
-        departure = datetime.fromisoformat(self.departure_at)
-        departure_end = datetime.fromisoformat(self.departure_window_end)
-        arrival = datetime.fromisoformat(self.expected_arrival_at)
-        if not departure < departure_end <= arrival:
+        self.departure_at = utc_datetime(self.departure_at)
+        self.departure_window_end = utc_datetime(self.departure_window_end)
+        self.expected_arrival_at = utc_datetime(self.expected_arrival_at)
+        if not self.departure_at < self.departure_window_end <= self.expected_arrival_at:
             raise ValueError("Route departure and arrival windows must be in chronological order")
+        if self.departure_at < datetime.now(UTC) + timedelta(minutes=settings.SCHEDULE_MIN_LEAD_MINUTES):
+            raise ValueError("Route departure must allow the configured minimum lead time")
         return self
 
 
 class CapacityReservationCreate(BaseModel):
-    customer_id: uuid.UUID
     cargo_type: str = Field(min_length=2, max_length=100)
     weight_tonnes: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
     volume_m3: Decimal = Field(gt=0, max_digits=10, decimal_places=3)
@@ -323,8 +363,6 @@ class MatchOverride(BaseModel):
 
 
 class ReviewCreate(BaseModel):
-    reviewer_id: uuid.UUID
-    reviewer_role: str = Field(pattern="^(customer|provider)$")
     target_id: uuid.UUID
     target_role: str = Field(pattern="^(customer|provider)$")
     rating: int = Field(ge=1, le=5)
@@ -333,26 +371,22 @@ class ReviewCreate(BaseModel):
 
 
 class DisputeCreate(BaseModel):
-    raised_by: uuid.UUID
     category: str = Field(min_length=2, max_length=50)
     description: str = Field(min_length=20, max_length=5000)
     attachment_keys: list[str] = Field(default_factory=list, max_length=10)
 
 
 class DisputeMessageCreate(BaseModel):
-    sender_id: uuid.UUID
     message: str = Field(min_length=1, max_length=5000)
     attachment_keys: list[str] = Field(default_factory=list, max_length=10)
 
 
 class CancellationCreate(BaseModel):
-    cancelled_by: uuid.UUID
     reason_code: str = Field(min_length=2, max_length=50)
     reason_detail: str | None = Field(default=None, max_length=2000)
 
 
 class SafetyReportCreate(BaseModel):
-    reporter_id: uuid.UUID
     subject_user_id: uuid.UUID
     booking_id: uuid.UUID | None = None
     category: str = Field(min_length=2, max_length=50)
@@ -370,11 +404,9 @@ class NotificationPreferenceUpdate(BaseModel):
 
 class ConversationCreate(BaseModel):
     booking_id: uuid.UUID
-    requester_id: uuid.UUID
 
 
 class MessageCreate(BaseModel):
-    sender_id: uuid.UUID
     body: str = Field(min_length=1, max_length=5000)
     attachment_keys: list[str] = Field(default_factory=list, max_length=10)
 
