@@ -63,6 +63,8 @@ def test_sensitive_routes_reject_anonymous_callers_before_database_access() -> N
         ("post", f"/api/v1/bookings/{resource_id}/settlement-eligibility"),
         ("post", f"/api/v1/bookings/{resource_id}/invoice"),
         ("get", "/api/v1/notifications"),
+        ("get", "/api/v1/conversations"),
+        ("get", "/api/v1/users/me/notification-preferences"),
         ("put", "/api/v1/users/me/notification-preferences"),
         ("post", "/api/v1/conversations"),
         ("get", f"/api/v1/conversations/{resource_id}/messages"),

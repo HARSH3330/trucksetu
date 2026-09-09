@@ -47,15 +47,37 @@ async def update_preferences(payload:NotificationPreferenceUpdate,db:AsyncSessio
     return payload.model_dump()
 
 
+@router.get("/users/me/notification-preferences")
+async def get_preferences(db:AsyncSession=Depends(get_db),user:User=Depends(current_user))->dict[str,object]:
+    item=await db.get(NotificationPreference,user.id)
+    if item is None:return NotificationPreferenceUpdate().model_dump()
+    return {key:getattr(item,key) for key in NotificationPreferenceUpdate.model_fields}
+
+
+@router.get("/conversations")
+async def list_conversations(db:AsyncSession=Depends(get_db),user:User=Depends(current_user))->list[dict[str,object]]:
+    rows=(await db.execute(
+        select(Conversation,Booking.public_id,ConversationParticipant.role,ConversationParticipant.last_read_at)
+        .join(ConversationParticipant,ConversationParticipant.conversation_id==Conversation.id)
+        .join(Booking,Booking.id==Conversation.booking_id)
+        .where(ConversationParticipant.user_id==user.id)
+        .order_by(Conversation.created_at.desc())
+        .limit(100)
+    )).all()
+    return [{"id":str(conversation.id),"booking_id":str(conversation.booking_id),"booking_public_id":public_id,
+             "status":conversation.status,"role":role,"last_read_at":last_read.isoformat() if last_read else None}
+            for conversation,public_id,role,last_read in rows]
+
+
 @router.post("/conversations",status_code=status.HTTP_201_CREATED)
 async def create_conversation(payload:ConversationCreate,db:AsyncSession=Depends(get_db),user:User=Depends(current_user))->dict[str,str]:
-    existing=await db.scalar(select(Conversation).where(Conversation.booking_id==payload.booking_id))
-    if existing:return {"id":str(existing.id),"status":existing.status}
     booking=await db.get(Booking,payload.booking_id)
     if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
     participants=await _booking_participants(db,booking)
     try:ensure_chat_allowed(booking.status,str(user.id),{str(x) for x in participants})
     except PermissionError as exc:raise HTTPException(status_code=403,detail=str(exc)) from exc
+    existing=await db.scalar(select(Conversation).where(Conversation.booking_id==payload.booking_id))
+    if existing:return {"id":str(existing.id),"status":existing.status}
     conversation=Conversation(booking_id=booking.id)
     db.add(conversation);await db.flush()
     db.add_all([ConversationParticipant(conversation_id=conversation.id,user_id=user_id,role=role) for user_id,role in participants.items()])

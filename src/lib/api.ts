@@ -117,3 +117,15 @@ export type AvailableRoute = {
 }
 
 export type CurrentUser = {id: string; full_name: string; roles: string[]}
+
+export type Conversation = {
+  id: string; booking_id: string; booking_public_id: string;
+  status: string; role: string; last_read_at: string | null;
+}
+export type ChatMessage = {id: string; sender_id: string; body: string; created_at: string}
+export type NotificationItem = {id: string; event_type: string; title: string; body: string; read: boolean; created_at: string}
+export type NotificationFeed = {unread_count: number; items: NotificationItem[]}
+export type NotificationPreferences = {
+  in_app: boolean; email: boolean; sms: boolean; whatsapp: boolean;
+  quiet_hours_start: string | null; quiet_hours_end: string | null;
+}
