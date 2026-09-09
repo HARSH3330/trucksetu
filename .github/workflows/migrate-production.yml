@@ -1,0 +1,53 @@
+name: Migrate production database
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transivox-production-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Upgrade Neon production schema
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      APP_ENV: development
+      DEBUG: "false"
+      MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Require the protected migration connection
+        shell: bash
+        run: |
+          if [ -z "$MIGRATION_DATABASE_URL" ]; then
+            echo "MIGRATION_DATABASE_URL is not configured in the production environment." >&2
+            exit 1
+          fi
+
+      - name: Install migration dependencies
+        working-directory: backend
+        run: pip install -e .
+
+      - name: Show current schema revision
+        working-directory: backend
+        run: python -m alembic -c alembic.ini current
+
+      - name: Apply reviewed migrations
+        working-directory: backend
+        run: python -m alembic -c alembic.ini upgrade head
+
+      - name: Verify production is at the expected revision
+        working-directory: backend
+        run: python -m alembic -c alembic.ini current --check-heads
