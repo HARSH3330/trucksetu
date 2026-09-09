@@ -21,7 +21,9 @@ from app.schemas import AvailableRouteCreate, CapacityReservationCreate
 router = APIRouter(prefix="/api/v1", tags=["available capacity"])
 
 
-def _route_read(item: AvailableRoute, score: int = 0) -> dict[str, object]:
+def _route_read(item: AvailableRoute, score: int = 0, provider_name: str | None = None,
+                provider_rating: Decimal | None = None, provider_verified: bool = False,
+                vehicle_name: str | None = None) -> dict[str, object]:
     return {"id": str(item.id), "origin": item.origin_city, "destination": item.destination_city,
             "route_cities": item.ordered_route_cities, "departure_at": item.departure_at.isoformat(),
             "remaining_capacity_tonnes": str(item.remaining_capacity_tonnes),
@@ -32,7 +34,9 @@ def _route_read(item: AvailableRoute, score: int = 0) -> dict[str, object]:
             "expected_arrival_at": item.expected_arrival_at.isoformat() if item.expected_arrival_at else None,
             "minimum_acceptable_earning": str(item.minimum_acceptable_earning),
             "minimum_booking_tonnes": str(item.minimum_booking_tonnes), "price_amount": str(item.price_amount),
-            "price_basis": item.price_basis, "allowed_cargo_types": item.allowed_cargo_types, "match_score": score}
+            "price_basis": item.price_basis, "allowed_cargo_types": item.allowed_cargo_types, "match_score": score,
+            "provider_name": provider_name, "provider_rating": str(provider_rating) if provider_rating is not None else None,
+            "provider_verified": provider_verified, "vehicle_name": vehicle_name}
 
 
 @router.post("/available-routes", status_code=status.HTTP_201_CREATED)
@@ -89,12 +93,23 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
 
 @router.get("/available-routes")
 async def search_routes(origin: str = Query(min_length=2, max_length=100), destination: str = Query(min_length=2, max_length=100), cargo_type: str | None = Query(default=None, max_length=100), minimum_tonnes: Decimal | None = Query(default=None, gt=0), db: AsyncSession = Depends(get_db)) -> list[dict[str, object]]:
-    items = list(await db.scalars(select(AvailableRoute).where(AvailableRoute.status == "active", AvailableRoute.departure_at >= datetime.now(UTC)).order_by(AvailableRoute.departure_at)))
+    rows = list((await db.execute(
+        select(AvailableRoute, ProviderProfile.display_name, ProviderProfile.rating, ProviderProfile.kyc_status, VehicleCategory.name)
+        .join(ProviderProfile, ProviderProfile.id == AvailableRoute.provider_id)
+        .join(VehicleCategory, VehicleCategory.id == AvailableRoute.vehicle_category_id)
+        .where(
+            AvailableRoute.status == "active",
+            AvailableRoute.departure_at >= datetime.now(UTC),
+            ProviderProfile.active.is_(True),
+            ProviderProfile.kyc_status == "verified",
+        )
+        .order_by(AvailableRoute.departure_at)
+    )).all())
     matches=[]
-    for item in items:
+    for item, provider_name, provider_rating, kyc_status, vehicle_name in rows:
         score=route_match_score(origin,destination,item.ordered_route_cities)
         if not score or (cargo_type and cargo_type.casefold() not in [x.casefold() for x in item.allowed_cargo_types]) or (minimum_tonnes and item.remaining_capacity_tonnes < minimum_tonnes): continue
-        matches.append(_route_read(item,score))
+        matches.append(_route_read(item,score,provider_name,provider_rating,kyc_status == "verified",vehicle_name))
     return sorted(matches,key=lambda item:int(item["match_score"]),reverse=True)
 
 

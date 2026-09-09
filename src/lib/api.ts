@@ -106,4 +106,14 @@ export type VehicleCategory = {
   min_capacity_tonnes: string; max_capacity_tonnes: string;
 }
 
+export type AvailableRoute = {
+  id: string; origin: string; destination: string; route_cities: string[];
+  departure_at: string; departure_window_end: string | null; expected_arrival_at: string | null;
+  remaining_capacity_tonnes: string; remaining_volume_m3: string;
+  minimum_booking_tonnes: string; price_amount: string; price_basis: string;
+  allowed_cargo_types: string[]; match_score: number;
+  provider_name: string | null; provider_rating: string | null; provider_verified: boolean;
+  vehicle_name: string | null;
+}
+
 export type CurrentUser = {id: string; full_name: string; roles: string[]}
