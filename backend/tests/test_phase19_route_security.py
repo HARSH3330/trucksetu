@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.schemas import (
     BookingCreate,
+    AnalyticsEventCreate,
     CapacityReservationCreate,
     CancellationCreate,
     ConversationCreate,
@@ -24,6 +25,7 @@ from app.schemas import (
 
 
 IDENTITY_FIELDS = {
+    AnalyticsEventCreate: {"user_id"},
     TransportRequestCreate: {"customer_id"},
     BookingCreate: {"customer_id"},
     DriverAssignment: {"actor_id"},
@@ -71,6 +73,8 @@ def test_sensitive_routes_reject_anonymous_callers_before_database_access() -> N
         ("post", f"/api/v1/conversations/{resource_id}/messages"),
         ("post", f"/api/v1/bookings/{resource_id}/reviews"),
         ("get", "/api/v1/trust/activity"),
+        ("get", "/api/v1/dashboard/summary"),
+        ("get", "/api/v1/admin/marketplace-health"),
         ("get", f"/api/v1/bookings/{resource_id}/cancellation-preview"),
         ("post", f"/api/v1/bookings/{resource_id}/disputes"),
         ("post", f"/api/v1/disputes/{resource_id}/messages"),

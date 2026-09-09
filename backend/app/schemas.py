@@ -447,7 +447,6 @@ class RiskCheckRequest(BaseModel):
 
 class AnalyticsEventCreate(BaseModel):
     event_name: str = Field(pattern="^(visitor|signup|kyc_completed|request_posted|quote_submitted|quote_accepted|booking_created|payment_completed|booking_cancelled|trip_completed|repeat_booking)$")
-    user_id: uuid.UUID | None = None
     anonymous_id: str | None = Field(default=None, max_length=100)
     entity_type: str | None = Field(default=None, max_length=50)
     entity_id: uuid.UUID | None = None

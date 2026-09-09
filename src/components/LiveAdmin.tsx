@@ -1,0 +1,19 @@
+import {useEffect, useState} from 'react'
+import {AlertTriangle, BadgeCheck, IndianRupee, PackageCheck, ShieldCheck, Truck, UsersRound} from 'lucide-react'
+import {ApiError, apiFetch} from '../lib/api'
+
+type Health={verified_providers:number;approved_vehicles:number;open_requests:number;active_quotes:number;active_bookings:number;open_disputes:number;pending_kyc:number;gmv:string;total_bookings:number;completed_bookings:number;completion_rate:number}
+type Funnel={period_days:number;funnel:{stage:string;count:number}[]}
+
+export default function LiveAdmin({openKyc}:{openKyc:()=>void}){
+  const [health,setHealth]=useState<Health|null>(null)
+  const [funnel,setFunnel]=useState<Funnel|null>(null)
+  const [state,setState]=useState<'loading'|'ready'|'forbidden'|'error'>('loading')
+  function load(){setState('loading');Promise.all([apiFetch<Health>('/admin/marketplace-health'),apiFetch<Funnel>('/admin/analytics/funnel')]).then(([a,b])=>{setHealth(a);setFunnel(b);setState('ready')}).catch(error=>setState(error instanceof ApiError&&[401,403].includes(error.status)?'forbidden':'error'))}
+  useEffect(load,[])
+  if(state==='loading')return <main className="page"><div className="empty-state">Loading marketplace operations…</div></main>
+  if(state==='forbidden')return <main className="page"><div className="empty-state"><b>Administrator access required</b><p>This area is not available to customer or provider accounts.</p></div></main>
+  if(state==='error'||!health||!funnel)return <main className="page"><div className="empty-state"><b>Operations unavailable</b><button onClick={load}>Retry</button></div></main>
+  const max=Math.max(1,...funnel.funnel.map(item=>item.count))
+  return <main className="page"><div className="page-title"><span className="kicker">ROLE-PROTECTED OPERATIONS</span><h1>Marketplace control centre</h1><p>Live health metrics calculated from production records.</p></div>{health.pending_kyc>0&&<div className="admin-alert"><ShieldCheck/><div><b>{health.pending_kyc} KYC applications need review</b><small>Documents submitted or currently under review</small></div><button onClick={openKyc}>Review now</button></div>}<div className="stat-grid"><div className="stat"><span><UsersRound/></span><small>Verified providers</small><strong>{health.verified_providers}</strong><em>Active and verified</em></div><div className="stat"><span><Truck/></span><small>Approved vehicles</small><strong>{health.approved_vehicles}</strong><em>Fleet supply</em></div><div className="stat"><span><IndianRupee/></span><small>Marketplace GMV</small><strong>₹{Number(health.gmv).toLocaleString('en-IN')}</strong><em>Non-cancelled bookings</em></div><div className="stat"><span><BadgeCheck/></span><small>Completion rate</small><strong>{health.completion_rate}%</strong><em>{health.completed_bookings}/{health.total_bookings} bookings</em></div></div><div className="admin-panels"><section className="panel"><div className="panel-head"><h3>{funnel.period_days}-day event funnel</h3><span className="badge">RECORDED EVENTS</span></div><div className="funnel-chart">{funnel.funnel.map(item=><div key={item.stage}><span><b>{item.stage.replaceAll('_',' ')}</b><small>{item.count}</small></span><i><em style={{width:`${item.count/max*100}%`}}/></i></div>)}</div></section><section className="panel"><div className="panel-head"><h3>Live marketplace health</h3><span className="badge">DATABASE</span></div><div className="health vertical"><span><b>{health.open_requests}</b><small>Open requirements</small></span><span><b>{health.active_quotes}</b><small>Active quotes</small></span><span><b>{health.active_bookings}</b><small>Active bookings</small></span><span><b>{health.open_disputes}</b><small>Open disputes</small></span></div>{health.open_disputes>0&&<div className="privacy-banner"><AlertTriangle/> Disputes require administrator review.</div>}</section></div></main>
+}
