@@ -79,9 +79,21 @@ export async function publicFetch<T>(path: string, init: RequestInit = {}): Prom
 }
 
 export type MarketplaceRequest = {
-  id: string; public_id: string; pickup_address: string; destination_address: string;
+  id: string; public_id: string; status: string; pickup_address: string; destination_address: string;
   pickup_date: string; pickup_time: string | null; cargo_category: string;
   cargo_weight_tonnes: string; vehicle_count: number; budget_amount: string | null;
+}
+
+export type Quote = {
+  id: string; service_mode: string; provider_name: string; verified: boolean;
+  rating: string; completed_trips: number; cancellation_percent: string;
+  vehicle_name: string; final_price: string; vehicles_offered: number;
+  status: string; version: number; notes: string | null;
+}
+
+export type BookingResult = {
+  id: string; public_id: string; trucks_allocated: number;
+  total_amount: string; request_allocation: string;
 }
 
 export type CurrentUser = {id: string; full_name: string; roles: string[]}

@@ -119,3 +119,18 @@ async def marketplace_requests(
         query = query.where(TransportRequest.destination_city.ilike(f"%{destination}%"))
     items = list(await db.scalars(query))
     return [_summary(item) for item in items]
+
+
+@router.get("/requests/mine", response_model=list[TransportRequestSummary])
+async def my_requests(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles("customer", "admin", "superadmin")),
+) -> list[TransportRequestSummary]:
+    query = (
+        select(TransportRequest)
+        .where(TransportRequest.customer_id == user.id)
+        .options(selectinload(TransportRequest.stops), selectinload(TransportRequest.cargo))
+        .order_by(TransportRequest.created_at.desc())
+        .limit(100)
+    )
+    return [_summary(item) for item in await db.scalars(query)]
