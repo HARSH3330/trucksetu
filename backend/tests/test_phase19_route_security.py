@@ -70,6 +70,8 @@ def test_sensitive_routes_reject_anonymous_callers_before_database_access() -> N
         ("get", f"/api/v1/conversations/{resource_id}/messages"),
         ("post", f"/api/v1/conversations/{resource_id}/messages"),
         ("post", f"/api/v1/bookings/{resource_id}/reviews"),
+        ("get", "/api/v1/trust/activity"),
+        ("get", f"/api/v1/bookings/{resource_id}/cancellation-preview"),
         ("post", f"/api/v1/bookings/{resource_id}/disputes"),
         ("post", f"/api/v1/disputes/{resource_id}/messages"),
         ("post", f"/api/v1/bookings/{resource_id}/cancel"),

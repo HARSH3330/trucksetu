@@ -23,6 +23,57 @@ async def _participants(db: AsyncSession, booking: Booking) -> set[uuid.UUID]:
     return {booking.customer_id, *providers}
 
 
+async def _require_participant(db: AsyncSession, booking: Booking, user: User) -> set[uuid.UUID]:
+    participants = await _participants(db, booking)
+    if user.id not in participants and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
+        raise HTTPException(status_code=403, detail="Only booking participants can access this trust record")
+    return participants
+
+
+async def _cancellation_amounts(db: AsyncSession, booking: Booking) -> tuple[Decimal, dict[str, Decimal]]:
+    setting=await db.get(ApplicationSetting,"cancellation_fee_percent_by_status")
+    policy=setting.value if setting else {"advance_pending":"0","booking_confirmed":"10","disputed":"0"}
+    percent=Decimal(str(policy.get(booking.status,"100")))
+    paid=Decimal(str(await db.scalar(select(func.coalesce(func.sum(Payment.amount),0)).where(Payment.booking_id==booking.id,Payment.status=="paid"))))
+    return percent,cancellation_snapshot(booking.total_amount,paid,percent)
+
+
+@router.get("/trust/activity")
+async def trust_activity(db:AsyncSession=Depends(get_db),user:User=Depends(current_user))->dict[str,object]:
+    roles={role.role for role in user.roles}
+    query=select(Booking).order_by(Booking.created_at.desc()).limit(100)
+    if not roles.intersection({"admin","superadmin"}):
+        provider_id=await db.scalar(select(ProviderProfile.id).where(ProviderProfile.user_id==user.id))
+        if provider_id and roles.intersection({"provider","fleet_owner"}):
+            query=query.join(BookingAllocation).where(BookingAllocation.provider_id==provider_id).distinct()
+        else:query=query.where(Booking.customer_id==user.id)
+    bookings=list(await db.scalars(query));booking_ids=[booking.id for booking in bookings]
+    booking_rows=[]
+    for booking in bookings:
+        provider_rows=list((await db.execute(select(ProviderProfile.user_id,ProviderProfile.display_name).join(BookingAllocation,BookingAllocation.provider_id==ProviderProfile.id).where(BookingAllocation.booking_id==booking.id).distinct())).all())
+        if booking.customer_id==user.id:
+            targets=[{"id":str(target_id),"name":name,"role":"provider"} for target_id,name in provider_rows]
+        else:
+            customer=await db.get(User,booking.customer_id)
+            targets=[{"id":str(booking.customer_id),"name":customer.full_name if customer else "Customer","role":"customer"}]
+        statuses=list(await db.scalars(select(Trip.status).join(BookingAllocation).where(BookingAllocation.booking_id==booking.id)))
+        booking_rows.append({"id":str(booking.id),"public_id":booking.public_id,"status":booking.status,"total_amount":str(booking.total_amount),"trip_statuses":statuses,"targets":targets})
+    disputes=list(await db.scalars(select(Dispute).where(Dispute.booking_id.in_(booking_ids)).order_by(Dispute.created_at.desc()))) if booking_ids else []
+    cancellations=list(await db.scalars(select(Cancellation).where(Cancellation.booking_id.in_(booking_ids)).order_by(Cancellation.created_at.desc()))) if booking_ids else []
+    reviews=list(await db.scalars(select(Review).where(Review.reviewer_id==user.id).order_by(Review.created_at.desc())))
+    return {"bookings":booking_rows,"disputes":[{"id":str(x.id),"booking_id":str(x.booking_id),"category":x.category,"status":x.status,"created_at":x.created_at.isoformat()} for x in disputes],"cancellations":[{"id":str(x.id),"booking_id":str(x.booking_id),"fee":str(x.cancellation_fee),"refund":str(x.refund_amount),"created_at":x.created_at.isoformat()} for x in cancellations],"reviews":[{"id":str(x.id),"booking_id":str(x.booking_id),"rating":x.rating,"created_at":x.created_at.isoformat()} for x in reviews]}
+
+
+@router.get("/bookings/{booking_id}/cancellation-preview")
+async def cancellation_preview(booking_id:uuid.UUID,db:AsyncSession=Depends(get_db),user:User=Depends(current_user))->dict[str,str]:
+    booking=await db.get(Booking,booking_id)
+    if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
+    await _require_participant(db,booking,user)
+    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can no longer be cancelled")
+    percent,amounts=await _cancellation_amounts(db,booking)
+    return {"booking_status":booking.status,"fee_percent":str(percent),"fee":str(amounts["fee"]),"refund":str(amounts["refund"])}
+
+
 @router.post("/bookings/{booking_id}/reviews", status_code=status.HTTP_201_CREATED)
 async def create_review(booking_id: uuid.UUID, payload: ReviewCreate, db: AsyncSession = Depends(get_db), user: User = Depends(current_user)) -> dict[str, object]:
     booking = await db.get(Booking, booking_id)
@@ -36,7 +87,8 @@ async def create_review(booking_id: uuid.UUID, payload: ReviewCreate, db: AsyncS
     existing = await db.scalar(select(Review).where(Review.booking_id == booking.id, Review.reviewer_id == user.id, Review.target_id == payload.target_id))
     if existing: raise HTTPException(status_code=409, detail="You have already reviewed this party for the booking")
     reviewer_role = "customer" if booking.customer_id == user.id else "provider"
-    review=Review(booking_id=booking.id,reviewer_id=user.id,reviewer_role=reviewer_role,**payload.model_dump());db.add(review);await db.flush()
+    target_role = "customer" if booking.customer_id == payload.target_id else "provider"
+    review=Review(booking_id=booking.id,reviewer_id=user.id,reviewer_role=reviewer_role,target_role=target_role,**payload.model_dump(exclude={"target_role"}));db.add(review);await db.flush()
     return {"id":str(review.id),"verified_trip":True,"rating":review.rating}
 
 
@@ -67,11 +119,7 @@ async def cancel_booking(booking_id:uuid.UUID,payload:CancellationCreate,db:Asyn
     if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
     if user.id not in await _participants(db,booking):raise HTTPException(status_code=403,detail="Only booking participants can cancel")
     if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can no longer be cancelled")
-    setting=await db.get(ApplicationSetting,"cancellation_fee_percent_by_status")
-    policy=setting.value if setting else {"advance_pending":"0","booking_confirmed":"10","disputed":"0"}
-    percent=Decimal(str(policy.get(booking.status,"100")))
-    paid=Decimal(str(await db.scalar(select(func.coalesce(func.sum(Payment.amount),0)).where(Payment.booking_id==booking.id,Payment.status=="paid"))))
-    amounts=cancellation_snapshot(booking.total_amount,paid,percent)
+    percent,amounts=await _cancellation_amounts(db,booking)
     item=Cancellation(booking_id=booking.id,cancelled_by=user.id,reason_code=payload.reason_code,reason_detail=payload.reason_detail,booking_status_snapshot=booking.status,policy_snapshot={"fee_percent":str(percent)},cancellation_fee=amounts["fee"],refund_amount=amounts["refund"])
     if booking.capacity_reservation_id:
         reservation = await db.scalar(select(CapacityReservation).where(CapacityReservation.id == booking.capacity_reservation_id).with_for_update())
@@ -86,6 +134,11 @@ async def cancel_booking(booking_id:uuid.UUID,payload:CancellationCreate,db:Asyn
 @router.post("/safety-reports", status_code=status.HTTP_201_CREATED)
 async def safety_report(payload:SafetyReportCreate,db:AsyncSession=Depends(get_db),user:User=Depends(current_user))->dict[str,str]:
     if user.id==payload.subject_user_id:raise HTTPException(status_code=422,detail="You cannot report yourself")
+    if payload.booking_id:
+        booking=await db.get(Booking,payload.booking_id)
+        if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
+        participants=await _require_participant(db,booking,user)
+        if payload.subject_user_id not in participants:raise HTTPException(status_code=422,detail="The reported user is not part of this booking")
     item=SafetyReport(reporter_id=user.id,**payload.model_dump());db.add(item);await db.flush()
     return {"id":str(item.id),"status":item.status}
 
