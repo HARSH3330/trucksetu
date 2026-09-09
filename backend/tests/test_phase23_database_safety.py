@@ -26,6 +26,29 @@ def test_serverless_engine_uses_bounded_pool_and_timeouts(monkeypatch: pytest.Mo
     monkeypatch.setattr(database, "_engine", None)
 
 
+def test_neon_pooler_does_not_receive_unsupported_startup_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+    sentinel = object()
+
+    def fake_engine(url: str, **kwargs: Any) -> object:
+        captured.update({"url": url, **kwargs})
+        return sentinel
+
+    monkeypatch.setattr(database, "_engine", None)
+    monkeypatch.setattr(
+        database.settings,
+        "DATABASE_URL",
+        "postgresql+psycopg://user:password@ep-example-pooler.neon.tech/db?sslmode=require",
+    )
+    monkeypatch.setattr(database, "create_async_engine", fake_engine)
+    assert database.get_engine() is sentinel
+    assert captured["connect_args"]["connect_timeout"] <= 10
+    assert "options" not in captured["connect_args"]
+    monkeypatch.setattr(database, "_engine", None)
+
+
 @pytest.mark.asyncio
 async def test_idempotency_lock_uses_transaction_scoped_advisory_lock() -> None:
     calls: list[tuple[str, dict[str, str]]] = []
