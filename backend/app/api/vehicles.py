@@ -15,6 +15,23 @@ from app.schemas import CarrierVehicleCreate, VehicleReview
 router = APIRouter(prefix="/api/v1", tags=["carrier vehicles"])
 
 
+@router.get("/providers/me")
+async def own_provider_profile(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles("provider", "fleet_owner", "admin", "superadmin")),
+) -> dict[str, object]:
+    provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
+    if provider is None:
+        raise HTTPException(404, "Complete your provider verification profile before quoting")
+    return {
+        "id": str(provider.id),
+        "display_name": provider.display_name,
+        "provider_type": provider.provider_type,
+        "kyc_status": provider.kyc_status,
+        "active": provider.active,
+    }
+
+
 def vehicle_is_document_eligible(vehicle: CarrierVehicle, through: date) -> bool:
     expiries = (
         vehicle.rc_expires_on,

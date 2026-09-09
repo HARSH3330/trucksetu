@@ -96,4 +96,14 @@ export type BookingResult = {
   total_amount: string; request_allocation: string;
 }
 
+export type ProviderProfile = {
+  id: string; display_name: string; provider_type: string;
+  kyc_status: string; active: boolean;
+}
+
+export type VehicleCategory = {
+  id: string; name: string; body_type: string;
+  min_capacity_tonnes: string; max_capacity_tonnes: string;
+}
+
 export type CurrentUser = {id: string; full_name: string; roles: string[]}
