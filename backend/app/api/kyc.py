@@ -64,8 +64,13 @@ async def own_application(user: User, db: AsyncSession) -> tuple[ProviderProfile
     return provider, await db.scalar(select(KYCApplication).where(KYCApplication.provider_id == provider.id).order_by(KYCApplication.created_at.desc()))
 
 
-def view(item: KYCApplication) -> dict[str, object]:
-    return {"id": str(item.id), "provider_id": str(item.provider_id), "status": item.status, "legal_name": item.legal_name, "submitted_at": item.submitted_at, "decision_reason": item.decision_reason, "documents": [{"id": str(d.id), "type": d.document_type, "filename": d.original_filename, "status": d.status, "expires_on": d.expires_on} for d in item.documents]}
+def view(item: KYCApplication, provider: ProviderProfile | None = None) -> dict[str, object]:
+    return {"id": str(item.id), "provider_id": str(item.provider_id), "provider_name": provider.display_name if provider else None,
+            "provider_type": provider.provider_type if provider else None, "status": item.status,
+            "legal_name": item.legal_name, "submitted_at": item.submitted_at,
+            "decision_reason": item.decision_reason,
+            "documents": [{"id": str(d.id), "type": d.document_type, "filename": d.original_filename,
+                           "status": d.status, "expires_on": d.expires_on} for d in item.documents]}
 
 
 @router.post("/applications", status_code=status.HTTP_201_CREATED)
@@ -77,17 +82,19 @@ async def create_application(payload: ApplicationInput, user: Annotated[User, De
     provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
     if not provider:
         provider = ProviderProfile(user_id=user.id, display_name=user.full_name, provider_type=payload.provider_type); db.add(provider); await db.flush()
+    else:
+        provider.provider_type = payload.provider_type
     existing = await db.scalar(select(KYCApplication).where(KYCApplication.provider_id == provider.id, KYCApplication.status.in_({"registered", "documents_submitted", "under_review", "resubmit_required"})))
     if existing: raise HTTPException(409, "An active verification application already exists")
     item = KYCApplication(provider_id=provider.id, legal_name=payload.legal_name, pan_last_four=payload.pan_last_four, gstin=payload.gstin); db.add(item); await db.flush()
-    return view(item)
+    return view(item, provider)
 
 
 @router.get("/applications/me")
 async def my_application(user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db)) -> dict[str, object]:
-    _, item = await own_application(user, db)
+    provider, item = await own_application(user, db)
     if not item: raise HTTPException(404, "Verification application not found")
-    return view(item)
+    return view(item, provider)
 
 
 @router.post("/uploads")
@@ -128,13 +135,14 @@ async def submit(application_id: uuid.UUID, user: Annotated[User, Depends(curren
     missing = REQUIRED.get(provider.provider_type, REQUIRED["driver"]) - present
     if missing: raise HTTPException(422, {"message": "Required documents are missing", "missing": sorted(missing)})
     item.status = "under_review"; item.submitted_at = datetime.now(UTC); provider.kyc_status = "under_review"
-    return view(item)
+    return view(item, provider)
 
 
 @router.get("/admin/applications")
 async def queue(filter_status: str = Query(default="under_review", alias="status"), _: User = Depends(require_roles("admin", "superadmin")), db: AsyncSession = Depends(get_db)) -> list[dict[str, object]]:
     items = list(await db.scalars(select(KYCApplication).where(KYCApplication.status == filter_status).order_by(KYCApplication.submitted_at)))
-    return [view(item) for item in items]
+    providers = {provider.id: provider for provider in await db.scalars(select(ProviderProfile).where(ProviderProfile.id.in_([item.provider_id for item in items])))} if items else {}
+    return [view(item, providers.get(item.provider_id)) for item in items]
 
 
 @router.post("/admin/applications/{application_id}/review")
@@ -156,7 +164,7 @@ async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotat
             document.status = payload.document_decisions[document.document_type]
             document.rejection_reason = payload.reason if document.status == "rejected" else None
     db.add(KYCReviewEvent(application_id=item.id, actor_id=admin.id, previous_status=previous, new_status=payload.decision, reason=payload.reason, document_decisions=payload.document_decisions))
-    return view(item)
+    return view(item, provider)
 
 
 @router.get("/documents/{document_id}/download")
