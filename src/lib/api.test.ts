@@ -34,4 +34,22 @@ describe('authenticated API client',()=>{
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(sessionStorage.getItem('transivox_access_token')).toBe('new')
   })
+
+  it('retries one temporary GET failure',async()=>{
+    const fetchMock=vi.fn()
+      .mockRejectedValueOnce(new TypeError('network unavailable'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({status:'ready'}),{status:200,headers:{'Content-Type':'application/json'}}))
+    vi.stubGlobal('fetch',fetchMock)
+    await expect(apiFetch<{status:string}>('/health')).resolves.toEqual({status:'ready'})
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry a failed write that may have reached the server',async()=>{
+    const fetchMock=vi.fn().mockRejectedValue(new TypeError('network unavailable'))
+    vi.stubGlobal('fetch',fetchMock)
+    await expect(apiFetch('/requests',{method:'POST',body:'{}'})).rejects.toMatchObject({
+      status:0,message:'Unable to reach TransivoX. Check your connection and try again.',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })

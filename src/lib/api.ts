@@ -1,4 +1,5 @@
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '')
+const API_TIMEOUT_MS = 15_000
 let rotation: Promise<boolean> | null = null
 
 export class ApiError extends Error {
@@ -42,12 +43,36 @@ async function parse<T>(response: Response): Promise<T> {
   return data as T
 }
 
+async function request(url: string, init: RequestInit, retryTransient = true): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+  const abort = () => controller.abort()
+  init.signal?.addEventListener('abort', abort, {once: true})
+  try {
+    const response = await fetch(url, {...init, signal: controller.signal})
+    if (retryTransient && (!init.method || init.method === 'GET') && [502, 503, 504].includes(response.status)) {
+      return request(url, init, false)
+    }
+    return response
+  } catch (error) {
+    if (retryTransient && (!init.method || init.method === 'GET') && !controller.signal.aborted) {
+      return request(url, init, false)
+    }
+    if (controller.signal.aborted && !init.signal?.aborted) throw new ApiError(408, 'The request took too long. Please try again.')
+    if (error instanceof ApiError) throw error
+    throw new ApiError(0, 'Unable to reach TransivoX. Check your connection and try again.')
+  } finally {
+    clearTimeout(timer)
+    init.signal?.removeEventListener('abort', abort)
+  }
+}
+
 async function rotateSession(): Promise<boolean> {
   const token = refreshToken()
   if (!token) return false
-  const response = await fetch(`${API_BASE}/auth/refresh`, {
+  const response = await request(`${API_BASE}/auth/refresh`, {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refresh_token: token}),
-  })
+  }, false)
   if (!response.ok) {
     clearSession()
     return false
@@ -66,7 +91,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
   const headers = new Headers(init.headers)
   if (!headers.has('Content-Type') && init.body) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(`${API_BASE}${path}`, {...init, headers})
+  const response = await request(`${API_BASE}${path}`, {...init, headers})
   if (response.status === 401 && retry && await rotateSessionOnce()) return apiFetch<T>(path, init, false)
   if (response.status === 401) clearSession()
   return parse<T>(response)
@@ -75,7 +100,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
 export async function publicFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (!headers.has('Content-Type') && init.body) headers.set('Content-Type', 'application/json')
-  return parse<T>(await fetch(`${API_BASE}${path}`, {...init, headers}))
+  return parse<T>(await request(`${API_BASE}${path}`, {...init, headers}))
 }
 
 export type MarketplaceRequest = {

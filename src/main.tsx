@@ -19,6 +19,7 @@ import LiveInvoices from './components/LiveInvoices';
 import LiveTrips from './components/LiveTrips';
 import LiveVehicleReview from './components/LiveVehicleReview';
 import LivePricing from './components/LivePricing';
+import AppErrorBoundary from './components/AppErrorBoundary';
 
 type View='home'|'loads'|'quotes'|'capacity'|'bookings'|'trust'|'communications'|'dashboard'|'admin'|'kyc'|'fleet'|'payments'|'invoices'|'trips'|'vehicle-review'|'pricing';
 type Load={id:string;requestId?:string;from:string;to:string;when:string;cargo:string;weight:string;trucks:number;budget:string;quotes:number;color:string};
@@ -99,4 +100,4 @@ function RequestWizard({close}:{close:()=>void}){
  {error&&<div className="form-error">{error}</div>}</div><div className="wizard-foot">{step>1?<button className="secondary" onClick={()=>{setError('');setStep(step-1)}}>Back</button>:<span/>}<button onClick={next}>{step<4?'Continue':'Publish requirement'} <ArrowRight/></button></div></div></div>
 }
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(<React.StrictMode><AppErrorBoundary><App/></AppErrorBoundary></React.StrictMode>);
