@@ -55,6 +55,8 @@ def test_sensitive_routes_reject_anonymous_callers_before_database_access() -> N
         ("get", f"/api/v1/requests/{resource_id}/quotes"),
         ("get", "/api/v1/requests/mine"),
         ("get", "/api/v1/providers/me"),
+        ("get", "/api/v1/carrier-vehicles"),
+        ("get", f"/api/v1/providers/{resource_id}/drivers"),
         ("post", f"/api/v1/quotes/{resource_id}/counter-offers"),
         ("post", f"/api/v1/trips/{resource_id}/status"),
         ("post", f"/api/v1/trips/{resource_id}/otp/pickup"),

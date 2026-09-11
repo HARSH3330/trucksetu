@@ -30,6 +30,24 @@ def _masked_mobile(mobile: str | None) -> str:
     return f"******{mobile[-4:]}"
 
 
+@router.get("/providers/{provider_id}/drivers")
+async def list_provider_drivers(
+    provider_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles("provider", "fleet_owner", "admin", "superadmin")),
+) -> list[dict[str, str | bool | None]]:
+    provider = await db.get(ProviderProfile, provider_id)
+    if provider is None:
+        raise HTTPException(404, "Provider not found")
+    roles = {role.role for role in user.roles}
+    if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}):
+        raise HTTPException(403, "You can view drivers only for your provider account")
+    items = list(await db.scalars(select(DriverProfile).where(DriverProfile.provider_id == provider.id).order_by(DriverProfile.full_name)))
+    return [{"id": str(item.id), "full_name": item.full_name, "masked_mobile": item.masked_mobile,
+             "licence_expires_on": item.licence_expires_on.isoformat() if item.licence_expires_on else None,
+             "kyc_status": item.kyc_status, "active": item.active} for item in items]
+
+
 @router.post("/providers/{provider_id}/drivers", status_code=status.HTTP_201_CREATED)
 async def link_driver(
     provider_id: uuid.UUID,
