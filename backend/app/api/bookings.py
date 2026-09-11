@@ -72,6 +72,7 @@ def _require_trip_customer(user: User, booking: Booking) -> None:
 @router.get("/bookings")
 async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "provider", "fleet_owner", "admin", "superadmin"))) -> list[dict[str, object]]:
     roles = {role.role for role in user.roles}
+    provider = None
     query = select(Booking).options(selectinload(Booking.allocations).selectinload(BookingAllocation.trips)).order_by(Booking.created_at.desc()).limit(100)
     if not roles.intersection({"admin", "superadmin"}):
         provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
@@ -80,7 +81,27 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
         else:
             query = query.where(Booking.customer_id == user.id)
     items = list(await db.scalars(query))
-    return [{"id": str(item.id), "public_id": item.public_id, "status": item.status, "booking_mode": item.booking_mode, "total_amount": str(item.total_amount), "currency": item.currency, "pickup": item.route_snapshot.get("pickup"), "destination": item.route_snapshot.get("destination"), "trip_statuses": [trip.status for allocation in item.allocations for trip in allocation.trips], "created_at": item.created_at.isoformat()} for item in items]
+    result: list[dict[str, object]] = []
+    for item in items:
+        visible_allocations = item.allocations
+        if provider and roles.intersection({"provider", "fleet_owner"}):
+            visible_allocations = [allocation for allocation in item.allocations if allocation.provider_id == provider.id]
+        trips = [trip for allocation in visible_allocations for trip in allocation.trips]
+        visible_total = sum((allocation.agreed_amount for allocation in visible_allocations), Decimal("0")) if provider else item.total_amount
+        result.append({
+            "id": str(item.id), "public_id": item.public_id, "status": item.status,
+            "booking_mode": item.booking_mode, "total_amount": str(visible_total), "currency": item.currency,
+            "pickup": item.route_snapshot.get("pickup"), "destination": item.route_snapshot.get("destination"),
+            "trip_statuses": [trip.status for trip in trips],
+            "trips": [{"id": str(trip.id), "status": trip.status,
+                       "driver_id": str(trip.driver_id) if trip.driver_id else None,
+                       "carrier_vehicle_id": str(trip.carrier_vehicle_id) if trip.carrier_vehicle_id else None,
+                       "vehicle_registration": trip.vehicle_registration,
+                       "last_updated_at": trip.last_updated_at.isoformat() if trip.last_updated_at else None}
+                      for trip in trips],
+            "created_at": item.created_at.isoformat(),
+        })
+    return result
 
 
 @router.post("/requests/{request_id}/bookings", status_code=status.HTTP_201_CREATED)
