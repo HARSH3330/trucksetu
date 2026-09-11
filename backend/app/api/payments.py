@@ -35,6 +35,42 @@ async def _payment_amount(db: AsyncSession, booking: Booking, payment_type: str)
     return max(booking.total_amount - paid, Decimal("0"))
 
 
+@router.get("/payments")
+async def payment_ledger(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles("customer", "admin", "superadmin")),
+) -> list[dict[str, object]]:
+    roles = {role.role for role in user.roles}
+    query = select(Booking).order_by(Booking.created_at.desc()).limit(100)
+    if not roles.intersection({"admin", "superadmin"}):
+        query = query.where(Booking.customer_id == user.id)
+    bookings = list(await db.scalars(query))
+    if not bookings:
+        return []
+    booking_ids = [item.id for item in bookings]
+    payments = list(await db.scalars(select(Payment).where(Payment.booking_id.in_(booking_ids)).order_by(Payment.created_at.desc())))
+    by_booking: dict[uuid.UUID, list[Payment]] = {}
+    for payment in payments:
+        by_booking.setdefault(payment.booking_id, []).append(payment)
+    result: list[dict[str, object]] = []
+    for booking in bookings:
+        items = by_booking.get(booking.id, [])
+        paid = sum((item.amount for item in items if item.status == "paid"), Decimal("0"))
+        pending = sum((item.amount for item in items if item.status in {"pending", "pending_confirmation"}), Decimal("0"))
+        result.append({
+            "booking_id": str(booking.id), "booking_public_id": booking.public_id, "booking_status": booking.status,
+            "total_amount": str(booking.total_amount), "currency": booking.currency, "paid_amount": str(paid),
+            "pending_amount": str(pending), "due_amount": str(max(booking.total_amount - paid, Decimal("0"))),
+            "can_report_payment": booking.customer_id == user.id or bool(roles.intersection({"admin", "superadmin"})),
+            "payments": [{"id": str(item.id), "payment_type": item.payment_type, "provider": item.provider,
+                          "method": item.method, "amount": str(item.amount), "status": item.status,
+                          "reference": item.metadata_json.get("reference") or None,
+                          "created_at": item.created_at.isoformat(), "paid_at": item.paid_at.isoformat() if item.paid_at else None}
+                         for item in items],
+        })
+    return result
+
+
 @router.post("/bookings/{booking_id}/payments/online", status_code=status.HTTP_201_CREATED)
 async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str | int]:
     await acquire_idempotency_lock(db, payload.idempotency_key)
