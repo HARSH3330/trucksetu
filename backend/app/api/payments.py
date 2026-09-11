@@ -71,6 +71,45 @@ async def payment_ledger(
     return result
 
 
+@router.get("/invoices")
+async def invoice_ledger(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles("customer", "admin", "superadmin")),
+) -> list[dict[str, object]]:
+    roles = {role.role for role in user.roles}
+    query = select(Invoice, Booking.public_id).join(Booking, Booking.id == Invoice.booking_id).order_by(Invoice.invoice_number.desc()).limit(100)
+    if not roles.intersection({"admin", "superadmin"}):
+        query = query.where(Booking.customer_id == user.id)
+    rows = (await db.execute(query)).all()
+    return [{
+        "id": str(invoice.id), "booking_id": str(invoice.booking_id), "booking_public_id": public_id,
+        "invoice_number": invoice.invoice_number, "legal_name": invoice.legal_name, "gstin": invoice.gstin,
+        "billing_address": invoice.billing_address, "taxable_amount": str(invoice.taxable_amount),
+        "tax_percent": str(invoice.tax_percent), "tax_amount": str(invoice.tax_amount),
+        "total_amount": str(invoice.total_amount), "status": invoice.status,
+        "issued_at": invoice.issued_at.isoformat() if invoice.issued_at else None,
+    } for invoice, public_id in rows]
+
+
+@router.post("/invoices/{invoice_id}/issue")
+async def issue_invoice(
+    invoice_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_roles("admin", "superadmin")),
+) -> dict[str, str]:
+    invoice = await db.scalar(select(Invoice).where(Invoice.id == invoice_id).with_for_update())
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status == "issued":
+        return {"invoice_id": str(invoice.id), "invoice_number": invoice.invoice_number, "status": invoice.status}
+    if invoice.status != "draft":
+        raise HTTPException(status_code=409, detail="Only a draft invoice can be issued")
+    invoice.status, invoice.issued_at = "issued", datetime.now(UTC)
+    db.add(AuditLog(actor_id=admin.id, action="invoice.issued", entity_type="invoice", entity_id=invoice.id,
+                    after={"invoice_number": invoice.invoice_number, "booking_id": str(invoice.booking_id)}))
+    return {"invoice_id": str(invoice.id), "invoice_number": invoice.invoice_number, "status": invoice.status}
+
+
 @router.post("/bookings/{booking_id}/payments/online", status_code=status.HTTP_201_CREATED)
 async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str | int]:
     await acquire_idempotency_lock(db, payload.idempotency_key)
