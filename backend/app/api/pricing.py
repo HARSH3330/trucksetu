@@ -43,6 +43,7 @@ class SuggestionInput(BaseModel):
     package_count: int = Field(default=0, ge=0, le=100000)
     night_trip: bool = False
     expected_waiting_hours: Decimal = Field(default=Decimal("0"), ge=0, le=48)
+    distance_km: Decimal | None = Field(default=None, gt=0, le=10000)
 
 
 class RuleUpdate(BaseModel):
@@ -66,6 +67,10 @@ async def active_rule(db: AsyncSession) -> dict[str, object]:
 
 
 async def compute_route(payload: SuggestionInput) -> dict[str, object]:
+    if payload.distance_km is not None:
+        distance = payload.distance_km.quantize(Decimal("0.01"))
+        return {"distance_km": distance, "duration_minutes": max(1, round(distance / Decimal("40") * Decimal("60"))),
+                "polyline": None, "source": "manual_distance"}
     if not settings.GOOGLE_MAPS_API_KEY:
         raise HTTPException(503, "Route estimation is awaiting Google Maps configuration")
     body = {
@@ -85,7 +90,7 @@ async def compute_route(payload: SuggestionInput) -> dict[str, object]:
     routes = response.json().get("routes", [])
     if not routes: raise HTTPException(422, "No drivable route was found")
     route = routes[0]
-    return {"distance_km": (Decimal(route["distanceMeters"]) / Decimal("1000")).quantize(Decimal("0.01")), "duration_minutes": max(1, round(Decimal(str(route["duration"]).rstrip("s")) / Decimal("60"))), "polyline": route.get("polyline", {}).get("encodedPolyline")}
+    return {"distance_km": (Decimal(route["distanceMeters"]) / Decimal("1000")).quantize(Decimal("0.01")), "duration_minutes": max(1, round(Decimal(str(route["duration"]).rstrip("s")) / Decimal("60"))), "polyline": route.get("polyline", {}).get("encodedPolyline"), "source": "google_routes"}
 
 
 @router.post("/suggest")
@@ -98,7 +103,7 @@ async def suggest(payload: SuggestionInput, request: Request, db: AsyncSession =
     breakdown = {key: str(value) for key, value in amounts.items() if key not in {"suggested_low", "suggested_high"}}
     item = TripPriceEstimate(pickup_text=payload.pickup, destination_text=payload.destination, stop_count=len(payload.stops), distance_km=route["distance_km"], duration_minutes=route["duration_minutes"], route_polyline=route["polyline"], rule_snapshot=rule, breakdown=breakdown, suggested_low=amounts["suggested_low"], suggested_high=amounts["suggested_high"])
     db.add(item); await db.flush()
-    return {"estimate_id": str(item.id), "distance_km": str(route["distance_km"]), "duration_minutes": route["duration_minutes"], "suggested_low": str(amounts["suggested_low"]), "suggested_high": str(amounts["suggested_high"]), "breakdown": breakdown, "currency": "INR", "advisory_only": True, "message": "This is a TransivoX suggestion. Transporters set their own final quotation."}
+    return {"estimate_id": str(item.id), "distance_km": str(route["distance_km"]), "duration_minutes": route["duration_minutes"], "route_source": route["source"], "suggested_low": str(amounts["suggested_low"]), "suggested_high": str(amounts["suggested_high"]), "breakdown": breakdown, "currency": "INR", "advisory_only": True, "message": "This is a TransivoX suggestion. Transporters set their own final quotation."}
 
 
 @router.put("/admin/rule")
