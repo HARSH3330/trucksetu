@@ -76,15 +76,3 @@ def verify_token(token: str, token_type: str = "access") -> dict[str, Any]:
     if payload.get("type") != token_type:
         raise JWTError("Invalid token type")
     return payload
-
-
-def decode_token_unsafe(token: str) -> dict[str, Any]:
-    """Decode without verification (for debugging only)."""
-    return jwt.decode(
-        token,
-        settings.SECRET_KEY,
-        algorithms=[settings.ALGORITHM],
-        audience=settings.JWT_AUDIENCE,
-        issuer=settings.JWT_ISSUER,
-        options={"verify_exp": False},
-    )

@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     OTP_EXPIRE_MINUTES: int = 10
     OTP_MAX_ATTEMPTS: int = 3
     RATE_LIMIT_PER_MINUTE: int = 120
+    MAX_REQUEST_BODY_BYTES: int = 2_000_000
     LOGIN_RATE_LIMIT: int = 10
     SIGNUP_RATE_LIMIT: int = 5
     VERIFICATION_RATE_LIMIT: int = 10
@@ -122,7 +123,7 @@ class Settings(BaseSettings):
 
     # ── Seed Admin ────────────────────────────────────────
     FIRST_SUPERADMIN_EMAIL: str = "admin@transivox.in"
-    FIRST_SUPERADMIN_PASSWORD: str = "Admin@123"
+    FIRST_SUPERADMIN_PASSWORD: str = ""
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
@@ -169,6 +170,11 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must contain at least 64 unpredictable characters in production")
         if self.APP_ENV == "production" and self.DEBUG:
             raise ValueError("DEBUG must be false in production")
+        if self.APP_ENV == "production":
+            if not self.ALLOWED_ORIGINS or any(origin == "*" or not origin.startswith("https://") for origin in self.ALLOWED_ORIGINS):
+                raise ValueError("Production ALLOWED_ORIGINS must contain explicit HTTPS origins")
+            if not self.TRUSTED_HOSTS or "*" in self.TRUSTED_HOSTS:
+                raise ValueError("Production TRUSTED_HOSTS must not allow every host")
         if self.ALGORITHM != "HS256":
             raise ValueError("Only the reviewed HS256 JWT algorithm is supported")
         return self
