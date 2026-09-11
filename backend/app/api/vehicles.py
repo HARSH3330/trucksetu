@@ -43,12 +43,13 @@ def vehicle_is_document_eligible(vehicle: CarrierVehicle, through: date) -> bool
     return vehicle.status == "approved" and all(expiry >= through for expiry in expiries)
 
 
-def _read(vehicle: CarrierVehicle, category_name: str | None = None) -> dict[str, object]:
+def _read(vehicle: CarrierVehicle, category_name: str | None = None, provider_name: str | None = None) -> dict[str, object]:
     return {
         "id": str(vehicle.id),
         "provider_id": str(vehicle.provider_id),
         "vehicle_category_id": str(vehicle.vehicle_category_id),
         "vehicle_category_name": category_name,
+        "provider_name": provider_name,
         "registration_number": vehicle.registration_number,
         "body_type": vehicle.body_type,
         "maximum_payload_tonnes": str(vehicle.maximum_payload_tonnes),
@@ -56,6 +57,8 @@ def _read(vehicle: CarrierVehicle, category_name: str | None = None) -> dict[str
         "permit_territories": vehicle.permit_territories,
         "service_areas": vehicle.service_areas,
         "status": vehicle.status,
+        "review_reason": vehicle.review_reason,
+        "reviewed_at": vehicle.reviewed_at.isoformat() if vehicle.reviewed_at else None,
         "document_eligible_today": vehicle_is_document_eligible(vehicle, date.today()),
         "document_expiries": {"rc": vehicle.rc_expires_on.isoformat(), "insurance": vehicle.insurance_expires_on.isoformat(),
                               "fitness": vehicle.fitness_expires_on.isoformat(), "pollution": vehicle.pollution_expires_on.isoformat(),
@@ -103,13 +106,13 @@ async def list_vehicles(
     user: User = Depends(current_user),
 ) -> list[dict[str, object]]:
     roles = {role.role for role in user.roles}
-    query = select(CarrierVehicle, VehicleCategory.name).join(VehicleCategory, VehicleCategory.id == CarrierVehicle.vehicle_category_id).order_by(CarrierVehicle.created_at.desc())
+    query = select(CarrierVehicle, VehicleCategory.name, ProviderProfile.display_name).join(VehicleCategory, VehicleCategory.id == CarrierVehicle.vehicle_category_id).join(ProviderProfile, ProviderProfile.id == CarrierVehicle.provider_id).order_by(CarrierVehicle.created_at.desc())
     if not roles.intersection({"admin", "superadmin"}):
         provider_id = await db.scalar(select(ProviderProfile.id).where(ProviderProfile.user_id == user.id))
         if provider_id is None:
             return []
         query = query.where(CarrierVehicle.provider_id == provider_id)
-    return [_read(vehicle, category_name) for vehicle, category_name in (await db.execute(query)).all()]
+    return [_read(vehicle, category_name, provider_name) for vehicle, category_name, provider_name in (await db.execute(query)).all()]
 
 
 @router.post("/admin/carrier-vehicles/{vehicle_id}/review")
