@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # ── Razorpay ──────────────────────────────────────────
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # ── MSG91 ─────────────────────────────────────────────
     MSG91_AUTH_KEY: str = ""

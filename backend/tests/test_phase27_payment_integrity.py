@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import hashlib
+import hmac
 
 from app.domain import cancellation_snapshot, financial_snapshot
-from app.services.payments import validate_captured_payment
+from app.services.payments import validate_captured_payment, verify_razorpay_signature
 
 
 def payment_entity(**changes: object) -> dict[str, object]:
@@ -20,6 +22,20 @@ def test_captured_payment_must_match_amount_and_currency() -> None:
 
 def test_authorized_payment_is_not_treated_as_captured() -> None:
     assert validate_captured_payment(payment_entity(status="authorized"), Decimal("1250.50"), "INR") == "payment_not_captured"
+
+
+def test_webhook_signature_uses_separate_secret(monkeypatch) -> None:
+    from app.services import payments
+
+    body = b'{"event":"payment.captured"}'
+    monkeypatch.setattr(payments.settings, "RAZORPAY_KEY_SECRET", "api-secret")
+    monkeypatch.setattr(payments.settings, "RAZORPAY_WEBHOOK_SECRET", "webhook-secret")
+    api_signature = hmac.new(b"api-secret", body, hashlib.sha256).hexdigest()
+    webhook_signature = hmac.new(b"webhook-secret", body, hashlib.sha256).hexdigest()
+    assert verify_razorpay_signature(body, webhook_signature)
+    assert not verify_razorpay_signature(body, api_signature)
+    monkeypatch.setattr(payments.settings, "RAZORPAY_WEBHOOK_SECRET", "")
+    assert not verify_razorpay_signature(body, webhook_signature)
 
 
 def test_cancellation_refund_never_exceeds_paid_money() -> None:

@@ -33,9 +33,9 @@ class RazorpayGateway(PaymentGateway):
 
 
 def verify_razorpay_signature(body: bytes, signature: str) -> bool:
-    if not settings.RAZORPAY_KEY_SECRET:
+    if not settings.RAZORPAY_WEBHOOK_SECRET:
         return False
-    expected = hmac.new(settings.RAZORPAY_KEY_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    expected = hmac.new(settings.RAZORPAY_WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
 
 
