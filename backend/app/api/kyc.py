@@ -116,8 +116,10 @@ async def complete_upload(payload: CompleteUpload, user: Annotated[User, Depends
     try:
         storage = PrivateDocumentStorage()
         metadata = await run_in_threadpool(storage.confirm, payload.storage_key)
+        await run_in_threadpool(storage.require_clean_scan, payload.storage_key)
         detected_type = await run_in_threadpool(storage.detected_content_type, payload.storage_key)
-    except Exception as exc: raise HTTPException(422, "Uploaded document could not be confirmed") from exc
+    except ValueError as exc: raise HTTPException(409, str(exc)) from exc
+    except Exception as exc: raise HTTPException(503, "Uploaded document or malware scan could not be verified") from exc
     size = int(metadata.get("ContentLength", 0)); content_type = str(metadata.get("ContentType", payload.content_type))
     if detected_type is None or content_type != detected_type or payload.content_type != detected_type: raise HTTPException(422, "Document content does not match its declared type")
     if size <= 0 or size > 10 * 1024 * 1024: raise HTTPException(422, "Document must be between 1 byte and 10 MB")
@@ -134,6 +136,13 @@ async def submit(application_id: uuid.UUID, user: Annotated[User, Depends(curren
     present = {d.document_type for d in item.documents if d.status != "rejected"}
     missing = REQUIRED.get(provider.provider_type, REQUIRED["driver"]) - present
     if missing: raise HTTPException(422, {"message": "Required documents are missing", "missing": sorted(missing)})
+    try:
+        storage = PrivateDocumentStorage()
+        for document in item.documents:
+            if document.status != "rejected":
+                await run_in_threadpool(storage.require_clean_scan, document.storage_key)
+    except ValueError as exc: raise HTTPException(409, str(exc)) from exc
+    except Exception as exc: raise HTTPException(503, "Document scan could not be verified") from exc
     item.status = "under_review"; item.submitted_at = datetime.now(UTC); provider.kyc_status = "under_review"
     return view(item, provider)
 
@@ -158,6 +167,13 @@ async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotat
         unacceptable = sorted(document_type for document_type in required if document_type not in documents or payload.document_decisions.get(document_type) != "accepted" or (documents[document_type].expires_on and documents[document_type].expires_on < date.today()))
         if unacceptable:
             raise HTTPException(422, {"message": "Required documents must be accepted and current", "documents": unacceptable})
+        try:
+            storage = PrivateDocumentStorage()
+            for document in item.documents:
+                if payload.document_decisions.get(document.document_type) == "accepted":
+                    await run_in_threadpool(storage.require_clean_scan, document.storage_key)
+        except ValueError as exc: raise HTTPException(409, str(exc)) from exc
+        except Exception as exc: raise HTTPException(503, "Document scan could not be verified") from exc
     provider.kyc_status = payload.decision; provider.active = payload.decision != "suspended"
     for document in item.documents:
         if document.document_type in payload.document_decisions:
@@ -177,8 +193,13 @@ async def download(document_id: uuid.UUID, user: Annotated[User, Depends(current
     if not provider: raise HTTPException(404, "Provider profile not found")
     roles = {r.role for r in user.roles}
     if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}): raise HTTPException(403, "Document access denied")
-    try: url = await run_in_threadpool(PrivateDocumentStorage().download_url, document.storage_key)
+    try:
+        storage = PrivateDocumentStorage()
+        await run_in_threadpool(storage.require_clean_scan, document.storage_key)
+        url = await run_in_threadpool(storage.download_url, document.storage_key)
+    except ValueError as exc: raise HTTPException(409, str(exc)) from exc
     except RuntimeError as exc: raise HTTPException(503, str(exc)) from exc
+    except Exception as exc: raise HTTPException(503, "Document scan could not be verified") from exc
     db.add(AuditLog(actor_id=user.id, action="kyc.document_downloaded", entity_type="kyc_document", entity_id=document.id, after={"owner_access": provider.user_id == user.id}))
     return {"download_url": url, "expires_in": 300}
 

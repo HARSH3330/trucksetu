@@ -9,6 +9,7 @@ import boto3
 from app.core.config import settings
 
 ALLOWED_CONTENT_TYPES = {"application/pdf", "image/jpeg", "image/png"}
+MALWARE_SCAN_TAG = "GuardDutyMalwareScanStatus"
 
 
 class PrivateDocumentStorage:
@@ -40,6 +41,15 @@ class PrivateDocumentStorage:
         if content.startswith(b"\x89PNG\r\n\x1a\n"):
             return "image/png"
         return None
+
+    def malware_scan_status(self, key: str) -> str | None:
+        response = self.client.get_object_tagging(Bucket=self.bucket, Key=key)
+        return next((tag["Value"] for tag in response.get("TagSet", []) if tag.get("Key") == MALWARE_SCAN_TAG), None)
+
+    def require_clean_scan(self, key: str) -> None:
+        status = self.malware_scan_status(key)
+        if status != "NO_THREATS_FOUND":
+            raise ValueError("Document scan is pending or was not clean")
 
     def download_url(self, key: str) -> str:
         return self.client.generate_presigned_url("get_object", Params={"Bucket": self.bucket, "Key": key, "ResponseContentDisposition": "attachment"}, ExpiresIn=300)
