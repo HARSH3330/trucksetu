@@ -122,9 +122,13 @@ async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db
     if existing:
         if existing.booking_id != booking.id:
             raise HTTPException(status_code=409, detail="Idempotency key was already used for another operation")
-        return {"payment_id": str(existing.id), "order_id": existing.gateway_order_id or "", "amount": str(existing.amount), "currency": existing.currency}
-    active = await db.scalar(select(Payment.id).where(Payment.booking_id == booking.id, Payment.payment_type == payload.payment_type, Payment.status.in_({"pending", "pending_confirmation"})))
+        if existing.provider != "razorpay" or existing.payment_type != payload.payment_type or existing.status != "pending":
+            raise HTTPException(status_code=409, detail="This payment attempt cannot be reused")
+        return {"payment_id": str(existing.id), "order_id": existing.gateway_order_id or "", "amount": str(existing.amount), "amount_subunits": int(existing.amount * 100), "currency": existing.currency, "key_id": settings.RAZORPAY_KEY_ID}
+    active = await db.scalar(select(Payment).where(Payment.booking_id == booking.id, Payment.payment_type == payload.payment_type, Payment.status.in_({"pending", "pending_confirmation"})).with_for_update())
     if active:
+        if active.provider == "razorpay" and active.status == "pending" and active.gateway_order_id:
+            return {"payment_id": str(active.id), "order_id": active.gateway_order_id, "amount": str(active.amount), "amount_subunits": int(active.amount * 100), "currency": active.currency, "key_id": settings.RAZORPAY_KEY_ID}
         raise HTTPException(status_code=409, detail="A payment attempt of this type is already pending")
     amount = await _payment_amount(db, booking, payload.payment_type)
     if amount <= 0:
