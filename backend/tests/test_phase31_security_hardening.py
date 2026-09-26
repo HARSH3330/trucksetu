@@ -38,3 +38,8 @@ def test_production_accepts_explicit_https_boundaries() -> None:
         ALLOWED_ORIGINS=["https://transivox.example"], TRUSTED_HOSTS=["api.transivox.example"],
     )
     assert value.is_production
+
+
+def test_bootstrap_token_must_be_strong_when_configured() -> None:
+    with pytest.raises(ValidationError):
+        Settings(ADMIN_BOOTSTRAP_TOKEN="too-short")

@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -12,10 +12,10 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import acquire_idempotency_lock, get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, create_refresh_token, generate_otp, get_password_hash, hash_otp, hash_token, token_hash_matches, verify_otp, verify_password, verify_token
-from app.models import AccountVerification, RefreshSession, User, UserRole
+from app.models import AccountVerification, AuditLog, RefreshSession, User, UserRole
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -51,6 +51,19 @@ class VerifyInput(BaseModel):
     code: str = Field(pattern=r"^\d{6}$")
 
 
+class BootstrapAdminInput(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=14, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, value: str) -> str:
+        if not any(c.islower() for c in value) or not any(c.isupper() for c in value) or not any(c.isdigit() for c in value) or not any(not c.isalnum() for c in value):
+            raise ValueError("Admin password must include uppercase, lowercase, numeric, and special characters")
+        return value
+
+
 def public_user(user: User) -> dict[str, object]:
     return {"id": str(user.id), "full_name": user.full_name, "email": user.email, "mobile": user.mobile, "status": user.status, "email_verified": user.email_verified, "roles": [r.role for r in user.roles]}
 
@@ -81,6 +94,54 @@ async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depe
     if settings.is_development:
         result["development_verification_code"] = code
     return result
+
+
+@router.post("/bootstrap-admin", status_code=status.HTTP_201_CREATED)
+async def bootstrap_admin(
+    payload: BootstrapAdminInput,
+    request: Request,
+    bootstrap_token: Annotated[str | None, Header(alias="X-Bootstrap-Token")] = None,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """Create exactly one initial superadmin using a temporary deployment secret."""
+    await enforce_rate_limit(request, "bootstrap-admin", 5, 3600)
+    configured_token = settings.ADMIN_BOOTSTRAP_TOKEN
+    if not configured_token:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin bootstrap is disabled")
+    if not bootstrap_token or not secrets.compare_digest(bootstrap_token, configured_token):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin bootstrap authorization failed")
+
+    # The transaction-level lock makes the check-and-create operation safe when
+    # two serverless instances receive a bootstrap request simultaneously.
+    await acquire_idempotency_lock(db, "transivox:first-superadmin")
+    privileged_user_id = await db.scalar(
+        select(UserRole.user_id).where(UserRole.role.in_({"admin", "superadmin"})).limit(1)
+    )
+    if privileged_user_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "The first administrator has already been created")
+
+    email = payload.email.lower()
+    if await db.scalar(select(User.id).where(User.email == email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Use an email address that is not registered")
+
+    user = User(
+        full_name=payload.full_name.strip(),
+        email=email,
+        password_hash=get_password_hash(payload.password),
+        email_verified=True,
+    )
+    user.roles.append(UserRole(role="superadmin"))
+    db.add(user)
+    await db.flush()
+    db.add(AuditLog(
+        action="auth.first_superadmin_created",
+        entity_type="user",
+        entity_id=user.id,
+        after={"email": email, "role": "superadmin"},
+        request_id=getattr(request.state, "request_id", None),
+        ip_address=request.client.host if request.client else None,
+    ))
+    return {"created": True, "email": email, "role": "superadmin", "next_step": "Remove ADMIN_BOOTSTRAP_TOKEN and redeploy the API"}
 
 
 @router.post("/login")

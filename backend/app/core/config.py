@@ -122,9 +122,9 @@ class Settings(BaseSettings):
     # ── Sentry ────────────────────────────────────────────
     SENTRY_DSN: str = ""
 
-    # ── Seed Admin ────────────────────────────────────────
-    FIRST_SUPERADMIN_EMAIL: str = "admin@transivox.in"
-    FIRST_SUPERADMIN_PASSWORD: str = ""
+    # ── One-time admin bootstrap ──────────────────────────
+    # Configure temporarily, create the first admin, then remove and redeploy.
+    ADMIN_BOOTSTRAP_TOKEN: str = ""
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
@@ -178,6 +178,8 @@ class Settings(BaseSettings):
                 raise ValueError("Production TRUSTED_HOSTS must not allow every host")
         if self.ALGORITHM != "HS256":
             raise ValueError("Only the reviewed HS256 JWT algorithm is supported")
+        if self.ADMIN_BOOTSTRAP_TOKEN and len(self.ADMIN_BOOTSTRAP_TOKEN) < 32:
+            raise ValueError("ADMIN_BOOTSTRAP_TOKEN must contain at least 32 characters")
         return self
 
     @property

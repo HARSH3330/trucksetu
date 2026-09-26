@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 from fastapi.testclient import TestClient
 
-from app.api.auth import SignupInput
+from app.api.auth import BootstrapAdminInput, PUBLIC_ROLES, SignupInput
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, hash_token, token_hash_matches, verify_token
 from app.main import app
@@ -15,6 +15,16 @@ from app.main import app
 def test_signup_rejects_weak_password_composition(password: str) -> None:
     with pytest.raises(ValidationError):
         SignupInput(full_name="Pilot User", email="pilot@example.com", password=password)
+
+
+@pytest.mark.parametrize("password", ["Short1!", "longlowercaseonly!1", "LONGUPPERCASEONLY!1", "NoSpecialCharacter123"])
+def test_admin_bootstrap_requires_a_strong_password(password: str) -> None:
+    with pytest.raises(ValidationError):
+        BootstrapAdminInput(full_name="First Admin", email="admin@example.com", password=password)
+
+
+def test_admin_roles_remain_excluded_from_public_signup() -> None:
+    assert {"admin", "superadmin"}.isdisjoint(PUBLIC_ROLES)
 
 
 def test_tokens_include_lifecycle_and_boundary_claims() -> None:
