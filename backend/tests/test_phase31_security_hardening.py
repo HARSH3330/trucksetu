@@ -40,6 +40,6 @@ def test_production_accepts_explicit_https_boundaries() -> None:
     assert value.is_production
 
 
-def test_bootstrap_token_must_be_strong_when_configured() -> None:
-    with pytest.raises(ValidationError):
-        Settings(ADMIN_BOOTSTRAP_TOKEN="too-short")
+def test_bootstrap_is_enabled_only_by_a_strong_token() -> None:
+    assert not Settings(ADMIN_BOOTSTRAP_TOKEN="too-short").admin_bootstrap_enabled
+    assert Settings(ADMIN_BOOTSTRAP_TOKEN="s" * 32).admin_bootstrap_enabled

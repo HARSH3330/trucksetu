@@ -108,6 +108,8 @@ async def bootstrap_admin(
     configured_token = settings.ADMIN_BOOTSTRAP_TOKEN
     if not configured_token:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin bootstrap is disabled")
+    if not settings.admin_bootstrap_enabled:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Admin bootstrap token must contain at least 32 characters")
     if not bootstrap_token or not secrets.compare_digest(bootstrap_token, configured_token):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin bootstrap authorization failed")
 

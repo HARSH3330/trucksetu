@@ -178,8 +178,6 @@ class Settings(BaseSettings):
                 raise ValueError("Production TRUSTED_HOSTS must not allow every host")
         if self.ALGORITHM != "HS256":
             raise ValueError("Only the reviewed HS256 JWT algorithm is supported")
-        if self.ADMIN_BOOTSTRAP_TOKEN and len(self.ADMIN_BOOTSTRAP_TOKEN) < 32:
-            raise ValueError("ADMIN_BOOTSTRAP_TOKEN must contain at least 32 characters")
         return self
 
     @property
@@ -189,6 +187,10 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.APP_ENV == "development"
+
+    @property
+    def admin_bootstrap_enabled(self) -> bool:
+        return len(self.ADMIN_BOOTSTRAP_TOKEN) >= 32
 
     @property
     def migration_database_url(self) -> str:
