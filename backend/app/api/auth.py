@@ -104,7 +104,6 @@ async def bootstrap_admin(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
     """Create exactly one initial superadmin using a temporary deployment secret."""
-    await enforce_rate_limit(request, "bootstrap-admin", 5, 3600)
     configured_token = settings.ADMIN_BOOTSTRAP_TOKEN
     if not configured_token:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin bootstrap is disabled")
@@ -112,6 +111,10 @@ async def bootstrap_admin(
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Admin bootstrap token must contain at least 32 characters")
     if not bootstrap_token or not secrets.compare_digest(bootstrap_token, configured_token):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin bootstrap authorization failed")
+    # Invalid token probes are already constrained by the global request limit.
+    # Apply the strict one-time-operation limit only after authorization so an
+    # attacker cannot lock the real administrator out of the bootstrap flow.
+    await enforce_rate_limit(request, "authorized-bootstrap-admin", 5, 3600)
 
     # The transaction-level lock makes the check-and-create operation safe when
     # two serverless instances receive a bootstrap request simultaneously.

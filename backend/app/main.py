@@ -72,6 +72,17 @@ app.include_router(matching_router)
 app.include_router(driver_router)
 
 
+@app.get("/", include_in_schema=False)
+async def api_home() -> dict[str, str]:
+    return {
+        "service": settings.APP_NAME,
+        "status": "online",
+        "health": "/health/live",
+        "readiness": "/ready",
+        "documentation": "/docs",
+    }
+
+
 @app.exception_handler(IntegrityError)
 async def database_constraint_error(_: Request, exc: IntegrityError) -> JSONResponse:
     logger.warning("Database constraint rejected request: %s", exc.__class__.__name__)

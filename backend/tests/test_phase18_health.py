@@ -42,6 +42,9 @@ def test_comma_separated_vercel_settings_are_supported() -> None:
 
 def test_liveness_health_openapi_and_version_do_not_touch_dependencies() -> None:
     with TestClient(main.app, base_url="http://localhost") as client:
+        home = client.get("/")
+        assert home.status_code == 200
+        assert home.json()["status"] == "online"
         assert client.get("/health/live").json() == {"status": "alive"}
         assert client.get("/health").status_code == 200
         assert client.get("/openapi.json").status_code == 200
