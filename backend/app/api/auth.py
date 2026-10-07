@@ -64,6 +64,18 @@ class BootstrapAdminInput(BaseModel):
         return value
 
 
+class RecoverAdminInput(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=14, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, value: str) -> str:
+        if not any(c.islower() for c in value) or not any(c.isupper() for c in value) or not any(c.isdigit() for c in value) or not any(not c.isalnum() for c in value):
+            raise ValueError("Admin password must include uppercase, lowercase, numeric, and special characters")
+        return value
+
+
 def public_user(user: User) -> dict[str, object]:
     return {"id": str(user.id), "full_name": user.full_name, "email": user.email, "mobile": user.mobile, "status": user.status, "email_verified": user.email_verified, "roles": [r.role for r in user.roles]}
 
@@ -147,6 +159,59 @@ async def bootstrap_admin(
         ip_address=request.client.host if request.client else None,
     ))
     return {"created": True, "email": email, "role": "superadmin", "next_step": "Remove ADMIN_BOOTSTRAP_TOKEN and redeploy the API"}
+
+
+@router.post("/recover-admin")
+async def recover_admin(
+    payload: RecoverAdminInput,
+    request: Request,
+    bootstrap_token: Annotated[str | None, Header(alias="X-Bootstrap-Token")] = None,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """Reset an existing privileged account while the temporary bootstrap secret is enabled."""
+    configured_token = settings.ADMIN_BOOTSTRAP_TOKEN
+    if not configured_token:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin recovery is disabled")
+    if not settings.admin_bootstrap_enabled:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Admin bootstrap token must contain at least 32 characters")
+    if not bootstrap_token or not secrets.compare_digest(bootstrap_token, configured_token):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin recovery authorization failed")
+
+    email = payload.email.lower()
+    await enforce_rate_limit(request, "authorized-recover-admin", 3, 3600, email)
+    await acquire_idempotency_lock(db, f"transivox:admin-recovery:{email}")
+    user = await db.scalar(
+        select(User)
+        .join(UserRole, UserRole.user_id == User.id)
+        .where(User.email == email, UserRole.role.in_({"admin", "superadmin"}))
+        .limit(1)
+    )
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Administrator account not found")
+
+    now = datetime.now(UTC)
+    user.password_hash = get_password_hash(payload.password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    await db.execute(
+        update(RefreshSession)
+        .where(RefreshSession.user_id == user.id, RefreshSession.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    db.add(AuditLog(
+        action="auth.admin_password_recovered",
+        entity_type="user",
+        entity_id=user.id,
+        after={"email": email, "sessions_revoked": True},
+        request_id=getattr(request.state, "request_id", None),
+        ip_address=request.client.host if request.client else None,
+    ))
+    return {
+        "recovered": True,
+        "email": email,
+        "sessions_revoked": True,
+        "next_step": "Sign in, then remove ADMIN_BOOTSTRAP_TOKEN and redeploy the API",
+    }
 
 
 @router.post("/login")
