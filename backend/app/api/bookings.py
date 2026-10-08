@@ -20,6 +20,7 @@ from app.schemas import BookingCreate, DriverAssignment, OtpVerify, TripStatusUp
 from app.api.auth import require_roles
 from app.api.vehicles import vehicle_is_document_eligible
 from app.services.capacity import release_reservation
+from app.api.terms import require_terms
 
 router = APIRouter(prefix="/api/v1", tags=["bookings and trips"])
 
@@ -106,6 +107,7 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
 
 @router.post("/requests/{request_id}/bookings", status_code=status.HTTP_201_CREATED)
 async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, object]:
+    acceptance = await require_terms(db, user.id)
     request = await db.scalar(
         select(TransportRequest).where(TransportRequest.id == request_id).with_for_update().options(selectinload(TransportRequest.stops), selectinload(TransportRequest.cargo))
     )
@@ -153,7 +155,7 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
         public_id=_booking_id(), request_id=request.id, customer_id=user.id,
         booking_mode=shared_quotes[0].service_mode if shared_quotes else "FULL_VEHICLE",
         schedule_mode=request.schedule_mode, capacity_reservation_id=reservation.id if reservation else None,
-        total_amount=Decimal("0"), customer_snapshot={"customer_id": str(user.id)},
+        total_amount=Decimal("0"), customer_snapshot={"customer_id": str(user.id), "terms_version": acceptance.version, "terms_acceptance_id": str(acceptance.id)},
         route_snapshot={"pickup": request.pickup_address, "destination": request.destination_address, "stops": [stop.address for stop in request.stops]},
         cargo_snapshot={"category": request.cargo.category, "description": request.cargo.description, "weight_tonnes": str(request.cargo.weight_tonnes)},
     )

@@ -44,6 +44,16 @@ class User(Base):
     roles: Mapped[list["UserRole"]] = relationship(cascade="all, delete-orphan", lazy="selectin")
 
 
+class TermsAcceptance(Base):
+    __tablename__ = "terms_acceptances"
+    __table_args__ = (Index("uq_terms_user_version", "user_id", "version", unique=True),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    version: Mapped[str] = mapped_column(String(80), nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class UserRole(Base):
     __tablename__ = "user_roles"
     __table_args__ = (Index("uq_user_role", "user_id", "role", unique=True),)

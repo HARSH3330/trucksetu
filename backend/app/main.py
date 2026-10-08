@@ -35,6 +35,7 @@ from app.api.pricing import router as pricing_router
 from app.api.vehicles import router as vehicle_router
 from app.api.matching import router as matching_router
 from app.api.drivers import router as driver_router
+from app.api.terms import router as terms_router
 
 
 @asynccontextmanager
@@ -70,6 +71,7 @@ app.include_router(pricing_router)
 app.include_router(vehicle_router)
 app.include_router(matching_router)
 app.include_router(driver_router)
+app.include_router(terms_router)
 
 
 @app.get("/", include_in_schema=False)

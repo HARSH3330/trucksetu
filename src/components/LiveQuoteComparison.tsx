@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState} from 'react'
 import {ArrowRight, BadgeCheck, Check, Star} from 'lucide-react'
 import {ApiError, apiFetch, type BookingResult, type MarketplaceRequest, type Quote} from '../lib/api'
+import TermsConsent from './TermsConsent'
 
 function money(value:string){return `₹${Number(value).toLocaleString('en-IN')}`}
 
@@ -14,6 +15,8 @@ export default function LiveQuoteComparison(){
   const [message,setMessage]=useState('')
   const [state,setState]=useState<'loading'|'ready'|'signed-out'|'error'>('loading')
   const [booking,setBooking]=useState<BookingResult|null>(null)
+  const [showTerms,setShowTerms]=useState(false)
+  const [bookingBusy,setBookingBusy]=useState(false)
 
   useEffect(()=>{
     apiFetch<MarketplaceRequest[]>('/requests/mine').then(items=>{
@@ -49,13 +52,19 @@ export default function LiveQuoteComparison(){
     }catch(error){setMessage(error instanceof Error?error.message:'Counter offer failed')}
   }
 
-  async function createBooking(){
+  async function createBooking(accepted=false){
     if(!selected||allocated!==required)return
+    setBookingBusy(true)
     setMessage('Creating booking…')
     try{
+      if(!accepted){
+        const consent=await apiFetch<{accepted:boolean}>('/legal/terms/acceptance')
+        if(!consent.accepted){setShowTerms(true);setMessage('');return}
+      }
       const result=await apiFetch<BookingResult>(`/requests/${selected.id}/bookings`,{method:'POST',body:JSON.stringify({allocations:Object.entries(allocations).filter(([,trucks])=>trucks>0).map(([quote_id,trucks])=>({quote_id,trucks}))})})
       setBooking(result);setMessage('')
     }catch(error){setMessage(error instanceof ApiError?error.message:'Unable to create booking')}
+    finally{setBookingBusy(false)}
   }
 
   if(state==='signed-out')return <main className="page"><div className="page-title"><span className="kicker">TRANSIVOX MARKETPLACE</span><h1>Compare quotations</h1><p>Sign in as a customer to view quotations for your requirements.</p></div><div className="empty-state"><b>Sign in required</b><p>Your quotations are private and visible only to your account.</p></div></main>
@@ -66,7 +75,8 @@ export default function LiveQuoteComparison(){
 
   return <main className="page"><div className="page-title"><span className="kicker">TRANSIVOX MARKETPLACE</span><h1>Compare final quotations</h1><p>Select one of your requirements and allocate the required trucks.</p></div>
     <div className="filterbar"><select value={selectedId} onChange={event=>setSelectedId(event.target.value)}>{requests.map(item=><option value={item.id} key={item.id}>{item.public_id} · {item.pickup_address} to {item.destination_address} · {item.status}</option>)}</select></div>
-    <div className="quote-summary"><span><b>{quotes.length}</b><small>quotes received</small></span><span><b>{quotes.length?money(String(Math.min(...quotes.map(q=>Number(q.final_price))))):'—'}</b><small>lowest final price</small></span><span><b>{allocated} / {required}</b><small>trucks allocated</small></span><button disabled={allocated!==required||!quotes.length} onClick={createBooking}>Confirm allocation</button></div>
+    <div className="quote-summary"><span><b>{quotes.length}</b><small>quotes received</small></span><span><b>{quotes.length?money(String(Math.min(...quotes.map(q=>Number(q.final_price))))):'—'}</b><small>lowest final price</small></span><span><b>{allocated} / {required}</b><small>trucks allocated</small></span><button disabled={bookingBusy||allocated!==required||!quotes.length} onClick={()=>createBooking()}>Confirm allocation</button></div>
+    {showTerms&&<TermsConsent onCancel={()=>setShowTerms(false)} onAccepted={()=>{setShowTerms(false);void createBooking(true)}}/>}
     {message&&<div className="privacy-banner">{message}</div>}
     {!quotes.length&&!message?<div className="empty-state"><b>No active quotations</b><p>Verified providers can quote after the request is published.</p></div>:<div className="comparison-list">{quotes.map((quote,index)=><article className={`comparison-card ${index===0?'best':''} ${allocations[quote.id]?'selected-quote':''}`} key={quote.id}>{index===0&&<div className="best-ribbon">LOWEST PRICE</div>}<div className="provider-cell"><span className="provider-avatar">{quote.provider_name.split(' ').map(x=>x[0]).join('').slice(0,2)}</span><div><h3>{quote.provider_name} {quote.verified&&<BadgeCheck/>}</h3><p><Star/> {quote.rating} · {quote.completed_trips} completed trips · {quote.cancellation_percent}% cancellation</p></div></div><div className="comparison-facts"><span><small>FINAL PRICE</small><b>{money(quote.final_price)}</b></span><span><small>VEHICLE</small><b>{quote.vehicles_offered} × {quote.vehicle_name}</b></span><span><small>SERVICE</small><b>{quote.service_mode.replaceAll('_',' ')}</b></span></div><div className="comparison-actions"><button className="secondary-action" onClick={()=>{setCounterId(quote.id);setCounterAmount(quote.final_price)}}>Counter offer</button>{quote.service_mode==='SHARED_CAPACITY'?<small>Reserve shared capacity first</small>:<label className="allocation-stepper"><small>ALLOCATE</small><span><button onClick={()=>update(quote,(allocations[quote.id]||0)-1)}>−</button><b>{allocations[quote.id]||0}</b><button onClick={()=>update(quote,(allocations[quote.id]||0)+1)}>+</button></span></label>}</div>{counterId===quote.id&&<div className="counter-box"><label>Your offer<input inputMode="decimal" value={counterAmount} onChange={event=>setCounterAmount(event.target.value)}/></label><button disabled={!Number(counterAmount)} onClick={()=>sendCounter(quote)}>Send offer <ArrowRight/></button></div>}</article>)}</div>}
     {allocated>0&&<div className="price-callout"><span>Selected quotation total</span><b>{money(String(total))}</b></div>}

@@ -1,0 +1,391 @@
+# TERMS & CONDITIONS
+
+**Version:** 2026-10-08-draft-v1
+
+Draft pending legal review. Legal entity, registered address, grievance/support contact and jurisdiction details require confirmation before public launch.
+
+Welcome to **TransivoX** ("Platform", "we", "us", or "our").
+
+These Terms & Conditions ("Terms") govern your access to and use of the TransivoX website, mobile application, software, and related services (collectively, the "Platform").
+
+By registering on, accessing, or using the Platform, you agree to be bound by these Terms. If you do not agree with these Terms, please do not use the Platform.
+
+## 1. About the Platform
+
+TransivoX operates a technology-enabled marketplace that connects distributors, businesses, retailers, and other customers ("Customers") with independent local logistics and transportation service providers ("Logistics Partners").
+
+The Platform enables Customers to:
+
+* Submit transportation and delivery requirements;
+* Search for or receive quotations from Logistics Partners;
+* Compare available transportation options;
+* Communicate with Logistics Partners;
+* Select a Logistics Partner; and
+* Coordinate transportation and delivery services.
+
+**TransivoX does not own, lease, operate, or maintain a fleet of vehicles and does not itself provide transportation services.**
+
+The actual transportation services are provided by independent third-party Logistics Partners.
+
+## 2. Nature of Our Role
+
+The Platform acts solely as a technology and marketplace intermediary connecting Customers and Logistics Partners.
+
+Unless expressly stated otherwise:
+
+* We are not a transportation company or carrier;
+* We are not the owner or operator of any vehicle used for a booking;
+* We do not employ Logistics Partners as drivers or transport operators;
+* We do not control the manner in which transportation services are performed;
+* We do not take possession of, store, load, unload, or transport goods; and
+* We do not guarantee the availability, performance, timing, safety, or quality of transportation services provided by a Logistics Partner.
+
+The transportation contract or arrangement is between the Customer and the selected Logistics Partner.
+
+## 3. Eligibility
+
+To use the Platform, you must:
+
+* Be legally capable of entering into a binding agreement;
+* Provide accurate and complete information;
+* Have the authority to act on behalf of any business or organization you represent; and
+* Comply with all applicable laws and regulations.
+
+If you are registering on behalf of a business, you represent that you have the authority to bind that business to these Terms.
+
+## 4. Account Registration
+
+Certain Platform features may require you to create an account.
+
+You agree to:
+
+* Provide accurate information;
+* Keep your account information updated;
+* Maintain the confidentiality of your login credentials;
+* Not share your account with unauthorized persons; and
+* Immediately notify us of any unauthorized access or suspected security breach.
+
+You are responsible for activity conducted through your account unless such activity resulted from circumstances beyond your reasonable control.
+
+## 5. Logistics Partners
+
+Logistics Partners may be required to provide information and documentation requested by the Platform, including, where applicable:
+
+* Identity information;
+* Business information;
+* Vehicle details;
+* Driving licence details;
+* Registration documents;
+* Insurance information;
+* Permits and licences; and
+* Other documents required for verification or onboarding.
+
+Verification by the Platform does not constitute a guarantee, certification, or warranty of the Logistics Partner's qualifications, financial condition, conduct, vehicle condition, or ability to perform transportation services.
+
+Logistics Partners operate as independent service providers and are responsible for complying with all applicable laws, permits, licences, insurance requirements, labour requirements, vehicle requirements, and transportation regulations.
+
+## 6. Customer Responsibilities
+
+Customers are responsible for providing accurate information regarding each transportation requirement, including:
+
+* Pickup location;
+* Delivery location;
+* Pickup and delivery timings;
+* Type of goods;
+* Quantity and approximate weight/volume;
+* Packaging requirements;
+* Special handling requirements; and
+* Any other information reasonably necessary for transportation.
+
+Customers must ensure that goods are properly packaged, labelled, and legally permitted to be transported.
+
+Customers must not use the Platform to arrange transportation of prohibited or unlawful goods.
+
+## 7. Quotations and Pricing
+
+Logistics Partners may submit quotations through the Platform.
+
+Unless expressly stated otherwise, quotations are provided by the respective Logistics Partner and not by TransivoX.
+
+A quotation may depend on factors including:
+
+* Distance;
+* Vehicle type;
+* Load size;
+* Waiting time;
+* Tolls;
+* Parking charges;
+* Loading or unloading requirements;
+* Fuel costs;
+* Additional stops; and
+* Other agreed services or expenses.
+
+The final price may differ from an initial quotation where additional services, waiting time, route changes, additional stops, or other agreed charges arise.
+
+Any applicable taxes, tolls, government charges, or additional fees will be handled as specified at the time of booking or as separately agreed between the parties.
+
+## 8. Booking and Confirmation
+
+A transportation request does not constitute a confirmed booking until the applicable confirmation process on the Platform has been completed.
+
+Once a Customer selects a Logistics Partner and the booking is confirmed, the Customer and Logistics Partner are responsible for fulfilling their respective obligations.
+
+TransivoX may facilitate communication and transaction-related processes but does not become a party to the transportation contract unless expressly stated otherwise.
+
+## 9. Cancellation and Changes
+
+Cancellation and modification policies may vary depending on the Logistics Partner and the particular booking.
+
+Applicable cancellation charges, waiting charges, additional distance charges, or other fees may apply.
+
+Customers should review the applicable terms displayed during the booking process before confirming a transportation request.
+
+TransivoX may establish standard cancellation rules for Platform transactions where applicable.
+
+## 10. Delivery and Transportation
+
+The Logistics Partner is responsible for performing the transportation service agreed with the Customer.
+
+The Logistics Partner is responsible for:
+
+* Providing the agreed vehicle;
+* Ensuring that the vehicle is legally permitted to operate;
+* Employing or engaging legally permitted drivers;
+* Complying with applicable transportation laws;
+* Following agreed pickup and delivery instructions;
+* Taking reasonable care of goods while they are in its possession or control; and
+* Completing the transportation service in accordance with the agreed arrangement.
+
+Delivery times displayed on the Platform may be estimates and are not guaranteed unless expressly agreed otherwise.
+
+Delays may occur due to traffic, weather, road conditions, vehicle breakdowns, government restrictions, accidents, strikes, or other circumstances beyond reasonable control.
+
+## 11. Goods and Prohibited Items
+
+Customers are solely responsible for ensuring that goods offered for transportation comply with applicable laws.
+
+Unless expressly permitted and legally compliant, prohibited goods may include:
+
+* Illegal substances;
+* Explosives;
+* Weapons;
+* Hazardous materials;
+* Stolen goods;
+* Contraband;
+* Goods requiring special licences or permits where such requirements have not been satisfied; and
+* Any other goods prohibited under applicable law.
+
+Customers must disclose any legally required information regarding the nature, handling, storage, or transportation of goods.
+
+The Platform may refuse, suspend, or cancel transportation requests involving prohibited, suspicious, unsafe, or unlawfully declared goods.
+
+## 12. Loss, Damage, Theft, or Delay
+
+Because TransivoX does not itself transport or possess goods, claims relating to loss, damage, theft, shortage, deterioration, or delay in transportation should ordinarily be raised directly with the Logistics Partner responsible for the relevant transportation service.
+
+The rights and obligations of the Customer and Logistics Partner in relation to the goods may be governed by their transportation arrangement and applicable law.
+
+Nothing in these Terms excludes or limits any liability that cannot legally be excluded or limited under applicable law.
+
+## 13. Platform Fees
+
+TransivoX may charge Customers, Logistics Partners, or both for use of certain Platform services.
+
+Applicable fees may include:
+
+* Booking or transaction fees;
+* Subscription fees;
+* Platform fees;
+* Service fees;
+* Commission;
+* Cancellation fees; or
+* Other charges disclosed before or during use of the relevant service.
+
+Any applicable taxes may be charged in addition to the stated fees.
+
+We reserve the right to modify Platform fees with reasonable notice where required by applicable law.
+
+## 14. Payments
+
+Where payment functionality is provided through the Platform, payments may be processed through third-party payment service providers.
+
+Users agree to provide accurate payment information and authorize applicable charges.
+
+TransivoX may suspend or restrict access to Platform services where payments remain unpaid, are reversed, disputed improperly, or are suspected to involve fraud or unauthorized activity.
+
+Where a payment is made directly between a Customer and a Logistics Partner, TransivoX is not responsible for the collection or settlement of that payment unless expressly agreed otherwise.
+
+## 15. Disputes Between Customers and Logistics Partners
+
+Customers and Logistics Partners should first attempt to resolve disputes directly.
+
+Disputes may include matters relating to:
+
+* Pricing;
+* Pickup or delivery;
+* Vehicle availability;
+* Waiting time;
+* Goods;
+* Damage;
+* Loss;
+* Delays;
+* Additional charges; or
+* Performance of transportation services.
+
+The Platform may, at its discretion, facilitate communication or dispute resolution between the parties.
+
+However, unless expressly agreed otherwise, TransivoX does not guarantee resolution of disputes and does not assume the contractual obligations of either party.
+
+## 16. User Conduct
+
+You agree not to:
+
+* Provide false or misleading information;
+* Use another person's account without authorization;
+* Circumvent Platform fees;
+* Use the Platform for unlawful activities;
+* Upload malicious software or code;
+* Attempt to gain unauthorized access to the Platform;
+* Interfere with Platform operations;
+* Manipulate quotations, bookings, reviews, or ratings;
+* Use the Platform to commit fraud;
+* Harass or threaten other users; or
+* Attempt to bypass the Platform for the purpose of avoiding applicable Platform charges.
+
+We may suspend or terminate accounts that violate these Terms.
+
+## 17. Ratings and Reviews
+
+The Platform may allow Customers and Logistics Partners to provide ratings and reviews.
+
+Reviews must be truthful, relevant, and based on genuine experiences.
+
+Users must not:
+
+* Post fraudulent reviews;
+* Manipulate ratings;
+* Post defamatory or unlawful content;
+* Threaten another user with a negative review; or
+* Offer or accept payment in exchange for a review.
+
+We reserve the right to remove content that violates these Terms or applicable law.
+
+## 18. Third-Party Services
+
+The Platform may integrate with third-party services, including payment providers, mapping services, communication providers, verification providers, and other technology providers.
+
+Third-party services may be subject to their own terms and privacy policies.
+
+TransivoX is not responsible for failures, interruptions, or actions of third-party services to the extent permitted by applicable law.
+
+## 19. Intellectual Property
+
+All software, designs, logos, trademarks, text, graphics, interfaces, databases, and other content owned or licensed by TransivoX are protected by applicable intellectual property laws.
+
+You may use the Platform only for its intended purpose.
+
+You may not reproduce, modify, distribute, sell, reverse engineer, copy, scrape, or commercially exploit Platform content without prior written permission, except where permitted by applicable law.
+
+## 20. Privacy
+
+Your use of the Platform is also governed by our Privacy Policy.
+
+We may collect and process information necessary to provide Platform services, including account information, booking information, location information, communication records, payment-related information, and other information described in our Privacy Policy.
+
+Users should review the Privacy Policy before using the Platform.
+
+## 21. Suspension and Termination
+
+We may suspend, restrict, or terminate access to the Platform where we reasonably believe that:
+
+* These Terms have been violated;
+* Fraudulent or unlawful activity has occurred;
+* The user's conduct creates a safety or security risk;
+* Information provided by the user is materially false;
+* Payments are overdue; or
+* Suspension is required to comply with applicable law.
+
+Users may stop using the Platform at any time.
+
+Termination does not affect rights or obligations that accrued before termination.
+
+## 22. Disclaimer
+
+To the maximum extent permitted by applicable law, the Platform and its technology are provided on an "as available" basis.
+
+We do not guarantee that:
+
+* The Platform will always be available;
+* A Logistics Partner will always be available;
+* A particular vehicle or driver will be available;
+* A transportation request will be fulfilled;
+* Transportation services will be completed within a particular time;
+* Goods will arrive without loss or damage; or
+* Information provided by third-party Logistics Partners will always be accurate.
+
+Nothing in these Terms excludes statutory rights or liabilities that cannot legally be excluded.
+
+## 23. Limitation of Liability
+
+To the maximum extent permitted by applicable law, TransivoX shall not be liable for indirect, incidental, special, consequential, or punitive losses arising from transportation services provided by independent Logistics Partners.
+
+This includes, where legally permissible, losses arising from:
+
+* Delayed delivery;
+* Vehicle breakdown;
+* Accidents;
+* Loss or damage to goods;
+* Theft;
+* Acts or omissions of drivers or Logistics Partners;
+* Business interruption;
+* Loss of profits; or
+* Loss of anticipated business opportunities.
+
+However, nothing in these Terms shall exclude or restrict liability to the extent such exclusion or restriction is prohibited by applicable law.
+
+## 24. Indemnification
+
+To the extent permitted by applicable law, you agree to indemnify and hold harmless TransivoX, its directors, officers, employees, affiliates, and representatives from claims, losses, damages, liabilities, costs, and expenses arising from:
+
+* Your breach of these Terms;
+* Your unlawful use of the Platform;
+* False or misleading information provided by you;
+* Your goods or transportation requirements;
+* Your violation of applicable laws; or
+* Your dispute or contractual relationship with another Platform user.
+
+## 25. Force Majeure
+
+We shall not be responsible for delays or failure to perform Platform obligations caused by circumstances beyond our reasonable control, including natural disasters, extreme weather, war, terrorism, strikes, government actions, epidemics, infrastructure failures, internet outages, power failures, or other similar events.
+
+## 26. Changes to These Terms
+
+We may modify these Terms from time to time.
+
+Updated Terms will be published on the Platform with the revised "Last Updated" date.
+
+Material updates require explicit acceptance of the revised version before a new booking can be created.
+
+## 27. Governing Law and Jurisdiction
+
+These Terms shall be governed by the laws of India.
+
+Subject to any mandatory dispute-resolution mechanism applicable under law, courts located in **[Delhi, India]** shall have jurisdiction over disputes arising from or relating to these Terms or use of the Platform.
+
+## 28. Severability
+
+If any provision of these Terms is found to be invalid, illegal, or unenforceable, the remaining provisions shall continue in full force and effect.
+
+## 29. Entire Agreement
+
+These Terms, together with the Privacy Policy and any additional terms applicable to specific Platform services, constitute the agreement between you and TransivoX regarding your use of the Platform.
+
+## 30. Contact Us
+
+If you have questions regarding these Terms, please contact us:
+
+**TransivoX**
+**Registered Address:** [Address]
+**Email:** [Email Address]
+**Phone:** [Phone Number]
+**Website:** [Website]
