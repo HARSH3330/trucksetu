@@ -8,6 +8,39 @@ export class ApiError extends Error {
   }
 }
 
+type ApiErrorPayload = {detail?: unknown}
+type ValidationDetail = {loc?: unknown; msg?: unknown}
+
+const ERROR_FIELD_LABELS: Record<string,string> = {
+  full_name: 'Full name', email: 'Email address', mobile: 'Mobile', password: 'Password', role: 'Account type',
+}
+
+function validationMessage(detail: ValidationDetail): string | null {
+  if (typeof detail.msg !== 'string' || !detail.msg.trim()) return null
+  const location = Array.isArray(detail.loc) ? detail.loc : []
+  const field = [...location].reverse().find(value => typeof value === 'string' && value !== 'body')
+  const label = typeof field === 'string' ? ERROR_FIELD_LABELS[field] || field.replaceAll('_',' ') : null
+  let message = detail.msg.replace(/^Value error,\s*/i,'').trim()
+  if (field === 'email' && /^value is not a valid email address/i.test(message)) message = 'Enter a valid email address.'
+  else if (!/[.!?]$/.test(message)) message += '.'
+  return label ? `${label}: ${message}` : message
+}
+
+export function apiErrorMessage(payload: unknown, fallback = 'Unable to complete the request'): string {
+  if (!payload || typeof payload !== 'object') return fallback
+  const detail = (payload as ApiErrorPayload).detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const messages = detail.map(item => item && typeof item === 'object' ? validationMessage(item as ValidationDetail) : null).filter(Boolean)
+    if (messages.length) return messages.join(' ')
+  }
+  if (detail && typeof detail === 'object' && 'message' in detail) {
+    const message = (detail as {message?: unknown}).message
+    if (typeof message === 'string' && message.trim()) return message
+  }
+  return fallback
+}
+
 function refreshToken(): string | null {
   const legacy = localStorage.getItem('transivox_refresh_token')
   if (legacy) {
@@ -36,9 +69,7 @@ export function clearSession(): void {
 async function parse<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
-    const detail = data?.detail
-    const message = typeof detail === 'string' ? detail : detail?.message || 'Unable to complete the request'
-    throw new ApiError(response.status, message)
+    throw new ApiError(response.status, apiErrorMessage(data))
   }
   return data as T
 }

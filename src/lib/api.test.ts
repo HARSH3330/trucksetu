@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import {apiFetch, clearSession, saveSession} from './api'
+import {apiErrorMessage, apiFetch, clearSession, saveSession} from './api'
 
 class MemoryStorage {
   private values = new Map<string,string>()
@@ -12,6 +12,22 @@ beforeEach(()=>{
   vi.stubGlobal('sessionStorage',new MemoryStorage())
   vi.stubGlobal('localStorage',new MemoryStorage())
   vi.restoreAllMocks()
+})
+
+describe('API error messages',()=>{
+  it('turns FastAPI validation details into safe field-specific guidance',()=>{
+    expect(apiErrorMessage({detail:[
+      {type:'value_error',loc:['body','password'],msg:'Value error, Password must include uppercase, lowercase, and numeric characters',input:'secret-value'},
+      {type:'value_error',loc:['body','email'],msg:'value is not a valid email address: An email address must have an @-sign.',input:'invalid-address'},
+    ]},'Unable to continue')).toBe(
+      'Password: Password must include uppercase, lowercase, and numeric characters. Email address: Enter a valid email address.',
+    )
+  })
+
+  it('preserves a normal API error and falls back for malformed responses',()=>{
+    expect(apiErrorMessage({detail:'This email is already registered'},'Unable to continue')).toBe('This email is already registered')
+    expect(apiErrorMessage({detail:[]},'Unable to continue')).toBe('Unable to continue')
+  })
 })
 
 describe('authenticated API client',()=>{
