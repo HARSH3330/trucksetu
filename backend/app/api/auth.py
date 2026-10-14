@@ -249,6 +249,7 @@ async def refresh(payload: RefreshInput, request: Request, db: AsyncSession = De
     await enforce_rate_limit(request, "refresh", settings.REFRESH_RATE_LIMIT, 60)
     try: claims = verify_token(payload.refresh_token, "refresh")
     except JWTError as exc: raise HTTPException(401, "Invalid refresh token") from exc
+    await acquire_idempotency_lock(db, f"refresh-family:{claims.get('family')}")
     session = await db.scalar(select(RefreshSession).where(RefreshSession.jti == claims.get("jti")).with_for_update())
     now = datetime.now(UTC)
     claims_match = bool(session and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id)
@@ -306,9 +307,14 @@ async def me(user: Annotated[User, Depends(current_user)]) -> dict[str, object]:
 async def logout(payload: RefreshInput, db: AsyncSession = Depends(get_db)) -> None:
     try: claims = verify_token(payload.refresh_token, "refresh")
     except JWTError: return
+    await acquire_idempotency_lock(db, f"refresh-family:{claims.get('family')}")
     session = await db.scalar(select(RefreshSession).where(RefreshSession.jti == claims.get("jti")).with_for_update())
-    if session and not session.revoked_at and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id and token_hash_matches(payload.refresh_token, session.token_hash):
-        session.revoked_at = datetime.now(UTC)
+    if session and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id and token_hash_matches(payload.refresh_token, session.token_hash):
+        # Revoke descendants too: a refresh may have rotated the submitted
+        # credential immediately before logout acquired this row lock.
+        await db.execute(update(RefreshSession).where(RefreshSession.user_id == session.user_id, RefreshSession.family_id == session.family_id, RefreshSession.revoked_at.is_(None)).values(revoked_at=datetime.now(UTC)))
+        db.add(AuditLog(actor_id=session.user_id, action='auth.logout', entity_type='user', entity_id=session.user_id, after={'family_sessions_revoked':True}))
+        await db.commit()
 
 
 @router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)

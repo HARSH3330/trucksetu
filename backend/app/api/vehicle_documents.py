@@ -52,10 +52,11 @@ async def clean(storage:PrivateDocumentStorage,key:str,version_id:str)->None:
     except ValueError as exc:raise HTTPException(409,'Document scan is pending or was not clean') from exc
     except Exception as exc:raise HTTPException(503,'Document scan is unavailable') from exc
 
-async def require_accepted_documents(db:AsyncSession,vehicle_id:uuid.UUID)->list[VehicleDocument]:
-    items=list(await db.scalars(select(VehicleDocument).where(VehicleDocument.vehicle_id==vehicle_id,VehicleDocument.status=='accepted')))
-    present={item.document_type for item in items if item.status=='accepted' and item.expires_on>=date.today()}
-    if KINDS-present:raise HTTPException(422,{'message':'Accept all current vehicle documents before approval','missing':sorted(KINDS-present)})
+async def require_accepted_documents(db:AsyncSession,vehicle_id:uuid.UUID,through:date|None=None)->list[VehicleDocument]:
+    through = through or date.today()
+    items=list(await db.scalars(select(VehicleDocument).where(VehicleDocument.vehicle_id==vehicle_id,VehicleDocument.status=='accepted').with_for_update()))
+    present={item.document_type for item in items if item.status=='accepted' and item.expires_on>=through and item.storage_version_id and item.storage_version_id!='null'}
+    if KINDS-present:raise HTTPException(422,{'message':'Accepted version-bound vehicle documents must cover the planned trip','missing':sorted(KINDS-present)})
     return items
 
 @router.get('/carrier-vehicles/{vehicle_id}/documents')

@@ -23,7 +23,7 @@ async def test_approval_requires_all_current_accepted_vehicle_files():
     with pytest.raises(HTTPException) as failure:
         await documents.require_accepted_documents(db,uuid.uuid4())
     assert failure.value.status_code==422
-    files=[SimpleNamespace(document_type=kind,status='accepted',expires_on=date.today()+timedelta(days=30)) for kind in documents.KINDS]
+    files=[SimpleNamespace(document_type=kind,status='accepted',storage_version_id='fictional-v1',expires_on=date.today()+timedelta(days=30)) for kind in documents.KINDS]
     db.scalars.return_value=files
     assert await documents.require_accepted_documents(db,uuid.uuid4())==files
     files[0].status='uploaded'

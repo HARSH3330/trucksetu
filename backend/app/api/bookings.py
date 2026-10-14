@@ -22,6 +22,8 @@ from app.schemas import BookingCreate, DriverAssignment, OtpVerify, TripStatusUp
 from app.api.auth import require_roles
 from app.api.vehicles import vehicle_is_document_eligible
 from app.services.capacity import release_reservation
+from app.services.driver_eligibility import require_verified_driver_identity
+from app.api.vehicle_documents import require_accepted_documents
 from app.api.terms import require_terms
 
 from app.core.routing import AuthenticationFirstRoute
@@ -128,6 +130,12 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
     if len(quote_ids) != len(set(quote_ids)):
         raise HTTPException(status_code=422, detail="A quotation can only be selected once")
     quotes = list(await db.scalars(select(Quote).where(Quote.id.in_(quote_ids)).with_for_update()))
+    # A historically valid quote is not authority to book after suspension or
+    # re-verification. Lock eligibility with the booking transaction.
+    for provider_id in sorted({quote.provider_id for quote in quotes}, key=str):
+        provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.id == provider_id).with_for_update())
+        if provider is None or not provider.active or provider.kyc_status != "verified":
+            raise HTTPException(409, "Provider verification changed; request a new quotation after verification")
     quote_map = {item.id: item for item in quotes}
     requested_total = sum(item.trucks for item in payload.allocations)
     try:
@@ -200,7 +208,10 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
         raise HTTPException(status_code=403, detail="You cannot assign a driver to another provider's trip")
     if driver.provider_id != provider.id:
         raise HTTPException(status_code=422, detail="Driver does not belong to the allocated provider")
-    vehicle = await db.get(CarrierVehicle, payload.carrier_vehicle_id)
+    if not provider.active or provider.kyc_status != 'verified':
+        raise HTTPException(409, 'Provider re-verification is required before new assignments')
+    await require_verified_driver_identity(db, driver)
+    vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == payload.carrier_vehicle_id).with_for_update().execution_options(populate_existing=True))
     booking = await db.get(Booking, allocation.booking_id)
     request = await db.get(TransportRequest, booking.request_id) if booking else None
     trip_end = request.delivery_deadline_at if request and request.delivery_deadline_at else datetime.now(UTC)
@@ -210,6 +221,7 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
         raise HTTPException(status_code=422, detail="Driver licence must remain valid through the trip")
     if vehicle is None or vehicle.provider_id != provider.id or not vehicle_is_document_eligible(vehicle, trip_end.date()):
         raise HTTPException(status_code=422, detail="Select an approved provider vehicle with documents valid through the trip")
+    await require_accepted_documents(db, vehicle.id, trip_end.date())
     quote = await db.get(Quote, allocation.quote_id)
     if quote and vehicle.vehicle_category_id != quote.vehicle_category_id:
         raise HTTPException(status_code=422, detail="Assigned vehicle category does not match the accepted quotation")

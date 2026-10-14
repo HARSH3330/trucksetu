@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from typing import Annotated
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +18,7 @@ from app.api.auth import require_roles
 from app.schemas import InvoiceCreate, ManualRefundCreate, OfflinePaymentCreate, PaymentIntentCreate
 from app.domain import financial_snapshot
 from app.services.payments import RazorpayGateway, validate_captured_payment, verify_razorpay_signature
+from app.services.invoices import printable_invoice
 
 from app.core.routing import AuthenticationFirstRoute
 
@@ -110,6 +112,21 @@ async def issue_invoice(
     db.add(AuditLog(actor_id=admin.id, action="invoice.issued", entity_type="invoice", entity_id=invoice.id,
                     after={"invoice_number": invoice.invoice_number, "booking_id": str(invoice.booking_id)}))
     return {"invoice_id": str(invoice.id), "invoice_number": invoice.invoice_number, "status": invoice.status}
+
+
+@router.get("/invoices/{invoice_id}/download")
+async def download_invoice(invoice_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
+    invoice = await db.get(Invoice, invoice_id)
+    booking = await db.get(Booking, invoice.booking_id) if invoice else None
+    privileged = bool({role.role for role in user.roles}.intersection({"admin", "superadmin"}))
+    if invoice is None or booking is None or (booking.customer_id != user.id and not privileged):
+        raise HTTPException(404, "Invoice not found")
+    if invoice.status != "issued":
+        raise HTTPException(409, "Only issued invoice records can be downloaded")
+    content = printable_invoice(invoice, booking)
+    db.add(AuditLog(actor_id=user.id, action="invoice.downloaded", entity_type="invoice", entity_id=invoice.id))
+    await db.commit()
+    return {"filename": f"transivox-invoice-{invoice.id}.html", "content_type": "text/html", "content": content}
 
 
 @router.post("/bookings/{booking_id}/payments/online", status_code=status.HTTP_201_CREATED)
@@ -257,7 +274,7 @@ async def record_manual_refund(booking_id: uuid.UUID, payload: ManualRefundCreat
     await acquire_idempotency_lock(db, payload.idempotency_key)
     existing = await db.scalar(select(PaymentRefund).where(PaymentRefund.idempotency_key == payload.idempotency_key))
     if existing:
-        if existing.booking_id != booking_id:
+        if existing.booking_id != booking_id or existing.amount != payload.amount or existing.method != payload.method or existing.reference != payload.reference:
             raise HTTPException(409, "Idempotency key was already used for another operation")
         return {"refund_id": str(existing.id), "status": existing.status, "amount": str(existing.amount)}
     cancellation = await db.scalar(select(Cancellation).where(Cancellation.booking_id == booking_id).with_for_update())
@@ -270,3 +287,18 @@ async def record_manual_refund(booking_id: uuid.UUID, payload: ManualRefundCreat
     db.add(item); await db.flush()
     db.add(AuditLog(actor_id=admin.id, action="payment.refund_recorded", entity_type="payment_refund", entity_id=item.id, after={"booking_id": str(booking_id), "amount": str(payload.amount), "method": payload.method}))
     return {"refund_id": str(item.id), "status": item.status, "amount": str(item.amount)}
+
+
+@router.get("/admin/refunds")
+async def refund_queue(db: AsyncSession = Depends(get_db), admin: User = Depends(require_roles("admin", "superadmin")), page: Annotated[int, Query(ge=1, le=10000)] = 1) -> list[dict[str, str]]:
+    refunded = select(PaymentRefund.booking_id, func.sum(PaymentRefund.amount).label('processed')).where(PaymentRefund.status == 'processed').group_by(PaymentRefund.booking_id).subquery()
+    processed = func.coalesce(refunded.c.processed, 0)
+    query = select(Cancellation.booking_id, Booking.public_id, Cancellation.refund_amount, processed).join(Booking, Booking.id == Cancellation.booking_id).outerjoin(refunded, refunded.c.booking_id == Cancellation.booking_id).where(Cancellation.refund_amount > processed).order_by(Cancellation.created_at.desc(), Cancellation.id).offset((page - 1) * 100).limit(100)
+    rows = (await db.execute(query)).all()
+    result = []
+    for booking_id, public_id, approved_amount, processed_amount in rows:
+        processed_amount = Decimal(str(processed_amount))
+        remaining = max(approved_amount - processed_amount, Decimal("0"))
+        if remaining > 0:
+            result.append({"booking_id": str(booking_id), "booking_public_id": public_id, "approved_amount": str(approved_amount), "processed_amount": str(processed_amount), "remaining_amount": str(remaining)})
+    return result

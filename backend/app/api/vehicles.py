@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import current_user, require_roles
 from app.core.database import get_db
-from app.models import AuditLog, CarrierVehicle, ProviderProfile, User, VehicleCategory
+from app.models import AuditLog, CarrierVehicle, ProviderProfile, User, VehicleCategory, VehicleDocument
+from app.services.vehicle_review_rollout import REQUIRED_VEHICLE_FILES, accepted_kinds
 from app.schemas import CarrierVehicleCreate, VehicleReview
 
 from app.core.routing import AuthenticationFirstRoute
@@ -118,7 +119,18 @@ async def list_vehicles(
         if provider_id is None:
             return []
         query = query.where(CarrierVehicle.provider_id == provider_id)
-    return [_read(vehicle, category_name, provider_name) for vehicle, category_name, provider_name in (await db.execute(query)).all()]
+    rows = (await db.execute(query)).all()
+    documents = list(await db.scalars(select(VehicleDocument).where(VehicleDocument.vehicle_id.in_([vehicle.id for vehicle, _, _ in rows])))) if rows else []
+    accepted = accepted_kinds(documents)
+    result = []
+    for vehicle, category_name, provider_name in rows:
+        item = _read(vehicle, category_name, provider_name)
+        missing = sorted(REQUIRED_VEHICLE_FILES - accepted[vehicle.id])
+        item['document_review_state'] = 'needs_documents' if missing else 'approved' if vehicle.status == 'approved' else 'pending_review'
+        item['missing_accepted_documents'] = missing
+        item['document_eligible_today'] = bool(item['document_eligible_today']) and not missing
+        result.append(item)
+    return result
 
 
 @router.post("/admin/carrier-vehicles/{vehicle_id}/review")

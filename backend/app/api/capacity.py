@@ -12,10 +12,12 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.database import acquire_idempotency_lock, get_db
 from app.domain import reserve_capacity, route_match_score
-from app.models import AvailableRoute, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, SharedMatchEvaluation, TransportRequest, User, VehicleCategory
+from app.models import AuditLog, AvailableRoute, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, SharedMatchEvaluation, TransportRequest, User, VehicleCategory
 from app.api.auth import require_roles
 from app.api.vehicles import vehicle_is_document_eligible
 from app.services.capacity import release_expired_capacity_holds, release_reservation
+from app.services.driver_eligibility import require_verified_driver_identity
+from app.api.vehicle_documents import require_accepted_documents
 from app.schemas import AvailableRouteCreate, CapacityReservationCreate
 
 from app.core.routing import AuthenticationFirstRoute
@@ -47,7 +49,7 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
         raise HTTPException(status_code=503, detail="Shared capacity is not enabled")
     provider = await db.get(ProviderProfile, payload.provider_id)
     vehicle = await db.get(VehicleCategory, payload.vehicle_category_id)
-    carrier_vehicle = await db.get(CarrierVehicle, payload.carrier_vehicle_id)
+    carrier_vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == payload.carrier_vehicle_id).with_for_update().execution_options(populate_existing=True))
     if provider is None or not provider.active or provider.kyc_status != "verified":
         raise HTTPException(status_code=403, detail="Provider KYC must be verified before publishing capacity")
     if provider.user_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
@@ -59,6 +61,7 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
         raise HTTPException(status_code=422, detail="Select an approved vehicle belonging to this provider")
     if not vehicle_is_document_eligible(carrier_vehicle, arrival.date()):
         raise HTTPException(status_code=422, detail="Vehicle approval or documents do not cover this route")
+    await require_accepted_documents(db, carrier_vehicle.id, arrival.date())
     if payload.total_capacity_tonnes > carrier_vehicle.maximum_payload_tonnes:
         raise HTTPException(status_code=422, detail="Capacity exceeds the configured safe vehicle limit")
     if payload.total_volume_m3 > carrier_vehicle.maximum_volume_m3:
@@ -71,6 +74,7 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
         driver = await db.get(DriverProfile, payload.driver_id)
         if driver is None or driver.provider_id != provider.id or driver.kyc_status != "verified" or not driver.active:
             raise HTTPException(status_code=422, detail="Selected driver is not a verified driver for this provider")
+        await require_verified_driver_identity(db, driver)
         if driver.licence_expires_on is None or driver.licence_expires_on < arrival.date():
             raise HTTPException(status_code=422, detail="Driver licence does not cover the planned route date")
     item = AvailableRoute(provider_id=provider.id, vehicle_category_id=vehicle.id, carrier_vehicle_id=carrier_vehicle.id, driver_id=payload.driver_id,
@@ -117,20 +121,34 @@ async def search_routes(origin: str = Query(min_length=2, max_length=100), desti
 
 @router.post("/available-routes/{route_id}/reservations", status_code=status.HTTP_201_CREATED)
 async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservationCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
-    await acquire_idempotency_lock(db, payload.idempotency_key)
+    await acquire_idempotency_lock(db, f"capacity-key:{payload.idempotency_key}")
+    await acquire_idempotency_lock(db, f"capacity-match:{payload.match_evaluation_id}")
     existing=await db.scalar(select(CapacityReservation).where(CapacityReservation.idempotency_key==payload.idempotency_key))
+    if not existing:
+        existing = await db.scalar(select(CapacityReservation).where(CapacityReservation.match_evaluation_id == payload.match_evaluation_id))
     if existing:
-        if existing.customer_id != user.id or existing.available_route_id != route_id:
+        if existing.customer_id != user.id or existing.available_route_id != route_id or existing.match_evaluation_id != payload.match_evaluation_id or existing.cargo_type.casefold() != payload.cargo_type.casefold() or existing.weight_tonnes != payload.weight_tonnes or existing.volume_m3 != payload.volume_m3:
             raise HTTPException(status_code=409, detail="Idempotency key was already used for another operation")
         if existing.status == "reserved" and existing.expires_at <= datetime.now(UTC):
+            existing = await db.scalar(select(CapacityReservation).where(CapacityReservation.id == existing.id).with_for_update().execution_options(populate_existing=True))
+            if existing.status != 'reserved' or existing.expires_at > datetime.now(UTC):
+                return {"reservation_id":str(existing.id),"status":existing.status,"remaining_capacity_tonnes":"unchanged"}
             expired_route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == existing.available_route_id).with_for_update())
             if expired_route:
                 release_reservation(expired_route, existing, "expired")
             else:
                 existing.status = "expired"
+            await db.commit()
         return {"reservation_id":str(existing.id),"status":existing.status,"remaining_capacity_tonnes":"unchanged"}
-    route=await db.scalar(select(AvailableRoute).where(AvailableRoute.id==route_id).with_for_update())
-    if route is None or route.status!="active":raise HTTPException(status_code=409,detail="This route is no longer available")
+    # Locate the parent without taking the route lock. Booking takes provider
+    # before hold/route; taking route first here creates a deadlock on expiry.
+    route=await db.scalar(select(AvailableRoute).where(AvailableRoute.id==route_id))
+    if route is None:raise HTTPException(status_code=409,detail="This route is no longer available")
+    provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.id == route.provider_id).with_for_update())
+    if provider is None or not provider.active or provider.kyc_status != "verified":
+        raise HTTPException(409, "Provider verification changed; request a new match after verification")
+    route=await db.scalar(select(AvailableRoute).where(AvailableRoute.id==route_id).with_for_update().execution_options(populate_existing=True))
+    if route is None or route.status!="active" or route.provider_id != provider.id:raise HTTPException(status_code=409,detail="This route is no longer available")
     match = await db.scalar(select(SharedMatchEvaluation).where(SharedMatchEvaluation.id == payload.match_evaluation_id).with_for_update())
     if match is None or match.request_id is None or match.available_route_id != route.id or not match.eligible or match.expires_at <= datetime.now(UTC):
         raise HTTPException(status_code=409, detail="A current eligible match decision is required")
@@ -139,13 +157,15 @@ async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservati
         raise HTTPException(status_code=403, detail="Match decision does not belong to this customer request")
     if payload.weight_tonnes != shipment.cargo.weight_tonnes or payload.volume_m3 != shipment.cargo.volume_m3:
         raise HTTPException(status_code=422, detail="Reserved weight and volume must match the evaluated shipment")
-    carrier_vehicle = await db.get(CarrierVehicle, route.carrier_vehicle_id) if route.carrier_vehicle_id else None
+    carrier_vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == route.carrier_vehicle_id).with_for_update().execution_options(populate_existing=True)) if route.carrier_vehicle_id else None
     driver = await db.get(DriverProfile, route.driver_id) if route.driver_id else None
     trip_end = shipment.delivery_deadline_at or route.expected_arrival_at or route.departure_at
     if not carrier_vehicle or not vehicle_is_document_eligible(carrier_vehicle, trip_end.date()):
         raise HTTPException(status_code=409, detail="Vehicle eligibility changed; request a new match")
+    await require_accepted_documents(db, carrier_vehicle.id, trip_end.date())
     if not driver or not driver.active or driver.kyc_status != "verified" or not driver.licence_expires_on or driver.licence_expires_on < trip_end.date():
         raise HTTPException(status_code=409, detail="Driver eligibility changed; request a new match")
+    await require_verified_driver_identity(db, driver)
     if payload.cargo_type.casefold() not in [item.casefold() for item in route.allowed_cargo_types]:raise HTTPException(status_code=422,detail="This route does not accept the selected cargo type")
     if payload.volume_m3 > route.remaining_volume_m3:raise HTTPException(status_code=409,detail="Not enough safe volume remains on this route")
     try:new_remaining=reserve_capacity(route.remaining_capacity_tonnes,payload.weight_tonnes,route.minimum_booking_tonnes)
@@ -164,3 +184,21 @@ async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservati
 @router.post("/admin/capacity/release-expired")
 async def release_expired(_: User = Depends(require_roles("admin", "superadmin")), db: AsyncSession = Depends(get_db)) -> dict[str, int]:
     return {"released": await release_expired_capacity_holds(db)}
+
+
+@router.post('/capacity-reservations/{reservation_id}/release')
+async def release_hold(reservation_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles('customer','admin','superadmin'))) -> dict[str, str]:
+    hold = await db.scalar(select(CapacityReservation).where(CapacityReservation.id == reservation_id).with_for_update())
+    if not hold or (hold.customer_id != user.id and not {role.role for role in user.roles}.intersection({'admin','superadmin'})):
+        raise HTTPException(404, 'Capacity hold not found')
+    if hold.status == 'confirmed':
+        raise HTTPException(409, 'Cancel the booking through its cancellation policy; this hold is already booked')
+    if hold.status != 'reserved':
+        return {'reservation_id':str(hold.id), 'status':hold.status}
+    route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == hold.available_route_id).with_for_update())
+    if not route:
+        raise HTTPException(409, 'Capacity route is unavailable')
+    release_reservation(route, hold, 'released')
+    db.add(AuditLog(actor_id=user.id, action='capacity.hold_released', entity_type='capacity_reservation', entity_id=hold.id, after={'status':'released','available_route_id':str(route.id)}))
+    await db.commit()
+    return {'reservation_id':str(hold.id), 'status':hold.status}

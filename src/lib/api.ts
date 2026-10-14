@@ -1,6 +1,7 @@
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '')
 const API_TIMEOUT_MS = 15_000
 let rotation: Promise<boolean> | null = null
+let sessionGeneration = 0
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -55,15 +56,30 @@ export function migrateLegacySession(): void {
 }
 
 export function saveSession(data: {access_token: string; refresh_token: string}): void {
+  sessionGeneration++
+  writeSession(data)
+}
+
+function writeSession(data: {access_token: string; refresh_token: string}): void {
   sessionStorage.setItem('transivox_access_token', data.access_token)
   sessionStorage.setItem('transivox_refresh_token', data.refresh_token)
   localStorage.removeItem('transivox_refresh_token')
 }
 
 export function clearSession(): void {
+  sessionGeneration++
   sessionStorage.removeItem('transivox_access_token')
   sessionStorage.removeItem('transivox_refresh_token')
   localStorage.removeItem('transivox_refresh_token')
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('transivox-session-cleared'))
+}
+
+export async function logoutSession(): Promise<void> {
+  const token = refreshToken()
+  clearSession()
+  if (!token) return
+  // Do not rotate credentials on logout or retry this mutation implicitly.
+  await publicFetch('/auth/logout', {method:'POST',body:JSON.stringify({refresh_token:token})})
 }
 
 async function parse<T>(response: Response): Promise<T> {
@@ -99,16 +115,20 @@ async function request(url: string, init: RequestInit, retryTransient = true): P
 }
 
 async function rotateSession(): Promise<boolean> {
+  const generation = sessionGeneration
   const token = refreshToken()
   if (!token) return false
   const response = await request(`${API_BASE}/auth/refresh`, {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refresh_token: token}),
   }, false)
+  if (generation !== sessionGeneration) return false
   if (!response.ok) {
     clearSession()
     return false
   }
-  saveSession(await response.json())
+  const data = await response.json()
+  if (generation !== sessionGeneration) return false
+  writeSession(data)
   return true
 }
 
@@ -118,12 +138,18 @@ async function rotateSessionOnce(): Promise<boolean> {
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+  const generation = sessionGeneration
   const token = sessionStorage.getItem('transivox_access_token')
   const headers = new Headers(init.headers)
   if (!headers.has('Content-Type') && init.body) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
   const response = await request(`${API_BASE}${path}`, {...init, headers})
-  if (response.status === 401 && retry && await rotateSessionOnce()) return apiFetch<T>(path, init, false)
+  if (generation !== sessionGeneration) throw new ApiError(401, 'Session changed. Sign in again if required.')
+  if (response.status === 401 && retry) {
+    const rotated = await rotateSessionOnce()
+    if (generation !== sessionGeneration) throw new ApiError(401, 'Session changed. Sign in again if required.')
+    if (rotated) return apiFetch<T>(path, init, false)
+  }
   if (response.status === 401) clearSession()
   return parse<T>(response)
 }

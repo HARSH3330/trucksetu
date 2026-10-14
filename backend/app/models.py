@@ -214,6 +214,8 @@ class KYCDocument(Base):
     application_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("kyc_applications.id", ondelete="CASCADE"), nullable=False)
     document_type: Mapped[str] = mapped_column(String(50), nullable=False)
     storage_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
+    # NULL is an explicit legacy/unbound record, never approval evidence.
+    storage_version_id: Mapped[str | None] = mapped_column(String(255))
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)

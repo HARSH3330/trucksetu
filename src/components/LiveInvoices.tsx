@@ -37,6 +37,16 @@ export default function LiveInvoices(){
       setLegalName('');setGstin('');setAddress('');setMessage('Invoice draft created for administrator review.');await load()
     }catch(error){setMessage(error instanceof Error?error.message:'Invoice could not be created')}
   }
+  async function download(id:string){
+    setMessage('Preparing printable record…')
+    try{
+      const record=await apiFetch<{filename:string;content_type:string;content:string}>(`/invoices/${id}/download`)
+      const url=URL.createObjectURL(new Blob([record.content],{type:record.content_type}))
+      const link=document.createElement('a');link.href=url;link.download=record.filename;document.body.appendChild(link);link.click();link.remove()
+      setTimeout(()=>URL.revokeObjectURL(url),1000)
+      setMessage('Printable record downloaded. Open it and use Print → Save as PDF if needed.')
+    }catch(error){setMessage(error instanceof Error?error.message:'Download failed')}
+  }
   async function issue(id:string){
     setMessage('Issuing invoice…')
     try{await apiFetch(`/invoices/${id}/issue`,{method:'POST'});setMessage('Invoice issued and audit logged.');await load()}
@@ -48,9 +58,9 @@ export default function LiveInvoices(){
   if(state==='error')return <main className="page"><div className="empty-state"><b>Invoices unavailable</b><p>{message}</p><button onClick={load}>Retry</button></div></main>
   const admin=Boolean(user?.roles.some(role=>['admin','superadmin'].includes(role)))
   const available=bookings.filter(item=>item.can_report_payment&&!invoices.some(invoice=>invoice.booking_id===item.booking_id))
-  return <main className="page"><div className="page-title"><span className="kicker">FINANCIAL RECORDS</span><h1>Booking invoices</h1><p>Create GST-ready invoice records and track administrator issuance.</p></div>
+  return <main className="page"><div className="page-title"><span className="kicker">FINANCIAL RECORDS</span><h1>Booking invoices</h1><p>Create booking invoice records and track administrator issuance.</p></div>
     {message&&<div className="privacy-banner">{message}</div>}
-    <div className="invoice-grid"><section className="invoice-list">{invoices.map(item=><article key={item.id}><div className="invoice-head"><span><ReceiptIndianRupee/></span><div><b>{item.invoice_number}</b><small>{item.booking_public_id} · {item.legal_name}</small></div><strong className={item.status==='issued'?'issued':'draft'}>{item.status==='issued'?<FileCheck2/>:<FilePlus2/>}{item.status}</strong></div><div className="invoice-values"><span><small>Booking value</small><b>{money(item.taxable_amount)}</b></span><span><small>GST ({Number(item.tax_percent)}%)</small><b>{money(item.tax_amount)}</b></span><span><small>Invoice total</small><b>{money(item.total_amount)}</b></span></div><div className="invoice-address"><Building2/><span><b>{item.gstin||'GSTIN not supplied'}</b><small>{item.billing_address}</small></span></div>{item.issued_at&&<small>Issued {new Date(item.issued_at).toLocaleString('en-IN')}</small>}{admin&&item.status==='draft'&&<button onClick={()=>issue(item.id)}><BadgeCheck/> Review and issue</button>}</article>)}{!invoices.length&&<div className="empty-state"><b>No invoices yet</b><p>Create one from an existing booking.</p></div>}</section>
+    <div className="invoice-grid"><section className="invoice-list">{invoices.map(item=><article key={item.id}><div className="invoice-head"><span><ReceiptIndianRupee/></span><div><b>{item.invoice_number}</b><small>{item.booking_public_id} · {item.legal_name}</small></div><strong className={item.status==='issued'?'issued':'draft'}>{item.status==='issued'?<FileCheck2/>:<FilePlus2/>}{item.status}</strong></div><div className="invoice-values"><span><small>Booking value</small><b>{money(item.taxable_amount)}</b></span><span><small>GST ({Number(item.tax_percent)}%)</small><b>{money(item.tax_amount)}</b></span><span><small>Invoice total</small><b>{money(item.total_amount)}</b></span></div><div className="invoice-address"><Building2/><span><b>{item.gstin||'GSTIN not supplied'}</b><small>{item.billing_address}</small></span></div>{item.issued_at&&<small>Issued {new Date(item.issued_at).toLocaleString('en-IN')}</small>}{item.status==='issued'&&<button onClick={()=>void download(item.id)}>Download printable record</button>}{admin&&item.status==='draft'&&<button onClick={()=>issue(item.id)}><BadgeCheck/> Review and issue</button>}</article>)}{!invoices.length&&<div className="empty-state"><b>No invoices yet</b><p>Create one from an existing booking.</p></div>}</section>
       {!admin&&available.length>0&&<form className="panel invoice-form" onSubmit={create}><h3><FilePlus2/> Create invoice draft</h3><p>Check legal and billing details carefully. Issued invoices cannot be edited here.</p><label>Booking<select required value={bookingId} onChange={e=>setBookingId(e.target.value)}>{available.map(item=><option key={item.booking_id} value={item.booking_id}>{item.booking_public_id} · {money(item.total_amount)}</option>)}</select></label><label>Legal or business name<input required minLength={2} maxLength={200} value={legalName} onChange={e=>setLegalName(e.target.value)}/></label><label>GSTIN (optional)<input pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]" maxLength={15} value={gstin} onChange={e=>setGstin(e.target.value.toUpperCase())}/></label><label>Billing address<textarea required minLength={10} maxLength={1000} value={address} onChange={e=>setAddress(e.target.value)}/></label><button><ReceiptIndianRupee/> Create draft</button></form>}</div>
   </main>
 }
