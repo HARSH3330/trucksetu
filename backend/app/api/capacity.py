@@ -18,7 +18,9 @@ from app.api.vehicles import vehicle_is_document_eligible
 from app.services.capacity import release_expired_capacity_holds, release_reservation
 from app.schemas import AvailableRouteCreate, CapacityReservationCreate
 
-router = APIRouter(prefix="/api/v1", tags=["available capacity"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["available capacity"])
 
 
 def _route_read(item: AvailableRoute, score: int = 0, provider_name: str | None = None,

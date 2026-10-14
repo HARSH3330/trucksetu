@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text, Uuid, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -29,11 +29,16 @@ class VehicleCategory(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        Index('uq_users_verified_mobile','mobile',unique=True,postgresql_where=text('mobile_verified')),
+        CheckConstraint(r"NOT mobile_verified OR (mobile IS NOT NULL AND mobile ~ '^\+[1-9][0-9]{7,14}$')",name='ck_users_verified_mobile_canonical'),
+    )
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False, index=True)
-    mobile: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)
+    mobile: Mapped[str | None] = mapped_column(String(20), index=True)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    auth_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default='0')
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     mobile_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -332,6 +337,25 @@ class CarrierVehicle(Base):
     review_reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class VehicleDocument(Base):
+    __tablename__ = 'vehicle_documents'
+    __table_args__ = (Index('ix_vehicle_document_vehicle_type','vehicle_id','document_type'),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid,primary_key=True,default=uuid.uuid4)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(Uuid,ForeignKey('carrier_vehicles.id'),nullable=False)
+    document_type: Mapped[str] = mapped_column(String(30),nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(500),unique=True,nullable=False)
+    storage_version_id: Mapped[str] = mapped_column(String(255),nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255),nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100),nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer,nullable=False)
+    expires_on: Mapped[date] = mapped_column(Date,nullable=False)
+    status: Mapped[str] = mapped_column(String(30),default='uploaded',nullable=False)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid,ForeignKey('users.id'))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
 
 
 class Booking(Base):

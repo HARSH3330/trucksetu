@@ -172,7 +172,7 @@ export type AvailableRoute = {
   vehicle_name: string | null;
 }
 
-export type CurrentUser = {id: string; full_name: string; roles: string[]}
+export type CurrentUser = {id: string; full_name: string; roles: string[]; email?:string; email_verified?:boolean;mobile?:string|null;mobile_verified?:boolean}
 
 export type Conversation = {
   id: string; booking_id: string; booking_public_id: string;

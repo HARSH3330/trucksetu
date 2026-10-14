@@ -27,7 +27,9 @@ from app.models import (
 from app.schemas import MatchOverride, SharedMatchMetrics
 from app.services.matching import MatchCandidateInput, MatchPolicy, evaluate_shared_match, simulate_time_insertion
 
-router = APIRouter(prefix="/api/v1", tags=["shared capacity matching"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["shared capacity matching"])
 
 HARD_SAFETY_REJECTIONS = {
     "provider_not_eligible",

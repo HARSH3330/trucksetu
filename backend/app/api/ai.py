@@ -11,7 +11,9 @@ from app.models import AIAnalysis, AIRiskFlag
 from app.schemas import FairPriceRequest, NaturalLanguageRequirement, RiskCheckRequest, SmartMatchRequest
 from app.services.ai import OptionalGeminiService
 
-router=APIRouter(prefix="/api/v1/ai",tags=["ai"])
+from app.core.routing import AuthenticationFirstRoute
+
+router=APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1/ai",tags=["ai"])
 
 
 @router.post("/extract-requirement")

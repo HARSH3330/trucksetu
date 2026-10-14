@@ -8,14 +8,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from starlette.concurrency import run_in_threadpool
 
 from app.api.auth import current_user, require_roles
 from app.core.database import get_db
 from app.models import AuditLog, KYCApplication, KYCDocument, KYCReviewEvent, ProviderProfile, User
 from app.services.storage import PrivateDocumentStorage
+from app.services.dependencies import get_private_document_storage
 
-router = APIRouter(prefix="/api/v1/kyc", tags=["provider verification"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1/kyc", tags=["provider verification"])
 DOCUMENT_TYPES = {"aadhaar", "pan", "driving_licence", "vehicle_rc", "vehicle_insurance", "fitness_certificate", "commercial_permit", "pollution_certificate", "bank_proof", "gst_certificate"}
 REQUIRED = {
     "driver": {"aadhaar", "pan", "driving_licence"},
@@ -61,7 +65,7 @@ class ReviewInput(BaseModel):
 async def own_application(user: User, db: AsyncSession) -> tuple[ProviderProfile, KYCApplication | None]:
     provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
     if not provider: raise HTTPException(404, "Provider profile not found")
-    return provider, await db.scalar(select(KYCApplication).where(KYCApplication.provider_id == provider.id).order_by(KYCApplication.created_at.desc()))
+    return provider, await db.scalar(select(KYCApplication).options(selectinload(KYCApplication.documents)).where(KYCApplication.provider_id == provider.id).order_by(KYCApplication.created_at.desc()))
 
 
 def view(item: KYCApplication, provider: ProviderProfile | None = None) -> dict[str, object]:
@@ -87,7 +91,14 @@ async def create_application(payload: ApplicationInput, user: Annotated[User, De
     existing = await db.scalar(select(KYCApplication).where(KYCApplication.provider_id == provider.id, KYCApplication.status.in_({"registered", "documents_submitted", "under_review", "resubmit_required"})))
     if existing: raise HTTPException(409, "An active verification application already exists")
     item = KYCApplication(provider_id=provider.id, legal_name=payload.legal_name, pan_last_four=payload.pan_last_four, gstin=payload.gstin); db.add(item); await db.flush()
-    return view(item, provider)
+    # Newly flushed instances do not get select-in relationship loading from a
+    # SELECT. Load explicitly within an awaited operation before serialization.
+    await db.refresh(item, attribute_names=["documents"])
+    result = view(item, provider)
+    # get_db's request-scoped teardown can run after response transmission.
+    # A caller must be able to prepare uploads immediately after receiving 201.
+    await db.commit()
+    return result
 
 
 @router.get("/applications/me")
@@ -98,23 +109,22 @@ async def my_application(user: Annotated[User, Depends(current_user)], db: Async
 
 
 @router.post("/uploads")
-async def prepare_upload(payload: UploadRequest, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db)) -> dict[str, str | int]:
+async def prepare_upload(payload: UploadRequest, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db), storage: PrivateDocumentStorage = Depends(get_private_document_storage)) -> dict[str, str | int]:
     provider, item = await own_application(user, db)
     if not item or item.status not in {"registered", "resubmit_required"}: raise HTTPException(409, "Documents cannot be changed at this stage")
     if payload.document_type not in ALLOWED_BY_TYPE.get(provider.provider_type, set()): raise HTTPException(422, "Document type is not allowed for this verification profile")
-    try: key, url = await run_in_threadpool(PrivateDocumentStorage().upload_url, provider.id, payload.document_type, payload.filename, payload.content_type)
+    try: key, url = await run_in_threadpool(storage.upload_url, provider.id, payload.document_type, payload.filename, payload.content_type)
     except (RuntimeError, ValueError) as exc: raise HTTPException(503 if isinstance(exc, RuntimeError) else 422, str(exc)) from exc
     return {"storage_key": key, "upload_url": url, "expires_in": 600}
 
 
 @router.post("/documents", status_code=status.HTTP_201_CREATED)
-async def complete_upload(payload: CompleteUpload, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+async def complete_upload(payload: CompleteUpload, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db), storage: PrivateDocumentStorage = Depends(get_private_document_storage)) -> dict[str, str]:
     provider, item = await own_application(user, db)
     if not item or item.status not in {"registered", "resubmit_required"}: raise HTTPException(409, "Documents cannot be changed at this stage")
     expected_prefix = f"kyc/{provider.id}/{payload.document_type}/"
     if payload.document_type not in ALLOWED_BY_TYPE.get(provider.provider_type, set()) or not payload.storage_key.startswith(expected_prefix): raise HTTPException(422, "Invalid document reference")
     try:
-        storage = PrivateDocumentStorage()
         metadata = await run_in_threadpool(storage.confirm, payload.storage_key)
         await run_in_threadpool(storage.require_clean_scan, payload.storage_key)
         detected_type = await run_in_threadpool(storage.detected_content_type, payload.storage_key)
@@ -130,14 +140,13 @@ async def complete_upload(payload: CompleteUpload, user: Annotated[User, Depends
 
 
 @router.post("/applications/{application_id}/submit")
-async def submit(application_id: uuid.UUID, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+async def submit(application_id: uuid.UUID, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db), storage: PrivateDocumentStorage = Depends(get_private_document_storage)) -> dict[str, object]:
     provider, item = await own_application(user, db)
     if not item or item.id != application_id or item.status not in {"registered", "resubmit_required"}: raise HTTPException(409, "Application cannot be submitted")
     present = {d.document_type for d in item.documents if d.status != "rejected"}
     missing = REQUIRED.get(provider.provider_type, REQUIRED["driver"]) - present
     if missing: raise HTTPException(422, {"message": "Required documents are missing", "missing": sorted(missing)})
     try:
-        storage = PrivateDocumentStorage()
         for document in item.documents:
             if document.status != "rejected":
                 await run_in_threadpool(storage.require_clean_scan, document.storage_key)
@@ -149,34 +158,34 @@ async def submit(application_id: uuid.UUID, user: Annotated[User, Depends(curren
 
 @router.get("/admin/applications")
 async def queue(filter_status: str = Query(default="under_review", alias="status"), _: User = Depends(require_roles("admin", "superadmin")), db: AsyncSession = Depends(get_db)) -> list[dict[str, object]]:
-    items = list(await db.scalars(select(KYCApplication).where(KYCApplication.status == filter_status).order_by(KYCApplication.submitted_at)))
+    items = list(await db.scalars(select(KYCApplication).options(selectinload(KYCApplication.documents)).where(KYCApplication.status == filter_status).order_by(KYCApplication.submitted_at)))
     providers = {provider.id: provider for provider in await db.scalars(select(ProviderProfile).where(ProviderProfile.id.in_([item.provider_id for item in items])))} if items else {}
     return [view(item, providers.get(item.provider_id)) for item in items]
 
 
 @router.post("/admin/applications/{application_id}/review")
-async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotated[User, Depends(require_roles("admin", "superadmin"))], db: AsyncSession = Depends(get_db)) -> dict[str, object]:
-    item = await db.scalar(select(KYCApplication).where(KYCApplication.id == application_id).with_for_update())
+async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotated[User, Depends(require_roles("admin", "superadmin"))], db: AsyncSession = Depends(get_db), storage: PrivateDocumentStorage = Depends(get_private_document_storage)) -> dict[str, object]:
+    item = await db.scalar(select(KYCApplication).options(selectinload(KYCApplication.documents)).where(KYCApplication.id == application_id).with_for_update())
     if not item or item.status not in {"under_review", "verified"}: raise HTTPException(409, "Application is not reviewable")
-    previous = item.status; item.status = payload.decision; item.reviewed_at = datetime.now(UTC); item.reviewed_by = admin.id; item.decision_reason = payload.reason
+    previous = item.status
     provider = await db.get(ProviderProfile, item.provider_id)
     if not provider: raise HTTPException(404, "Provider profile not found")
     if payload.decision == "verified":
         required = REQUIRED.get(provider.provider_type, REQUIRED["driver"])
-        documents = {document.document_type: document for document in item.documents}
+        documents = {document.document_type: document for document in item.documents if document.status != "rejected"}
         unacceptable = sorted(document_type for document_type in required if document_type not in documents or payload.document_decisions.get(document_type) != "accepted" or (documents[document_type].expires_on and documents[document_type].expires_on < date.today()))
         if unacceptable:
             raise HTTPException(422, {"message": "Required documents must be accepted and current", "documents": unacceptable})
         try:
-            storage = PrivateDocumentStorage()
             for document in item.documents:
-                if payload.document_decisions.get(document.document_type) == "accepted":
+                if document.status != "rejected" and payload.document_decisions.get(document.document_type) == "accepted":
                     await run_in_threadpool(storage.require_clean_scan, document.storage_key)
         except ValueError as exc: raise HTTPException(409, str(exc)) from exc
         except Exception as exc: raise HTTPException(503, "Document scan could not be verified") from exc
+    item.status = payload.decision; item.reviewed_at = datetime.now(UTC); item.reviewed_by = admin.id; item.decision_reason = payload.reason
     provider.kyc_status = payload.decision; provider.active = payload.decision != "suspended"
     for document in item.documents:
-        if document.document_type in payload.document_decisions:
+        if document.status != "rejected" and document.document_type in payload.document_decisions:
             document.status = payload.document_decisions[document.document_type]
             document.rejection_reason = payload.reason if document.status == "rejected" else None
     db.add(KYCReviewEvent(application_id=item.id, actor_id=admin.id, previous_status=previous, new_status=payload.decision, reason=payload.reason, document_decisions=payload.document_decisions))
@@ -184,7 +193,7 @@ async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotat
 
 
 @router.get("/documents/{document_id}/download")
-async def download(document_id: uuid.UUID, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db)) -> dict[str, str | int]:
+async def download(document_id: uuid.UUID, user: Annotated[User, Depends(current_user)], db: AsyncSession = Depends(get_db), storage: PrivateDocumentStorage = Depends(get_private_document_storage)) -> dict[str, str | int]:
     document = await db.get(KYCDocument, document_id)
     if not document: raise HTTPException(404, "Document not found")
     item = await db.get(KYCApplication, document.application_id)
@@ -194,7 +203,6 @@ async def download(document_id: uuid.UUID, user: Annotated[User, Depends(current
     roles = {r.role for r in user.roles}
     if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}): raise HTTPException(403, "Document access denied")
     try:
-        storage = PrivateDocumentStorage()
         await run_in_threadpool(storage.require_clean_scan, document.storage_key)
         url = await run_in_threadpool(storage.download_url, document.storage_key)
     except ValueError as exc: raise HTTPException(409, str(exc)) from exc

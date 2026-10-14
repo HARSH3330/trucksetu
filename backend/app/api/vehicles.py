@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,7 +13,12 @@ from app.core.database import get_db
 from app.models import AuditLog, CarrierVehicle, ProviderProfile, User, VehicleCategory
 from app.schemas import CarrierVehicleCreate, VehicleReview
 
-router = APIRouter(prefix="/api/v1", tags=["carrier vehicles"])
+from app.core.routing import AuthenticationFirstRoute
+from app.api.vehicle_documents import clean, require_accepted_documents
+from app.services.dependencies import get_document_storage_factory
+from app.services.storage import PrivateDocumentStorage
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["carrier vehicles"])
 
 
 @router.get("/providers/me")
@@ -121,11 +127,17 @@ async def review_vehicle(
     payload: VehicleReview,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_roles("admin", "superadmin")),
+    storage_factory: Callable[[],PrivateDocumentStorage] = Depends(get_document_storage_factory),
 ) -> dict[str, object]:
     item = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == vehicle_id).with_for_update())
     if item is None:
         raise HTTPException(404, "Vehicle not found")
     previous = item.status
+    if payload.status == 'approved':
+        documents=await require_accepted_documents(db,item.id)
+        storage=storage_factory()
+        for document in documents:
+            await clean(storage,document.storage_key,document.storage_version_id)
     if payload.status == "approved" and not vehicle_is_document_eligible(item, date.today()):
         # The helper includes status, so check dates explicitly while the vehicle is pending.
         expiries = (item.rc_expires_on, item.insurance_expires_on, item.fitness_expires_on, item.pollution_expires_on, item.permit_expires_on)
@@ -136,4 +148,5 @@ async def review_vehicle(
     item.reviewed_by = admin.id
     item.reviewed_at = datetime.now(UTC)
     db.add(AuditLog(actor_id=admin.id, action="vehicle.reviewed", entity_type="carrier_vehicle", entity_id=item.id, before={"status": previous}, after={"status": item.status, "reason": payload.reason}))
+    await db.commit()
     return _read(item)

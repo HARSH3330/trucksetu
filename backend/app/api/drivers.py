@@ -21,7 +21,9 @@ from app.models import (
 )
 from app.schemas import DriverLinkCreate
 
-router = APIRouter(prefix="/api/v1", tags=["drivers"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["drivers"])
 
 
 def _masked_mobile(mobile: str | None) -> str:
@@ -111,7 +113,7 @@ async def my_driver_trips(
     user: User = Depends(require_roles("driver")),
 ) -> list[dict[str, str | None]]:
     driver = await db.scalar(select(DriverProfile).where(DriverProfile.user_id == user.id))
-    if driver is None:
+    if driver is None or not driver.active or driver.kyc_status != 'verified':
         return []
     rows = await db.execute(
         select(Trip, Booking)
@@ -124,6 +126,9 @@ async def my_driver_trips(
     return [
         {
             "trip_id": str(trip.id),
+            "driver_id": str(trip.driver_id),
+            "carrier_vehicle_id": str(trip.carrier_vehicle_id) if trip.carrier_vehicle_id else None,
+            "last_updated_at": trip.last_updated_at.isoformat() if trip.last_updated_at else None,
             "booking_id": str(booking.id),
             "booking_public_id": booking.public_id,
             "status": trip.status,

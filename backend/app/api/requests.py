@@ -15,7 +15,9 @@ from app.models import CargoItem, RequestStop, TransportRequest, User, VehicleCa
 from app.schemas import TransportRequestCreate, TransportRequestSummary, VehicleCategoryRead
 from app.api.auth import require_roles
 
-router = APIRouter(prefix="/api/v1", tags=["customer marketplace"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["customer marketplace"])
 
 
 def _public_id() -> str:

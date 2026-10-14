@@ -65,7 +65,9 @@ class Settings(BaseSettings):
 
     # ── MSG91 ─────────────────────────────────────────────
     MSG91_AUTH_KEY: str = ""
+    MSG91_WIDGET_ENABLED: bool = False
     MSG91_TEMPLATE_ID: str = ""
+    MSG91_OTP_VARIABLE: str = "OTP"
 
     # ── WATI WhatsApp ─────────────────────────────────────
     WATI_API_KEY: str = ""

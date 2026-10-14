@@ -6,6 +6,7 @@ import logging
 import re
 
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import text
@@ -36,6 +37,9 @@ from app.api.vehicles import router as vehicle_router
 from app.api.matching import router as matching_router
 from app.api.drivers import router as driver_router
 from app.api.terms import router as terms_router
+from app.api.account_recovery import router as recovery_router
+from app.api.phone_verification import router as phone_verification_router
+from app.api.vehicle_documents import router as vehicle_document_router
 
 
 @asynccontextmanager
@@ -66,9 +70,12 @@ app.include_router(communications_router)
 app.include_router(ai_router)
 app.include_router(operations_router)
 app.include_router(auth_router)
+app.include_router(recovery_router)
+app.include_router(phone_verification_router)
 app.include_router(kyc_router)
 app.include_router(pricing_router)
 app.include_router(vehicle_router)
+app.include_router(vehicle_document_router)
 app.include_router(matching_router)
 app.include_router(driver_router)
 app.include_router(terms_router)
@@ -83,6 +90,14 @@ async def api_home() -> dict[str, str]:
         "readiness": "/ready",
         "documentation": "/docs",
     }
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_:Request,exc:RequestValidationError)->JSONResponse:
+    # Preserve stable field/message diagnostics without echoing passwords,
+    # OTPs, verification proofs or personal data from Pydantic's input/ctx.
+    details=[{'loc':error.get('loc',()),'type':error.get('type','invalid'),'msg':error.get('msg','Invalid input')} for error in exc.errors()]
+    return JSONResponse(status_code=422,content={'detail':details})
 
 
 @app.exception_handler(IntegrityError)

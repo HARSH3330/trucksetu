@@ -16,8 +16,11 @@ from app.core.database import acquire_idempotency_lock, get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, create_refresh_token, generate_otp, get_password_hash, hash_otp, hash_token, token_hash_matches, verify_otp, verify_password, verify_token
 from app.models import AccountVerification, AuditLog, RefreshSession, User, UserRole
+from app.services.msg91_widget import canonical_mobile
 
-router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1/auth", tags=["authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 PUBLIC_ROLES = {"customer", "provider", "fleet_owner", "driver"}
 
@@ -28,6 +31,11 @@ class SignupInput(BaseModel):
     mobile: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
     password: str = Field(min_length=10, max_length=72)
     role: str = "customer"
+
+    @field_validator('mobile')
+    @classmethod
+    def normalize_mobile(cls,value:str|None)->str|None:
+        return canonical_mobile(value) if value is not None else None
 
     @field_validator("password")
     @classmethod
@@ -77,7 +85,7 @@ class RecoverAdminInput(BaseModel):
 
 
 def public_user(user: User) -> dict[str, object]:
-    return {"id": str(user.id), "full_name": user.full_name, "email": user.email, "mobile": user.mobile, "status": user.status, "email_verified": user.email_verified, "roles": [r.role for r in user.roles]}
+    return {"id": str(user.id), "full_name": user.full_name, "email": user.email, "mobile": user.mobile, "mobile_verified":user.mobile_verified, "status": user.status, "email_verified": user.email_verified, "roles": [r.role for r in user.roles]}
 
 
 async def issue_session(user: User, request: Request, db: AsyncSession, family_id: str | None = None) -> dict[str, object]:
@@ -85,7 +93,7 @@ async def issue_session(user: User, request: Request, db: AsyncSession, family_i
     refresh = create_refresh_token(str(user.id), jti, family)
     db.add(RefreshSession(user_id=user.id, jti=jti, family_id=family, token_hash=hash_token(refresh), user_agent=request.headers.get("user-agent", "")[:300], ip_address=request.client.host if request.client else None, expires_at=datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)))
     roles = [r.role for r in user.roles]
-    return {"access_token": create_access_token({"sub": str(user.id), "roles": roles}), "refresh_token": refresh, "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, "user": public_user(user)}
+    return {"access_token": create_access_token({"sub": str(user.id), "roles": roles, "sv":int(user.auth_version or 0)}), "refresh_token": refresh, "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, "user": public_user(user)}
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
@@ -185,12 +193,14 @@ async def recover_admin(
         .join(UserRole, UserRole.user_id == User.id)
         .where(User.email == email, UserRole.role.in_({"admin", "superadmin"}))
         .limit(1)
+        .with_for_update(of=User)
     )
     if not user:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Administrator account not found")
 
     now = datetime.now(UTC)
     user.password_hash = get_password_hash(payload.password)
+    user.auth_version=int(user.auth_version or 0)+1
     user.failed_login_attempts = 0
     user.locked_until = None
     await db.execute(
@@ -206,6 +216,7 @@ async def recover_admin(
         request_id=getattr(request.state, "request_id", None),
         ip_address=request.client.host if request.client else None,
     ))
+    await db.commit()
     return {
         "recovered": True,
         "email": email,
@@ -217,12 +228,15 @@ async def recover_admin(
 @router.post("/login")
 async def login(payload: LoginInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
     await enforce_rate_limit(request, "login", settings.LOGIN_RATE_LIMIT, 900, payload.email)
-    user = await db.scalar(select(User).where(User.email == payload.email.lower()))
+    user = await db.scalar(select(User).where(User.email == payload.email.lower()).with_for_update())
     now = datetime.now(UTC)
     if not user or not verify_password(payload.password, user.password_hash):
         if user:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= 5: user.locked_until = now + timedelta(minutes=15)
+            # Persist only the intended failure counter before get_db rolls back
+            # the rejected request. The locked row serializes competing attempts.
+            await db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
     if user.status != "active" or (user.locked_until and user.locked_until > now):
         raise HTTPException(status.HTTP_423_LOCKED, "Account is temporarily unavailable")
@@ -239,7 +253,10 @@ async def refresh(payload: RefreshInput, request: Request, db: AsyncSession = De
     now = datetime.now(UTC)
     claims_match = bool(session and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id)
     if not session or session.revoked_at or session.expires_at <= now or not claims_match or not token_hash_matches(payload.refresh_token, session.token_hash):
-        if session: await db.execute(update(RefreshSession).where(RefreshSession.family_id == session.family_id).values(revoked_at=now))
+        if session:
+            await db.execute(update(RefreshSession).where(RefreshSession.family_id == session.family_id).values(revoked_at=now))
+            db.add(AuditLog(actor_id=session.user_id,action='auth.refresh_family_revoked',entity_type='user',entity_id=session.user_id,after={'family_sessions_revoked':True}))
+            await db.commit()
         raise HTTPException(401, "Refresh session is no longer valid")
     user = await db.get(User, session.user_id)
     if not user or user.status != "active": raise HTTPException(401, "Account is unavailable")
@@ -257,7 +274,9 @@ async def verify_email(payload: VerifyInput, request: Request, db: AsyncSession 
     item = await db.scalar(select(AccountVerification).where(AccountVerification.user_id == user.id, AccountVerification.channel == "email", AccountVerification.used_at.is_(None)).order_by(AccountVerification.created_at.desc()).with_for_update())
     if not item or item.expires_at <= datetime.now(UTC) or item.attempts >= settings.OTP_MAX_ATTEMPTS: raise HTTPException(400, "Invalid or expired verification code")
     item.attempts += 1
-    if not verify_otp(payload.code, item.code_hash): raise HTTPException(400, "Invalid or expired verification code")
+    if not verify_otp(payload.code, item.code_hash):
+        await db.commit()
+        raise HTTPException(400, "Invalid or expired verification code")
     item.used_at = datetime.now(UTC); user.email_verified = True
     return {"verified": True}
 
@@ -267,6 +286,8 @@ async def current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncS
     except (JWTError, KeyError, ValueError) as exc: raise HTTPException(401, "Invalid access token", headers={"WWW-Authenticate": "Bearer"}) from exc
     user = await db.get(User, user_id)
     if not user or user.status != "active": raise HTTPException(401, "Account is unavailable")
+    if claims.get('sv',0) != int(getattr(user,'auth_version',0) or 0):
+        raise HTTPException(401, 'Session is no longer valid')
     return user
 
 

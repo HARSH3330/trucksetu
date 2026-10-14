@@ -14,11 +14,11 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.29.0",
-    "sqlalchemy[asyncio]>=2.0.30",
+    "sqlalchemy[asyncio]>=2.0.30,<2.1",
     "alembic>=1.13.1",
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
-    "psycopg[asyncio,binary]>=3.1.19",
+    "psycopg[binary]>=3.1.19",
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt==4.0.1",

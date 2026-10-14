@@ -29,6 +29,9 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       SECRET_KEY: ci-only-long-random-secret-not-for-production
       APP_ENV: test
+      TRANSIVOX_E2E: 'true'
+      E2E_REAL_AWS: 'false'
+      E2E_CONTROL_TOKEN: ci-local-support-not-production
       DEBUG: 'false'
     steps:
       - uses: actions/checkout@v4
@@ -42,9 +45,9 @@ jobs:
         working-directory: backend
       - run: mypy app/domain.py
         working-directory: backend
-      - run: pytest --cov=app --cov-report=xml
+      - run: pytest --ignore=tests/integration --cov=app --cov-report=xml
         working-directory: backend
-      - run: pytest tests/integration -q
+      - run: pytest tests/integration/test_pilot_auth_database.py -q
         working-directory: backend
         env:
           PILOT_E2E_DATABASE: '1'

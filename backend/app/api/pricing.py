@@ -15,7 +15,9 @@ from app.core.rate_limit import enforce_rate_limit
 from app.domain import trip_price_suggestion
 from app.models import ApplicationSetting, TripPriceEstimate, User
 
-router = APIRouter(prefix="/api/v1/pricing", tags=["advisory trip pricing"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1/pricing", tags=["advisory trip pricing"])
 RULE_KEY = "trip_price_suggestion"
 DEFAULT_RULE: dict[str, object] = {
     "minimum_fare": "2500",

@@ -15,7 +15,9 @@ from app.schemas import CancellationCreate, DisputeCreate, DisputeMessageCreate,
 from app.services.capacity import release_reservation
 from app.api.auth import current_user, require_roles
 
-router = APIRouter(prefix="/api/v1", tags=["trust and safety"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["trust and safety"])
 
 
 async def _participants(db: AsyncSession, booking: Booking) -> set[uuid.UUID]:

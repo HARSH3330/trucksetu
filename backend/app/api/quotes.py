@@ -14,7 +14,9 @@ from app.schemas import CounterOfferCreate, QuoteCreate, QuoteRead, QuoteUpdate
 from app.domain import ensure_provider_can_quote, next_quote_version
 from app.api.auth import require_roles
 
-router = APIRouter(prefix="/api/v1", tags=["quotations"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["quotations"])
 
 
 def _read(quote: Quote) -> QuoteRead:

@@ -49,6 +49,14 @@ async def test_different_driver_cannot_operate_trip() -> None:
     assert error.value.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_driver_only_role_cannot_use_provider_ownership_to_skip_assignment():
+    user=driver_actor()
+    with pytest.raises(HTTPException) as error:
+        await _require_trip_operator(DriverLookup(uuid.uuid4()),user,SimpleNamespace(driver_id=uuid.uuid4()),SimpleNamespace(user_id=user.id))
+    assert error.value.status_code==403
+
+
 def test_driver_profile_has_unique_authenticated_user_link() -> None:
     column = DriverProfile.__table__.c.user_id
     assert column.unique is True

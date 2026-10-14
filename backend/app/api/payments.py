@@ -18,7 +18,9 @@ from app.schemas import InvoiceCreate, ManualRefundCreate, OfflinePaymentCreate,
 from app.domain import financial_snapshot
 from app.services.payments import RazorpayGateway, validate_captured_payment, verify_razorpay_signature
 
-router = APIRouter(prefix="/api/v1", tags=["payments and invoices"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["payments and invoices"])
 
 
 async def _decimal_setting(db: AsyncSession, key: str, fallback: Decimal) -> Decimal:
@@ -215,7 +217,7 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
 
 @router.post("/bookings/{booking_id}/settlement-eligibility")
 async def settlement_eligibility(booking_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("admin", "superadmin"))) -> dict[str, str | bool]:
-    booking = await db.get(Booking, booking_id)
+    booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None: raise HTTPException(status_code=404, detail="Booking not found")
     incomplete = await db.scalar(select(func.count(Trip.id)).join(BookingAllocation).where(BookingAllocation.booking_id == booking.id, Trip.status.not_in(["delivered", "completed"])))
     if incomplete:
@@ -223,14 +225,16 @@ async def settlement_eligibility(booking_id: uuid.UUID, db: AsyncSession = Depen
     paid = Decimal(str(await db.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.booking_id == booking.id, Payment.status == "paid"))))
     if paid < booking.total_amount:
         return {"eligible": False, "reason": "Customer payment is not complete"}
-    commission_percent = await _decimal_setting(db, "platform_commission_percent", settings.PLATFORM_COMMISSION_PERCENT)
-    tax_percent = await _decimal_setting(db, "commission_gst_percent", settings.DEFAULT_GST_PERCENT)
-    values = financial_snapshot(booking.total_amount, commission_percent, tax_percent)
     commission = await db.scalar(select(Commission).where(Commission.booking_id == booking.id))
     if not commission:
+        commission_percent = await _decimal_setting(db, "platform_commission_percent", settings.PLATFORM_COMMISSION_PERCENT)
+        tax_percent = await _decimal_setting(db, "commission_gst_percent", settings.DEFAULT_GST_PERCENT)
+        values = financial_snapshot(booking.total_amount, commission_percent, tax_percent)
         commission = Commission(booking_id=booking.id, gross_amount=booking.total_amount, commission_percent=commission_percent, platform_commission=values["commission"], tax_amount=values["tax"], provider_payable=values["provider_payable"], status="eligible")
         db.add(commission)
-    return {"eligible": True, "provider_payable": str(values["provider_payable"]), "platform_commission": str(values["commission"])}
+        await db.flush()
+        db.add(AuditLog(actor_id=user.id, action='commission.snapshotted', entity_type='commission', entity_id=commission.id, after={'booking_id':str(booking.id)}))
+    return {"eligible": True, "provider_payable": str(commission.provider_payable), "platform_commission": str(commission.platform_commission)}
 
 
 @router.post("/bookings/{booking_id}/invoice", status_code=status.HTTP_201_CREATED)

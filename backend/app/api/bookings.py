@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,14 +15,18 @@ from app.core.database import get_db
 from app.core.security import generate_otp, hash_otp, verify_otp
 from app.core.rate_limit import enforce_rate_limit
 from app.domain import TripStatus, available_allocation, ensure_trip_transition
-from app.models import AvailableRoute, Booking, BookingAllocation, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, Quote, SharedMatchEvaluation, TransportRequest, Trip, TripOtp, TripStatusHistory, User
+from app.models import AuditLog, AvailableRoute, Booking, BookingAllocation, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, Quote, SharedMatchEvaluation, TransportRequest, Trip, TripOtp, TripStatusHistory, User
+from app.services.communications import ChannelProvider
+from app.services.dependencies import get_trip_otp_delivery
 from app.schemas import BookingCreate, DriverAssignment, OtpVerify, TripStatusUpdate
 from app.api.auth import require_roles
 from app.api.vehicles import vehicle_is_document_eligible
 from app.services.capacity import release_reservation
 from app.api.terms import require_terms
 
-router = APIRouter(prefix="/api/v1", tags=["bookings and trips"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["bookings and trips"])
 
 
 def _booking_id() -> str:
@@ -53,12 +57,12 @@ def _require_trip_provider(user: User, provider: ProviderProfile) -> None:
 async def _require_trip_operator(
     db: AsyncSession, user: User, trip: Trip, provider: ProviderProfile
 ) -> None:
-    if provider.user_id == user.id or _is_admin(user):
-        return
     roles = {role.role for role in user.roles}
+    if _is_admin(user) or (roles.intersection({'provider','fleet_owner'}) and provider.user_id == user.id):
+        return
     if "driver" in roles:
         driver_id = await db.scalar(
-            select(DriverProfile.id).where(DriverProfile.user_id == user.id)
+            select(DriverProfile.id).where(DriverProfile.user_id == user.id, DriverProfile.active.is_(True), DriverProfile.kyc_status == 'verified')
         )
         if driver_id is not None and trip.driver_id == driver_id:
             return
@@ -213,7 +217,8 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
         raise HTTPException(status_code=403, detail="Only a verified active driver can be assigned")
     ensure_trip_transition(TripStatus(trip.status), TripStatus.DRIVER_ASSIGNED)
     trip.driver_id, trip.carrier_vehicle_id, trip.vehicle_registration, trip.status = driver.id, vehicle.id, vehicle.registration_number, TripStatus.DRIVER_ASSIGNED.value
-    trip.history.append(TripStatusHistory(status=trip.status, changed_by=user.id, notes="Driver and vehicle assigned"))
+    db.add(TripStatusHistory(trip_id=trip.id, status=trip.status, changed_by=user.id, notes="Driver and vehicle assigned"))
+    await db.commit()
     return {"status": trip.status}
 
 
@@ -226,33 +231,24 @@ async def update_trip_status(trip_id: uuid.UUID, payload: TripStatusUpdate, db: 
     await _require_trip_operator(db, user, trip, provider)
     try:
         target = TripStatus(payload.target)
+        if target in {TripStatus.PICKUP_VERIFIED, TripStatus.DELIVERY_VERIFIED}:
+            raise ValueError('Use the OTP verification endpoint for this transition')
         ensure_trip_transition(TripStatus(trip.status), target)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    # Hold/dispute transitions must not provide a path around OTP gates.
+    required_proofs = []
+    if target in {TripStatus.LOADED, TripStatus.IN_TRANSIT, TripStatus.AT_STOP, TripStatus.ARRIVED_AT_DESTINATION, TripStatus.DELIVERED, TripStatus.COMPLETED}:
+        required_proofs.append('pickup')
+    if target in {TripStatus.DELIVERED, TripStatus.COMPLETED}:
+        required_proofs.append('delivery')
+    for otp_type in required_proofs:
+        if not await db.scalar(select(TripOtp.id).where(TripOtp.trip_id == trip.id, TripOtp.otp_type == otp_type, TripOtp.verified_at.is_not(None))):
+            raise HTTPException(409, f'{otp_type.title()} OTP verification is required before this transition')
     trip.status = target.value
-    trip.history.append(TripStatusHistory(status=target.value, changed_by=user.id, notes=payload.notes, location_text=payload.location_text))
+    db.add(TripStatusHistory(trip_id=trip.id, status=target.value, changed_by=user.id, notes=payload.notes, location_text=payload.location_text))
+    await db.commit()
     return {"status": trip.status}
-
-
-@router.post("/trips/{trip_id}/otp/{otp_type}")
-async def issue_trip_otp(trip_id: uuid.UUID, otp_type: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
-    await enforce_rate_limit(request, "trip-otp-issue", settings.OTP_RATE_LIMIT, 600, str(user.id))
-    if otp_type not in {"pickup", "delivery"}:
-        raise HTTPException(status_code=422, detail="OTP type must be pickup or delivery")
-    trip = await db.get(Trip, trip_id)
-    if trip is None:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    _, _, booking = await _trip_parties(db, trip)
-    _require_trip_customer(user, booking)
-    required = TripStatus.ARRIVED_AT_PICKUP if otp_type == "pickup" else TripStatus.ARRIVED_AT_DESTINATION
-    if TripStatus(trip.status) != required:
-        raise HTTPException(status_code=409, detail=f"{otp_type.title()} OTP is not available at the current trip status")
-    code = generate_otp()
-    db.add(TripOtp(trip_id=trip.id, otp_type=otp_type, otp_hash=hash_otp(code), expires_at=datetime.now(UTC) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)))
-    response = {"status": "sent", "expires_in_minutes": str(settings.OTP_EXPIRE_MINUTES)}
-    if settings.is_development:
-        response["development_code"] = code
-    return response
 
 
 @router.post("/trips/{trip_id}/otp/verify")
@@ -263,6 +259,9 @@ async def verify_trip_otp(trip_id: uuid.UUID, payload: OtpVerify, request: Reque
         raise HTTPException(status_code=404, detail="Trip not found")
     _, provider, _ = await _trip_parties(db, trip)
     await _require_trip_operator(db, user, trip, provider)
+    required = TripStatus.ARRIVED_AT_PICKUP if payload.otp_type == 'pickup' else TripStatus.ARRIVED_AT_DESTINATION
+    if TripStatus(trip.status) != required:
+        raise HTTPException(409, 'OTP verification is not available at this trip status')
     otp = await db.scalar(select(TripOtp).where(TripOtp.trip_id == trip_id, TripOtp.otp_type == payload.otp_type, TripOtp.verified_at.is_(None)).order_by(TripOtp.created_at.desc()).with_for_update())
     if otp is None or otp.expires_at < datetime.now(UTC):
         raise HTTPException(status_code=410, detail="OTP has expired; request a new one")
@@ -270,9 +269,46 @@ async def verify_trip_otp(trip_id: uuid.UUID, payload: OtpVerify, request: Reque
         raise HTTPException(status_code=429, detail="Maximum OTP attempts reached")
     otp.attempts += 1
     if not verify_otp(payload.code, otp.otp_hash):
+        await db.commit()
         raise HTTPException(status_code=422, detail="Incorrect OTP")
     target = TripStatus.PICKUP_VERIFIED if payload.otp_type == "pickup" else TripStatus.DELIVERY_VERIFIED
     ensure_trip_transition(TripStatus(trip.status), target)
     otp.verified_at, trip.status = datetime.now(UTC), target.value
-    trip.history.append(TripStatusHistory(status=target.value, changed_by=user.id, notes=f"{payload.otp_type.title()} OTP verified"))
+    db.add(TripStatusHistory(trip_id=trip.id, status=target.value, changed_by=user.id, notes=f"{payload.otp_type.title()} OTP verified"))
+    await db.commit()
     return {"status": trip.status}
+
+
+@router.post("/trips/{trip_id}/otp/{otp_type}")
+async def issue_trip_otp(trip_id: uuid.UUID, otp_type: str, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin")), delivery: ChannelProvider = Depends(get_trip_otp_delivery)) -> dict[str, str]:
+    await enforce_rate_limit(request, "trip-otp-issue", settings.OTP_RATE_LIMIT, 600, str(user.id))
+    if otp_type not in {"pickup", "delivery"}:
+        raise HTTPException(status_code=422, detail="OTP type must be pickup or delivery")
+    trip = await db.scalar(select(Trip).where(Trip.id == trip_id).with_for_update())
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    _, _, booking = await _trip_parties(db, trip)
+    _require_trip_customer(user, booking)
+    required = TripStatus.ARRIVED_AT_PICKUP if otp_type == "pickup" else TripStatus.ARRIVED_AT_DESTINATION
+    if TripStatus(trip.status) != required:
+        raise HTTPException(status_code=409, detail=f"{otp_type.title()} OTP is not available at the current trip status")
+    recipient = await db.get(User, booking.customer_id)
+    if recipient is None or not recipient.mobile:
+        raise HTTPException(409, 'The booking customer needs a mobile number for trip OTP delivery')
+    code = generate_otp()
+    try:
+        acknowledged = await delivery.send(recipient.mobile, code)
+        if not acknowledged:
+            raise RuntimeError('No delivery acknowledgement')
+    except Exception as exc:
+        # Never expose provider payloads or OTPs; a failed send leaves existing
+        # codes intact and must not claim acceptance.
+        raise HTTPException(503, 'Trip OTP delivery could not be acknowledged; try again later') from exc
+    # Replace older codes only after provider acceptance. The trip row lock
+    # serializes resend with verification; failed sends do not revoke old codes.
+    await db.execute(update(TripOtp).where(TripOtp.trip_id == trip.id, TripOtp.otp_type == otp_type, TripOtp.verified_at.is_(None)).values(expires_at=datetime.now(UTC)))
+    db.add(TripOtp(trip_id=trip.id, otp_type=otp_type, otp_hash=hash_otp(code), expires_at=datetime.now(UTC) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)))
+    db.add(AuditLog(actor_id=user.id, action='trip.otp_accepted', entity_type='trip', entity_id=trip.id, after={'otp_type':otp_type,'channel':'sms'}))
+    await db.flush()
+    await db.commit()
+    return {"status": "accepted", "delivery_status":"unconfirmed", "channel":"sms", "expires_in_minutes": str(settings.OTP_EXPIRE_MINUTES)}

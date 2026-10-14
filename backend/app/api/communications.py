@@ -13,7 +13,9 @@ from app.models import Booking, BookingAllocation, Conversation, ConversationPar
 from app.schemas import ConversationCreate, MessageCreate, NotificationPreferenceUpdate
 from app.api.auth import current_user
 
-router=APIRouter(prefix="/api/v1",tags=["communications"])
+from app.core.routing import AuthenticationFirstRoute
+
+router=APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1",tags=["communications"])
 
 
 async def _booking_participants(db:AsyncSession,booking:Booking)->dict[uuid.UUID,str]:

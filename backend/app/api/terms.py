@@ -17,7 +17,9 @@ from app.models import AuditLog, TermsAcceptance, User
 TERMS_VERSION = "2026-10-08-draft-v1"
 TERMS_CONTENT = (Path(__file__).parents[1] / "legal" / "terms-v1.txt").read_text(encoding="utf-8")
 TERMS_HASH = hashlib.sha256(TERMS_CONTENT.encode()).hexdigest()
-router = APIRouter(prefix="/api/v1/legal", tags=["legal consent"])
+from app.core.routing import AuthenticationFirstRoute
+
+router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1/legal", tags=["legal consent"])
 
 
 class AcceptanceInput(BaseModel):

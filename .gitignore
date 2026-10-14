@@ -12,3 +12,13 @@ coverage.xml
 .coverage
 *.log
 backups/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/.tmp/
+/.e2e-storage/
+playwright-public-report/

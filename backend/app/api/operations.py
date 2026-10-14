@@ -1,19 +1,66 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import uuid
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models import AnalyticsEvent, AuditLog, Booking, BookingAllocation, CarrierVehicle, Dispute, KYCApplication, ProviderProfile, Quote, TransportRequest, Trip
 from app.models import User
+from app.models import DriverProfile, RefreshSession
 from app.schemas import AnalyticsEventCreate
 from app.api.auth import require_roles
 from app.api.auth import current_user
 
-router=APIRouter(prefix="/api/v1",tags=["analytics and operations"])
+from app.core.routing import AuthenticationFirstRoute
+
+router=APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1",tags=["analytics and operations"])
+
+
+class AccountStatus(BaseModel):
+    status: Literal['active','suspended']
+    reason: str=Field(min_length=10,max_length=2000)
+
+
+@router.get('/admin/users')
+async def list_users(q:str=Query(default='',max_length=120),account_status:Literal['active','suspended']|None=None,page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+    filters=[]
+    if q:filters.append(or_(User.full_name.icontains(q,autoescape=True),User.email.icontains(q,autoescape=True)))
+    if account_status:filters.append(User.status==account_status)
+    total=int(await db.scalar(select(func.count(User.id)).where(*filters)) or 0)
+    items=await db.scalars(select(User).options(selectinload(User.roles)).where(*filters).order_by(User.created_at.desc(),User.id).offset((page-1)*page_size).limit(page_size))
+    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'name':item.full_name,'email':item.email,'roles':sorted(role.role for role in item.roles),'status':item.status,'email_verified':item.email_verified,'created_at':item.created_at.isoformat()} for item in items]}
+
+
+@router.get('/admin/bookings')
+async def list_bookings(q:str=Query(default='',max_length=100),page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+    filters=[Booking.public_id.icontains(q,autoescape=True)] if q else []
+    total=int(await db.scalar(select(func.count(Booking.id)).where(*filters)) or 0)
+    items=(await db.execute(select(Booking,User.full_name).join(User,User.id==Booking.customer_id).where(*filters).order_by(Booking.created_at.desc(),Booking.id).offset((page-1)*page_size).limit(page_size))).all()
+    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'reference':item.public_id,'customer_name':name,'status':item.status,'total_amount':str(item.total_amount),'created_at':item.created_at.isoformat()} for item,name in items]}
+
+
+@router.post('/admin/users/{user_id}/status')
+async def change_account_status(user_id:uuid.UUID,payload:AccountStatus,db:AsyncSession=Depends(get_db),admin:User=Depends(require_roles('admin','superadmin')))->dict[str,str]:
+    target=await db.scalar(select(User).options(selectinload(User.roles)).where(User.id==user_id).with_for_update())
+    if not target:raise HTTPException(404,'Account not found')
+    if target.id==admin.id or {role.role for role in target.roles}.intersection({'admin','superadmin'}):
+        raise HTTPException(403,'Privileged and self account changes are not supported here')
+    previous=target.status
+    target.status=payload.status;target.auth_version=int(target.auth_version or 0)+1
+    await db.execute(update(RefreshSession).where(RefreshSession.user_id==target.id,RefreshSession.revoked_at.is_(None)).values(revoked_at=datetime.now(UTC)))
+    if payload.status=='suspended':
+        await db.execute(update(ProviderProfile).where(ProviderProfile.user_id==target.id).values(active=False))
+        await db.execute(update(DriverProfile).where(DriverProfile.user_id==target.id).values(active=False))
+    db.add(AuditLog(actor_id=admin.id,action='admin.account_status_changed',entity_type='user',entity_id=target.id,before={'status':previous},after={'status':target.status,'reason':payload.reason,'sessions_revoked':True}))
+    await db.commit()
+    return {'id':str(target.id),'status':target.status,'supply_reactivation':'Requires separate KYC/driver review; account activation does not restore dispatch eligibility'}
 
 
 @router.get("/dashboard/summary")

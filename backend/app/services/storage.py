@@ -31,8 +31,8 @@ class PrivateDocumentStorage:
     def confirm(self, key: str) -> dict[str, object]:
         return self.client.head_object(Bucket=self.bucket, Key=key)
 
-    def detected_content_type(self, key: str) -> str | None:
-        response = self.client.get_object(Bucket=self.bucket, Key=key, Range="bytes=0-4095")
+    def detected_content_type(self, key: str, version_id: str | None = None) -> str | None:
+        response = self.client.get_object(Bucket=self.bucket, Key=key, Range="bytes=0-4095", **({'VersionId':version_id} if version_id else {}))
         content = response["Body"].read(4096)
         if content.startswith(b"%PDF-"):
             return "application/pdf"
@@ -42,14 +42,14 @@ class PrivateDocumentStorage:
             return "image/png"
         return None
 
-    def malware_scan_status(self, key: str) -> str | None:
-        response = self.client.get_object_tagging(Bucket=self.bucket, Key=key)
+    def malware_scan_status(self, key: str, version_id: str | None = None) -> str | None:
+        response = self.client.get_object_tagging(Bucket=self.bucket, Key=key, **({'VersionId':version_id} if version_id else {}))
         return next((tag["Value"] for tag in response.get("TagSet", []) if tag.get("Key") == MALWARE_SCAN_TAG), None)
 
-    def require_clean_scan(self, key: str) -> None:
-        status = self.malware_scan_status(key)
+    def require_clean_scan(self, key: str, version_id: str | None = None) -> None:
+        status = self.malware_scan_status(key,version_id)
         if status != "NO_THREATS_FOUND":
             raise ValueError("Document scan is pending or was not clean")
 
-    def download_url(self, key: str) -> str:
-        return self.client.generate_presigned_url("get_object", Params={"Bucket": self.bucket, "Key": key, "ResponseContentDisposition": "attachment"}, ExpiresIn=300)
+    def download_url(self, key: str, version_id: str | None = None) -> str:
+        return self.client.generate_presigned_url("get_object", Params={"Bucket": self.bucket, "Key": key, "ResponseContentDisposition": "attachment", **({'VersionId':version_id} if version_id else {})}, ExpiresIn=300)

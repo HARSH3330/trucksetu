@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+import sys
+import selectors
 import asyncio
 from logging.config import fileConfig
 
@@ -12,7 +13,10 @@ from app.core.database import Base
 from app import models  # noqa: F401
 
 config=context.config
-config.set_main_option("sqlalchemy.url",settings.migration_database_url)
+config.set_main_option(
+    "sqlalchemy.url",
+    settings.migration_database_url.replace("%", "%%"),
+)
 if config.config_file_name:fileConfig(config.config_file_name)
 target_metadata=Base.metadata
 
@@ -34,4 +38,13 @@ async def run_async_migrations()->None:
 
 
 if context.is_offline_mode():run_migrations_offline()
-else:asyncio.run(run_async_migrations())
+else:
+    if sys.platform == "win32":
+        asyncio.run(
+            run_async_migrations(),
+            loop_factory=lambda: asyncio.SelectorEventLoop(
+                selectors.SelectSelector()
+            ),
+        )
+    else:
+        asyncio.run(run_async_migrations())
