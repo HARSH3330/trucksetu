@@ -1,5 +1,13 @@
 # TransivoX functionality audit — 2026-10-14
 
+## Post-audit fix verification — 2026-10-14
+
+The two reproduced sign-in defects documented below are now fixed. Homepage route values are consumed once after draft persistence, so authentication remounts restore edited values. Protected views are keyed by the API-returned user ID and reload after sign-in rather than retaining anonymous state. Both regression tests were freshly observed failing before the fixes, then passed unchanged.
+
+Fresh final checks: **25 browser tests passed (zero failures), 38 frontend tests passed, 225 backend non-integration tests passed**, TypeScript/Vite build, Ruff, domain mypy and single-head/offline migrations through `20261014_22` passed. Static follow-up code review found no new critical/important issues in these edits. The owner explicitly confirmed production migration through `20261014_22` and authorized pushing to main; that confirmation is not independent database verification. No production migration, real SMS/email/payment or AWS operation was performed by the agent.
+
+The remaining feature/integration/security/operational gaps below are still open. Real local PostgreSQL journeys remain blocked by absent `E2E_DATABASE_URL`; no fallback was used. This update supersedes the historical two-failure result and BROKEN booking row below, not the overall not-public-launch-ready verdict. All UI/footer/widget source updates are included in the authorized main rollout; deployment and real OTP delivery must still be verified separately.
+
 ## A. Current verdict and evidence boundary
 
 **Not ready for public launch.** The frontend builds and many local request/domain tests pass, but the complete persisted multi-role marketplace journeys have not been verified here. The current browser suite has **23 passes and 2 reproducible application failures**. No application code was changed during this audit; existing unfinished UI/release work was preserved. Only this report was added. No push, deployment, database reset/migration, real message, payment or AWS operation occurred.

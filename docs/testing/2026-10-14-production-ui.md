@@ -1,5 +1,9 @@
 # Production UI cleanup — local implementation
 
+### Subsequent public UX and auth fix update — 2026-10-14
+
+Follow-up work adds allowlisted hash deep links/refresh/Back behavior, signed-out Ship goods/Find loads navigation, a public safety page and FAQ, an explicit nontracking SVG illustration, filter apply/reset/count, selected-load search URLs, and a footer with the owner-provided support email and Monday–Friday 10:00–18:00 IST hours. Separate privacy/refund policies remain honestly unpublished. API-returned user identity now reloads protected screens after sign-in, and consumed homepage seeds no longer overwrite edited drafts. Fresh final browser suite: **25 passed**; frontend **38 passed** and build passed. See the post-audit status in `2026-10-14-functionality-audit.md`. The earlier source-control and check-count sections below are historical, preceding the user-authorized main push.
+
 ## Source-control boundary
 
 `origin/main` was checked directly and already contains `085af222881fb57e60191e8bbb4f1dc55a892bcc` (Require versioned Terms acceptance before booking). The requested `git push origin main` returned **Everything up-to-date**. No new commit, unrelated release files, UI changes, deployment or production operation was pushed. The remaining local Terms router change depends on the broader uncommitted authentication-first work and was not shipped independently.
