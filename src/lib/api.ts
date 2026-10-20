@@ -55,31 +55,66 @@ export function migrateLegacySession(): void {
   refreshToken()
 }
 
-export function saveSession(data: {access_token: string; refresh_token: string}): void {
+export function saveSession(data: {access_token: string; refresh_token?: string}): void {
   sessionGeneration++
+  localStorage.removeItem('transivox_explicit_signout')
   writeSession(data)
+  localStorage.setItem('transivox_session_event',`login:${crypto.randomUUID()}`)
 }
 
-function writeSession(data: {access_token: string; refresh_token: string}): void {
+function writeSession(data: {access_token: string; refresh_token?: string}): void {
   sessionStorage.setItem('transivox_access_token', data.access_token)
-  sessionStorage.setItem('transivox_refresh_token', data.refresh_token)
+  if(data.refresh_token)sessionStorage.setItem('transivox_refresh_token', data.refresh_token)
+  else sessionStorage.removeItem('transivox_refresh_token')
   localStorage.removeItem('transivox_refresh_token')
 }
 
-export function clearSession(): void {
+export function clearSession(broadcast=true): void {
   sessionGeneration++
   sessionStorage.removeItem('transivox_access_token')
   sessionStorage.removeItem('transivox_refresh_token')
   localStorage.removeItem('transivox_refresh_token')
+  if(broadcast)localStorage.setItem('transivox_session_event',`logout:${crypto.randomUUID()}`)
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('transivox-session-cleared'))
 }
 
 export async function logoutSession(): Promise<void> {
   const token = refreshToken()
+  // Nonsecret durable intent prevents an offline logout from being undone by
+  // an HttpOnly cookie that this browser could not ask the server to revoke.
+  localStorage.setItem('transivox_explicit_signout','true')
   clearSession()
-  if (!token) return
   // Do not rotate credentials on logout or retry this mutation implicitly.
-  await publicFetch('/auth/logout', {method:'POST',body:JSON.stringify({refresh_token:token})})
+  await withSessionLock(()=>publicFetch(token?'/auth/logout':'/auth/session/logout', {method:'POST',...(token?{body:JSON.stringify({refresh_token:token})}:{})}))
+}
+
+async function withSessionLock<T>(operation:()=>Promise<T>):Promise<T>{
+  if(typeof navigator!=='undefined'&&navigator.locks)return navigator.locks.request('transivox-browser-session',operation)
+  return operation()
+}
+
+export function sessionFetch<T>(path:string,init:RequestInit):Promise<T>{return withSessionLock(()=>publicFetch<T>('/auth/session/'+path,init))}
+
+export function watchSessionTabs(changed:(loggedIn:boolean)=>void):()=>void{
+  const listener=(event:StorageEvent)=>{if(event.key==='transivox_session_event'){clearSession(false);changed(Boolean(event.newValue?.startsWith('login:')))}}
+  window.addEventListener('storage',listener);return()=>window.removeEventListener('storage',listener)
+}
+
+export async function restoreSession():Promise<CurrentUser|null>{
+  if(localStorage.getItem('transivox_explicit_signout')==='true')return null
+  const legacy=refreshToken(),generation=sessionGeneration
+  if(legacy||!sessionStorage.getItem('transivox_access_token')){
+    const restored=await withSessionLock(async()=>{
+      const response=await request(`${API_BASE}/auth/session/${legacy?'migrate':'refresh'}`,{method:'POST',...(legacy?{body:JSON.stringify({refresh_token:legacy})}:{})},false)
+      if(generation!==sessionGeneration)return false
+      if(response.status===401||response.status===404){sessionStorage.removeItem('transivox_refresh_token');return false}
+      const data=await parse<{access_token:string}>(response)
+      if(generation!==sessionGeneration)return false
+      writeSession(data);return true
+    })
+    if(!restored)return null
+  }
+  return apiFetch<CurrentUser>('/auth/me')
 }
 
 async function parse<T>(response: Response): Promise<T> {
@@ -91,6 +126,11 @@ async function parse<T>(response: Response): Promise<T> {
 }
 
 async function request(url: string, init: RequestInit, retryTransient = true): Promise<Response> {
+  if(url.startsWith(API_BASE+'/auth/session/')){
+    const headers=new Headers(init.headers);headers.set('X-TransivoX-CSRF','1')
+    if(init.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json')
+    init={...init,headers,credentials:'include'}
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
   const abort = () => controller.abort()
@@ -115,11 +155,11 @@ async function request(url: string, init: RequestInit, retryTransient = true): P
 }
 
 async function rotateSession(): Promise<boolean> {
+  if(localStorage.getItem('transivox_explicit_signout')==='true')return false
   const generation = sessionGeneration
   const token = refreshToken()
-  if (!token) return false
-  const response = await request(`${API_BASE}/auth/refresh`, {
-    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refresh_token: token}),
+  const response = await request(`${API_BASE}/auth/${token?'refresh':'session/refresh'}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, ...(token?{body:JSON.stringify({refresh_token: token})}:{}),
   }, false)
   if (generation !== sessionGeneration) return false
   if (!response.ok) {
@@ -133,7 +173,7 @@ async function rotateSession(): Promise<boolean> {
 }
 
 async function rotateSessionOnce(): Promise<boolean> {
-  if (!rotation) rotation = rotateSession().finally(() => { rotation = null })
+  if (!rotation) rotation = withSessionLock(()=>rotateSession()).finally(() => { rotation = null })
   return rotation
 }
 
@@ -151,7 +191,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
     if (rotated) return apiFetch<T>(path, init, false)
   }
   if (response.status === 401) clearSession()
-  return parse<T>(response)
+  const data=await parse<T>(response)
+  if (generation !== sessionGeneration) throw new ApiError(401, 'Session changed. Sign in again if required.')
+  return data
 }
 
 export async function publicFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -161,12 +203,16 @@ export async function publicFetch<T>(path: string, init: RequestInit = {}): Prom
 }
 
 export type MarketplaceRequest = {
+  available_route_id?: string | null; booking_mode?: string; currency?: string;
   id: string; public_id: string; status: string; pickup_address: string; destination_address: string;
   pickup_date: string; pickup_time: string | null; cargo_category: string;
   cargo_weight_tonnes: string; vehicle_count: number; budget_amount: string | null;
 }
 
 export type Quote = {
+  request_id?: string;
+  available_route_id?: string | null; expires_at?: string | null; currency?: string;
+  price_breakdown?: {label:string;amount:string}[]; inclusions?:string|null; exclusions?:string|null;
   id: string; service_mode: string; provider_name: string; verified: boolean;
   rating: string; completed_trips: number; cancellation_percent: string;
   vehicle_name: string; final_price: string; vehicles_offered: number;
@@ -189,6 +235,7 @@ export type VehicleCategory = {
 }
 
 export type AvailableRoute = {
+  vehicle_category_id: string;
   id: string; origin: string; destination: string; route_cities: string[];
   departure_at: string; departure_window_end: string | null; expected_arrival_at: string | null;
   remaining_capacity_tonnes: string; remaining_volume_m3: string;

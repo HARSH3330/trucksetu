@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {AlertTriangle, ArrowRight, BadgeCheck, MapPin, Navigation, ShieldCheck, Truck, UserRoundCheck} from 'lucide-react'
+import {WarningIcon as AlertTriangle, ArrowRightIcon as ArrowRight, SealCheckIcon as BadgeCheck, MapPinIcon as MapPin, NavigationArrowIcon as Navigation, ShieldCheckIcon as ShieldCheck, TruckIcon as Truck, UserCheckIcon as UserRoundCheck} from '@phosphor-icons/react'
 import {ApiError, apiFetch, type CurrentUser, type ProviderProfile} from '../lib/api'
 import './LiveTrips.css'
 import {tripReadPath, canOperateTrips} from '../lib/trips'

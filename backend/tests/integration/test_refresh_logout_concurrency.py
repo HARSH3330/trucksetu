@@ -29,8 +29,9 @@ def test_logout_serializes_with_descendant_refresh_and_revokes_new_child(monkeyp
         factory = async_sessionmaker(engine, expire_on_commit=False)
         user_id = uuid.uuid4()
         family = uuid.uuid4().hex
-        ancestor = create_refresh_token(str(user_id), 'ancestor-'+family, family)
-        current = create_refresh_token(str(user_id), 'current-'+family, family)
+        ancestor_jti, current_jti = str(uuid.uuid4()), str(uuid.uuid4())
+        ancestor = create_refresh_token(str(user_id), ancestor_jti, family)
+        current = create_refresh_token(str(user_id), current_jti, family)
         entered = asyncio.Event()
         release = asyncio.Event()
         logout_lock_requested = asyncio.Event()
@@ -56,7 +57,7 @@ def test_logout_serializes_with_descendant_refresh_and_revokes_new_child(monkeyp
             async with factory() as db:
                 db.add(User(id=user_id, email=f'logout-{family}@example.com', full_name='Fictional concurrency actor', password_hash='unused', status='active', roles=[UserRole(role='customer')]))
                 await db.flush()
-                for jti, token, revoked in [('ancestor-'+family, ancestor, datetime.now(UTC)), ('current-'+family, current, None)]:
+                for jti, token, revoked in [(ancestor_jti, ancestor, datetime.now(UTC)), (current_jti, current, None)]:
                     db.add(RefreshSession(user_id=user_id, jti=jti, family_id=family, token_hash=hash_token(token), expires_at=datetime.now(UTC)+timedelta(days=1), revoked_at=revoked))
                 await db.commit()
                 seeded = True

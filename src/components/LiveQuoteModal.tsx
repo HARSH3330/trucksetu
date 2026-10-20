@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {ArrowRight, Check, X} from 'lucide-react'
+import {ArrowRightIcon as ArrowRight, CheckIcon as Check, XIcon as X} from '@phosphor-icons/react'
 import {ApiError, apiFetch, publicFetch, type ProviderProfile, type Quote, type VehicleCategory} from '../lib/api'
 
 type Load = {id:string;requestId?:string;from:string;to:string;trucks:number;budget:string}

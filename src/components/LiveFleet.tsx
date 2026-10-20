@@ -1,6 +1,6 @@
 import VehicleDocuments from './VehicleDocuments'
 import {useEffect, useState} from 'react'
-import {BadgeCheck, CalendarClock, Check, Plus, ShieldCheck, Truck, UserPlus, UsersRound} from 'lucide-react'
+import {SealCheckIcon as BadgeCheck, CalendarIcon as CalendarClock, CheckIcon as Check, PlusIcon as Plus, ShieldCheckIcon as ShieldCheck, TruckIcon as Truck, UserPlusIcon as UserPlus, UsersIcon as UsersRound} from '@phosphor-icons/react'
 import {ApiError, apiFetch, publicFetch, type ProviderProfile, type VehicleCategory} from '../lib/api'
 import './LiveFleet.css'
 

@@ -1,6 +1,6 @@
 import VehicleDocuments from './VehicleDocuments'
 import {useEffect, useMemo, useState} from 'react'
-import {AlertTriangle, BadgeCheck, Ban, CalendarClock, Check, FileSearch, ShieldAlert, Truck, X} from 'lucide-react'
+import {WarningIcon as AlertTriangle, SealCheckIcon as BadgeCheck, ProhibitIcon as Ban, CalendarIcon as CalendarClock, CheckIcon as Check, FileMagnifyingGlassIcon as FileSearch, ShieldWarningIcon as ShieldAlert, TruckIcon as Truck, XIcon as X} from '@phosphor-icons/react'
 import {ApiError, apiFetch} from '../lib/api'
 import './LiveVehicleReview.css'
 

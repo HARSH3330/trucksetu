@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from 'react'
-import {AlertTriangle, Check, ShieldCheck, Star, X} from 'lucide-react'
+import {WarningIcon as AlertTriangle, CheckIcon as Check, ShieldCheckIcon as ShieldCheck, StarIcon as Star, XIcon as X} from '@phosphor-icons/react'
 import {ApiError, apiFetch} from '../lib/api'
 import './LiveTrustCenter.css'
 

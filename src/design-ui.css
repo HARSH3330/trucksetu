@@ -1,0 +1,105 @@
+/* TransivoX: route-first public entry and compact operational workspaces. */
+:root{--surface:#fff;--frame:#edf3f0;--space:24px}
+body{background:#f4f7f5}
+:root :is(h1,h2,h3){text-wrap:balance}
+:root p{text-wrap:pretty}
+:root .hero{padding:48px 24px 40px}
+:root .hero-intro{grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:48px}
+:root .hero h1{font-weight:600;max-width:18ch;margin:0 0 20px;font-size:clamp(34px,4vw,48px)}
+:root .hero-intro p{font-size:18px;line-height:1.6;max-width:46ch;margin:0}
+:root .hero .eyebrow{display:none}
+:root .search-panel{margin-top:32px;padding:12px;gap:12px}
+:root .search-panel>div{padding:4px 12px}
+:root .search-panel label{font-size:14px;color:var(--muted);font-weight:500}
+:root .search-panel button{border-radius:8px;justify-content:center;padding:16px 24px}
+:root .search-panel span svg{flex:none;color:var(--green)}
+:root .search-panel input:focus-visible{outline-offset:0}
+:root .route-illustration{border:0;padding:0}
+:root .route-illustration figcaption{font-size:13px}
+:root .quick{gap:0;border-bottom:1px solid var(--line);padding-bottom:24px;margin-top:24px}
+:root .quick button{background:transparent;border:0;padding:12px 24px;border-radius:8px}
+:root .quick button+button{border-left:1px solid var(--line);border-radius:0}
+:root .qicon{background:transparent;color:var(--green);width:32px;height:32px;flex:none}
+:root .quick small{font-size:14px;line-height:1.5}
+:root .kicker{font-size:14px;font-weight:500;letter-spacing:0;text-transform:none}
+:root .section-head .kicker,:root .how>.kicker{display:none}
+:root .section h2,:root .how h2{font-weight:600;letter-spacing:-.02em}
+:root .how{max-width:1132px;margin:0 auto 32px;padding:32px;background:#e6efeb;border-radius:8px;text-align:left}
+:root .how>p{color:var(--muted);font-size:16px}
+:root .steps{gap:32px;text-align:left}
+:root .step{position:relative;padding:0}
+:root .step>span{background:none;color:var(--green);width:auto;height:auto;display:block;margin:0 0 16px}
+:root .step h3{font-size:18px;font-weight:600;margin:0 0 8px}
+:root .step p{font-size:16px;line-height:1.6;color:var(--muted);max-width:32ch;margin:0}
+:root .public-faq{padding-top:24px;padding-bottom:48px}
+:root .public-faq h2{font-weight:600}
+:root .public-faq details{padding:12px 0}
+:root .public-footer{gap:48px;padding-top:40px;padding-bottom:40px}
+:root .public-footer h2{font-weight:600}
+:root .page-title h1{font-size:clamp(26px,3vw,32px);font-weight:600}
+:root .page-title p{font-size:16px}
+:root .stat-grid{gap:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:24px;overflow:hidden}
+:root .stat{border:0;border-right:1px solid var(--line);border-radius:0;padding:24px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:8px;text-align:left}
+:root .stat:last-child{border-right:0}
+:root .stat>span{display:none}
+:root .stat small{font-size:14px}
+:root .stat strong{font-family:inherit;font-size:28px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+:root .stat em{font-size:13px;color:var(--muted);font-style:normal}
+:root .dashboard-grid{align-items:start;gap:24px;grid-template-columns:minmax(0,1fr) minmax(300px,1fr)}
+:root .dashboard-grid>.panel{padding:24px}
+:root .panel-head h3,:root .actions h3{font-size:18px;font-weight:600}
+:root .dashboard-grid .activity{gap:16px;padding:20px 0}
+:root .activity-icon{background:none;color:var(--green);width:24px;height:24px;flex:none}
+:root .activity small{font-size:14px;line-height:1.5;margin-top:4px}
+:root .dashboard-grid .badge{font-size:13px;font-weight:500}
+:root .actions button{border-radius:8px;min-height:48px;font-size:15px;font-weight:500;padding:12px 16px}
+:root .actions button svg{width:20px;height:20px;flex:none}
+:root .actions button:not(:first-of-type){background:transparent;border-color:transparent;border-bottom:1px solid var(--line);border-radius:0;padding-left:0;padding-right:0}
+:root .nav{max-width:1320px;gap:16px}
+:root .nav nav{gap:2px}
+:root .nav nav a{font-weight:500}
+:root .nav nav a.active{border-radius:0;background:none;box-shadow:inset 0 -2px var(--green)}
+:root .logo span{border-radius:8px}
+:root .icon-btn,:root .menu,:root .avatar{min-width:44px;min-height:44px}
+:root .badge{font-size:13px}
+:root .document-list small,:root .document-list em{font-size:13px}
+@media(min-width:801px) and (max-width:1250px){:root .nav nav{display:none;position:absolute;top:72px;left:0;right:0;background:white;padding:16px;border-bottom:1px solid var(--line)}:root .nav nav.open{display:grid}:root .menu{display:grid}}
+@media(min-width:1251px){:root .nav:has(.avatar) nav{display:none;position:absolute;top:72px;left:0;right:0;background:white;padding:16px;border-bottom:1px solid var(--line);grid-template-columns:repeat(3,minmax(0,1fr))}:root .nav:has(.avatar) nav.open{display:grid}:root .nav:has(.avatar) .menu{display:grid}}
+@media(max-width:800px){
+  :root .hero{padding:28px 16px 32px}
+  :root .hero-intro{display:block}
+  :root .hero-intro .route-illustration{display:none}
+  :root .hero h1{font-size:34px;max-width:18ch;margin-bottom:16px}
+  :root .hero-intro p{font-size:16px;line-height:1.5}
+  :root .search-panel{margin-top:24px;gap:12px;padding:16px;grid-template-columns:1fr}
+  :root .search-panel>div{padding:0;border:0}
+  :root .search-panel input{padding:8px 0;min-height:44px}
+  :root .search-panel button{min-height:48px;padding:12px 16px}
+  :root .quick{grid-template-columns:1fr;margin-top:8px;padding-bottom:16px}
+  :root .quick button{padding:16px 0;gap:12px}
+  :root .quick button+button{border-left:0;border-top:1px solid var(--line)}
+  :root .quick small{font-size:13px}
+  :root .how{margin:0 16px 24px;padding:24px}
+  :root .steps{display:grid;grid-template-columns:1fr;gap:24px}
+  :root .step{padding-left:36px}
+  :root .step>span{position:absolute;left:0;top:0}
+  :root .step h3{font-size:18px}
+  :root .public-footer{gap:24px;padding:32px 16px 104px}
+  :root .stat-grid{grid-template-columns:1fr 1fr}
+  :root .stat{padding:20px 16px;gap:6px}
+  :root .stat:nth-child(2n){border-right:0}
+  :root .stat:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  :root .stat strong{font-size:24px}
+  :root .dashboard-grid{grid-template-columns:1fr;gap:16px}
+  :root .dashboard-grid>.panel{padding:20px}
+  :root .mobile-nav a small{font-size:13px}
+  :root .mobile-nav a svg{height:20px}
+  :root .page-title{margin-bottom:20px}
+}
+@media(max-width:480px){
+  :root .nav:has(.avatar){gap:6px}
+  :root .nav:has(.avatar) .logo{font-size:18px;gap:0;padding:0;flex:none}
+  :root .nav:has(.avatar) .logo span{display:none}
+  :root .nav:has(.avatar) .header-actions{gap:4px}
+  :root .nav:has(.avatar) .sign-in-button{padding:8px;font-size:13px}
+}

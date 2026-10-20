@@ -60,7 +60,7 @@ test('published requirement shows server reference and keeps success keyboard-co
 })
 
 test('sign-in failure preserves email, clears password and traps keyboard focus',async({page})=>{
-  await page.route('**/auth/login',route=>route.abort('failed'))
+  await page.route('**/auth/session/login',route=>route.abort('failed'))
   await page.goto('/')
   const opener=page.getByRole('button',{name:'Sign in',exact:true})
   await opener.click()

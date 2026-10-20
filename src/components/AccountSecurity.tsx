@@ -1,5 +1,5 @@
 import React,{useState} from 'react'
-import {X} from 'lucide-react'
+import {XIcon as X} from '@phosphor-icons/react'
 import {apiFetch,publicFetch} from '../lib/api'
 import PhoneVerification from './PhoneVerification'
 

@@ -9,6 +9,7 @@ from sqlalchemy.engine import make_url
 
 from app.core.config import settings
 from app.main import app
+from e2e_database import safe_database_url
 
 
 pytestmark = pytest.mark.skipif(
@@ -18,9 +19,10 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_signup_authenticated_request_and_refresh_rotation_use_real_database() -> None:
-    database = make_url(settings.DATABASE_URL)
-    assert database.host in {"localhost", "127.0.0.1", "postgres"}
-    assert database.database and database.database.endswith("_test")
+    database = make_url(safe_database_url())
+    configured = make_url(settings.DATABASE_URL)
+    if configured.set(drivername='postgresql') != database.set(drivername='postgresql'):
+        raise RuntimeError('Legacy smoke test API must be bound to the guarded E2E database; no fallback allowed')
     unique = uuid.uuid4().hex
     credentials = {
         "full_name": "Pilot Customer",

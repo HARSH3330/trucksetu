@@ -22,3 +22,7 @@ backups/
 /.tmp/
 /.e2e-storage/
 playwright-public-report/
+playwright-design-report/
+.taste-skill/
+.superpowers/
+*.egg-info/

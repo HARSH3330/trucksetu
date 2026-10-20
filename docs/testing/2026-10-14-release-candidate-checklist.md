@@ -4,6 +4,33 @@ Baseline inspected: local `ccd594d`, no tracked changes; generated egg-info pres
 Working branch: `codex/release-candidate-hardening`. No commit/push/deploy authorization.
 This checklist supersedes historical completion claims, not the full audit.
 
+## 19 October isolated PostgreSQL verification update
+
+The local database blocker is resolved. Tested candidate is
+`d5f4306697518d7a1335482ce37f49f1d41c4f06` PLUS the preserved dirty working tree,
+not HEAD alone. Exact 59-file source hashes and fresh results are recorded in
+`2026-10-19-postgres-source-manifest.json` and
+`2026-10-19-isolated-postgresql-verification.md`.
+
+- Real migrations base → 24, including 23's legacy re-verification/preservation
+  regression: PASS on isolated LOCAL transivox_e2e, not production.
+- Complete backend suite: 356 passed, 1 optional legacy smoke test skipped;
+  includes 25 passing real PostgreSQL cases for sessions, capacity/concurrency,
+  financial snapshots, KYC and other critical persistence paths.
+- Combined real React/API/PostgreSQL Chromium suite: 6 passed. Covers KYC and
+  manual review with simulated scanning; finite persistent sessions and logout;
+  real shared quote creation/review/hold/explicit acceptance and cancellation.
+- Commission ORM mapping corrected to match the existing migrated table; two
+  invalid SQL test fixtures and stale browser/harness selectors/config corrected.
+- Frontend 46 tests, build, Ruff, domain mypy, migration checker and diff check pass.
+
+Older rows below that describe missing local credentials or unexecuted PostgreSQL
+checks are historical and superseded by this update. Shared route/request UI
+publication is not proven by seeded prerequisites; broader mobile/deployed flows,
+real delivery/payment reconciliation, scanner, alerts/restore and independent
+reviews remain gates. Real KYC approval stays blocked without a functioning
+approved scanner. No push/deploy/production migration or external provider call.
+
 | Item | Owner | Status | Evidence/environment | Exact next action |
 |---|---|---|---|---|
 | KYC immutable evidence | Codex | verified | Local route regression RED→GREEN: immutable bytes, missing/null versions, wrong-version scan status, legacy refusal | Real PostgreSQL/AWS verification still blocked |
@@ -12,19 +39,136 @@ This checklist supersedes historical completion claims, not the full audit.
 | Database regressions | Owner + Codex | blocked | E2E_DATABASE_URL absent in current process; no fallback used | Privately configure exact local transivox_e2e URL, validate, migrate, run integration/E2E |
 | Complete demand→quotation→booking→trip | Codex | blocked | Real persistence verification needs isolated database; existing trip regression available | Run and extend whole multi-role journey after DB setup |
 | Shared capacity publication | Codex | verified | Local provider form sends actual owned vehicle/driver references; API rechecks identity and document eligibility | Real database publication remains unverified |
-| Shared capacity evaluation/hold/booking | Codex + owner | blocked | Reservation/booking UI remains incomplete; pricing decision requested (hold amount vs final quotation); DB concurrency unavailable | Owner chooses financial rule, then finish controls and real concurrency/expiry verification |
+| Shared capacity evaluation/hold/booking | Codex | partially implemented | Provider-quote acceptance decision implemented locally with revision/expiry/hold gates and immutable unpaid booking snapshots | Complete operator matching/revision UI and run isolated PostgreSQL concurrency/expiry/cancel journeys |
 | Refund/re-review/reactivation/invoice download | Codex | verified | Local refund recording, re-review, driver restoration and printable-record download browser/regression checks pass | Real DB/operator journey, statutory issuer configuration and complete mobile workflow remain unverified |
 | MSG91 widget/trip OTP, SMTP, private S3, Razorpay, Maps | Owner + Codex | blocked | Only fake boundaries verified; real calls not authorized | Configure integration table below; authorize staging verification separately |
 | Mobile populated journeys | Codex | pending | Public layout regressions exist, not complete real-role evidence | Exercise each completed journey on mobile |
 | Alerts and isolated backup restore | Owner + Codex | blocked | No operational target/restore authorization available | Identify isolated restore destination and approve exercise |
 | Legal/privacy/refund/retention/entity/coverage | Owner | blocked | Not supplied as approved final content | Obtain qualified review and provide final content |
 
+## 15 October continuation — current evidence
+
+### Production sign-in investigation
+
+Authenticated Neon follow-up: owner-approved isolated branch
+migration-rehearsal-20261015 (br-weathered-hill-axdizmg3) was created from production.
+Pinned ccd594d Alembic-generated19–22 SQL executed transactionally via MCP on that
+branch only: revision22, schema/constraints verified,47 old-table row counts
+unchanged;0.101510s server migration time. Production/recovery remain18 unchanged.
+Full-row fingerprinting was safety-blocked; no row-for-row preservation claim.
+Production approval, current Vercel hostname confirmation and fresh recovery
+readiness remain outstanding. No23/24, SMS, push or deployment. Full mapping,
+method/timing/limitations and proposed exact production repair are in the
+[integration handoff](2026-10-15-integration-blockers.md#authenticated-rehearsal-update--15-october-2248-ist).
+
+Follow-up owner metadata confirms revision18 and missing users.auth_version, required
+by the baseline User lookup. Minimum chain repair is19→20 after backup/target and
+isolated verification; full baseline alignment through22 also changes phone metadata.
+Do not run local head24 blindly. No production migration or repair was executed.
+
+Owner supplied production POST /auth/login ProgrammingError; readiness200 does not
+validate auth schema. Exact SQLSTATE/missing object remains unknown. Misleading
+all-DBAPI503 mapping fixed locally with safe SQLSTATE/request-ID logging; NOT a
+claim that production sign-in is repaired. Fresh nonintegration backend331 and
+frontend46 passed; build/Ruff/domain mypy passed. PostgreSQL blocked (no explicit
+E2E_DATABASE_URL). Nothing pushed/deployed/migrated. Evidence, status matrix,
+priorities and the single read-only owner action:
+[focused sign-in report](2026-10-15-signin-investigation.md).
+
+### Release-candidate closure pass — current status
+
+Implementation progressed, but **NOT deploy-ready**: real database acceptance,
+concurrency, cancellation/expiry, persisted financial/KYC/session tests and actual
+migration23/24 execution remain blocked by absent E2E_DATABASE_URL. No fallback.
+
+- Completed operator UI for existing suitability evaluation and expired-hold sweep;
+  provider own-quote listing/revision UI; fresh customer acceptance still required.
+  No default feasibility checkboxes or fabricated route metrics. Rejected accepted-
+  quote edits now fail before any in-memory field changes (RED→GREEN). Expiry sweep
+  now records administrator/count in AuditLog (RED→GREEN).
+- Cookie CSRF negative coverage spans all five mutation endpoints and rejects before
+  database access. Direct fake-scan app import is now guarded by exact safe E2E DB
+  binding plus explicit false real-AWS mode (RED→GREEN); production has no fake routes.
+- Added ten PostgreSQL scenarios: real migrations through23/24 with legacy KYC,
+  existing trip/driver/booking preservation; nine real HTTP/auth/transaction shared
+  scenarios for duplicate acceptance, concurrent acceptance/reservations, hold
+  conversion/cancellation, expired/superseded/foreign acceptance and expiry races.
+  These use uniquely named schemas on the safe local database; ONLY their own
+  schemas are dropped. **26 integration cases collect; none executed here.**
+- Main CI now provisions a restricted transivox_e2e role/database, never runs tests
+  as the bootstrap administrator, and both workflows include all integration cases.
+  Legacy opt-in smoke now validates the guarded target instead of requiring `_test`.
+  Workflow execution is unverified, not a passing CI claim.
+- Full dev-server browser run FAILED: 36 passed/one cold page.goto timeout. Sanitized
+  trace identified unfinished local dev module/CSS transformations (including Vite
+  client), not a slow KYC API. Release suite now builds synthetic configuration and
+  uses preview assets; same timeouts/assertions, **37 passed (1.5m)**. This verifies
+  built UI, not production performance or deployed auth/storage.
+- Final nonintegration backend **324 passed**, frontend **46 passed**, production
+  build, Ruff/domain typing and offline single-head migration compilation passed.
+  Two existing dependency deprecations remain. DB execution remains blocked.
+- Fresh independent read-only review was attempted but FAILED on a usage limit.
+  Primary-agent self-review found/fixed fake-app isolation and missing expiry audit;
+  do not label this independently approved. Existing earlier review findings remain
+  addressed; another independent review is a release gate.
+- Exact safe setup, process inheritance/CLI launch, commands, migration impact and
+  proposed commit contents: [verification handoff](2026-10-15-release-candidate-verification.md).
+  Nothing staged, committed, pushed, deployed or migrated in production. Existing
+  S3 probe/generated files preserved; scanner bypass remains prohibited.
+
+### Source/deployment reconciliation — 15 October
+
+Live `git ls-remote` confirms `origin/main=ccd594df8a78f56041876c058b522e0624db4fb6`
+and `origin/codex/release-candidate-hardening=d5f4306697518d7a1335482ce37f49f1d41c4f06`.
+Current branch is the latter, with preserved tracked edits and untracked feature files.
+No commit in local history contains the new cookie session router, shared acceptance
+router, shared acceptance UI or migration24: these remain UNCOMMITTED and UNPUSHED.
+Neither existing SHA is a deployment candidate for those new endpoints. Future API
+and frontend must use the same newly reviewed source SHA, not an invented hash.
+
+Build metadata fixed locally RED→GREEN: whole identifier validation, Vercel source
+SHA preferred over manual BUILD_SHA, `unknown` otherwise. No corrupt label can be
+stripped into a plausible SHA. Eight new regression cases; current full non-DB
+backend suite **308 passed**, frontend **46 passed**, build/lint/domain typing and
+offline migrations passed. These results apply to the working tree, NOT proof of
+an immutable committed release or CI results. Real DB gates remain blocked by absent
+E2E_DATABASE_URL. Fresh current browser rerun: **35 passed (1.6m)** using synthetic
+API boundaries; no real deployed authentication, database or storage verified.
+
+Release order after separate authorization and isolated verification: create/review
+candidate commit → confirm pushed SHA → backup/production impact audit and current
+Alembic revision → migrate missing predecessors through23 then24 once → API from
+candidate and verify /version, schema/readiness/auth → frontend from same candidate
+and verify full domain-cookie/multi-role journey. Migration23 requires special impact
+review: it marks legacy verified KYC for resubmission. With no scanner those providers
+cannot finish re-verification. No production audit or migration has been performed.
+
+New API setting AUTH_COOKIE_SAMESITE: none for current cross-site HTTPS topology,
+subject to browser third-party-cookie blocking; same-site custom API allows lax.
+API VERCEL_GIT_COMMIT_SHA is optional source metadata, BUILD_SHA valid manual fallback.
+Keep exact ALLOWED_ORIGINS, TRUSTED_HOSTS and finite refresh expiry. No new frontend
+variable; existing VITE_API_URL must include /api/v1. Shared capacity flag remains
+enabled, not a deferral. Do not publish frontend before compatible API/migrations.
+
+- Shared pricing is no longer awaiting a business decision. New `POST /api/v1/quotes/{id}/accept-shared` validates the named revision/expiry and current ownership, reviewed matching, documents and capacity; creates one unpaid booking; converts a hold without a second debit; snapshots the provider total and breakdown. Migration **20261014_24** is additive and compiled offline, **not applied**. Existing matching economics are preserved; a fresh review must cover the quoted amount. Request/quote alone does not guarantee capacity.
+- New route-selected request and provider/customer quotation controls exist. **Not complete:** quote revision/edit UI, operator matching UI, real multi-role shared booking, concurrent acceptance/expiry/cancellation database regressions. Existing hold replay database tests do not prove the new acceptance transaction.
+- Shared assignment now rejects a different driver/vehicle than the accepted route snapshot. Existing unbound shared snapshots fail closed for new assignment and need explicit reviewed remediation; no records/backfill were changed.
+- Browser sessions use `/api/v1/auth/session/{signup,login,refresh,migrate,logout}`; existing bearer endpoints remain available. Cookie is host-only, HttpOnly, finite and Secure in production. Every browser mutation requires an exact allowed Origin and `X-TransivoX-CSRF: 1`. Refresh credentials are not returned to the new browser flow. `AUTH_COOKIE_SAMESITE=none` is for cross-site topology; prefer a same-site API custom domain and `lax`. Browser third-party-cookie blocking is still a deployed verification gate, not solved by configuration alone.
+- Independent read-only review identified offline logout resurrection and route/vehicle substitution. Both reproduced RED then passed after fixes. A nonsecret durable signout marker blocks startup **and 401 refresh** until intentional sign-in; snapshots pin shared assignment. Another new regression rejects previous-account data arriving during JSON parsing.
+- Latest local evidence: **300 backend non-integration passed**, **46 frontend unit passed**, **35 browser checks passed (1.3m)**, build, Ruff and domain mypy passed. Browser tests use synthetic API boundaries, not real PostgreSQL/auth/scanning. Single migration head 24 and full offline SQL compilation passed using the virtual environment. Two dependency deprecations remain (AnyIO portal alias and Alembic path separator).
+- Added guarded `test_cookie_session_database.py` for persisted rotation, logout revocation and expiry. **16 database cases collect**, which is not execution. Safety validation fails explicitly: `E2E_DATABASE_URL is required; no application database fallback is allowed`. Full KYC E2E and all real DB tests remain **blocked**, not passed. `E2E_REAL_AWS=false`; no real provider calls, production data, reset, backfill or migration touched.
+- Browser intermediate failures were fixture defects: legacy logout expected the old endpoint; the new synthetic dashboard returned an incomplete response; a Sign in selector matched two buttons. Corrected to actual contracts. A simultaneous browser invocation caused trace-artifact ENOENT and a port conflict; browser runs must be serial. No timeout/assertion/authorization weakening was used.
+- Earlier cold-start timeout was **not reproduced** (first test about 18–24 seconds). Sanitized pending-request diagnostics added; its exact historical blocking resource is still unresolved. Passing reruns do not establish a root-cause fix.
+- `check-migrations.ps1` formerly reported success after Python failed. Regression observed false success; script now validates native exit codes and exactly one head. Run with `-Python (Resolve-Path '.\\.venv\\Scripts\\python.exe').Path`. No database connection is made by its offline compilation.
+- Google sign-in/phone-only authentication, recurring requirements and broad admin configuration remain unresolved scope; no deferral approved. Phone verification is not phone-only login. Live scan/approval, payment reconciliation, external delivery, deployment/mobile/alerts/restore/legal/security gates remain unverified.
+- No commit, push or deployment in this continuation. Existing S3 probe and generated egg-info preserved.
+
 ## Execution decisions
 
 ### Confirmed owner decisions — continuation
 
-- Shared capacity is **required**, including publication→search→hold→booking→remaining-capacity updates, concurrency, retry, expiry and cancellation/release. No deferral permitted. The amount relationship between route-rate hold and final quotation is still an unanswered financial rule; a targeted question remains open.
-- Persistent login is **required** across browser closure/reopening while the finite session remains valid. Current sessionStorage-only design does not satisfy this. Proposed bounded extension: existing refresh-session model plus persistent HttpOnly refresh cookie, startup role restoration behind a loading gate, origin-protected refresh/logout, existing bearer access authorization. Design approval requested; no browser-readable persistent refresh-token shortcut introduced.
+- Shared capacity is **required**, including publication→search→hold→booking→remaining-capacity updates, concurrency, retry, expiry and cancellation/release. No deferral permitted. Owner confirmed provider final quotation explicitly accepted by the customer. A hold is provisional; booking snapshots the accepted quote, not the route-rate amount.
+- Persistent login is **required** across browser closure/reopening while the finite session remains valid. Owner approved finite persistent HttpOnly refresh cookies. Implemented browser session endpoints, origin/CSRF controls, startup role restoration/loading gate, legacy migration and explicit logout intent; real database rotation and deployed cookie behavior remain unverified.
 - Metadata-only vehicle approvals must pass private-file review before NEW assignments. Owner reports zero bookings, **not independently verified in production**. No migration/backfill has executed. Existing `pending` state will represent review-required vehicles; read responses additionally show explicit `needs_documents` and missing-file state without rewriting GET data.
 - Google sign-in, phone-only login, recurring requirements and broader admin configuration remain unresolved required-scope decisions—not approved deferrals.
 
@@ -35,8 +179,8 @@ This checklist supersedes historical completion claims, not the full audit.
 | Vehicle required-file dispatch gates and honest listing | Codex | verified locally | Version-bound accepted files checked through planned trip end; provider explanation and private upload path pass local checks; actual scan/review database journey still blocked |
 | Vehicle metadata-approval backfill | Codex + owner | blocked | Repeatable code prepared, production apply disabled. Actual production booking count unknown; configure explicit read-only audit target before any migration/backfill |
 | Shared capacity retries and unbooked hold release | Codex | verified locally | Same key requires same body; same match/new key reuses hold; release restores weight/volume once, ownership checked, confirmed booking must use cancellation policy |
-| Shared capacity full booking UI / money snapshots | Codex + owner | blocked | Required, not deferred. Hold-versus-final-quotation amount decision remains open; PostgreSQL concurrency/expiry/booking execution blocked by absent E2E URL |
-| Persistent login | Codex + owner | blocked | Current sessionStorage does not survive closure. HttpOnly-cookie extension design approval requested; startup/expiry/reopening tests not yet implemented or passed |
+| Shared capacity full booking UI / money snapshots | Codex | partially implemented | Route-selected request, provider quotation, optional hold, explicit revision acceptance and unpaid booking snapshot implemented. Operator matching and quote-edit UI remain incomplete; PostgreSQL concurrency execution blocked by absent E2E URL |
+| Persistent login | Codex | implemented, locally boundary-tested | Finite HttpOnly cookie flow, startup role gate and explicit offline logout non-resurrection. Synthetic browser reopening/expiry/logout tests pass; actual PostgreSQL and deployed domain/cookie checks blocked |
 | Google/phone-only login, recurrence, broad admin | Codex + owner | pending | No deferral approved. Keep in required-scope backlog; resolve design/scope separately without substituting phone verification for authentication |
 
 Continuation checks: **275 backend non-integration checks passed**, two existing dependency warnings; **42 frontend tests**, TypeScript/build, lint and domain mypy passed. The earlier isolated browser run passed 32 checks, but the latest pre-push full reruns have **31 passed, one startup-timeout failure**; see the limitations below. No real database, production inspection, migration, backfill or live service operation occurred. This is not verification of the full shared-capacity or persistent-login journeys.

@@ -103,6 +103,7 @@ class TransportRequest(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     customer_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    available_route_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('available_routes.id'))
     public_id: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
     pickup_address: Mapped[str] = mapped_column(Text, nullable=False)
@@ -246,6 +247,9 @@ class Quote(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     request_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("transport_requests.id", ondelete="CASCADE"), nullable=False)
+    available_route_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('available_routes.id'))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    price_breakdown: Mapped[list | None] = mapped_column(JSON)
     provider_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("provider_profiles.id"), nullable=False)
     service_mode: Mapped[str] = mapped_column(String(30), nullable=False, default="FULL_VEHICLE")
     vehicle_category_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("vehicle_categories.id"), nullable=False)
@@ -274,6 +278,7 @@ class QuoteVersion(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     quote_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("quotes.id", ondelete="CASCADE"), nullable=False)
+    snapshot: Mapped[dict | None] = mapped_column(JSON)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     final_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     vehicles_offered: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -367,6 +372,7 @@ class Booking(Base):
     public_id: Mapped[str] = mapped_column(String(30), nullable=False, unique=True, index=True)
     request_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("transport_requests.id"), nullable=False, index=True)
     customer_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    acceptance_key: Mapped[str | None] = mapped_column(String(100), unique=True)
     booking_mode: Mapped[str] = mapped_column(String(30), nullable=False, default="FULL_VEHICLE")
     schedule_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="SCHEDULED")
     capacity_reservation_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("capacity_reservations.id"), unique=True)
@@ -525,7 +531,6 @@ class Commission(Base):
     tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     provider_payable: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending_delivery")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Invoice(Base):

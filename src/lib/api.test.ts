@@ -61,8 +61,11 @@ describe('authenticated API client',()=>{
     }))
     const pending=apiFetch('/auth/me').catch(error=>error)
     await start
-    await logoutSession()
+    // Logout clears UI credentials immediately, but its server mutation now
+    // waits for the cross-tab session lock held by this in-flight refresh.
+    const signingOut=logoutSession()
     resolveRefresh(new Response(JSON.stringify({access_token:'rotated',refresh_token:'rotated-refresh'})))
+    await signingOut
     expect(await pending).toMatchObject({status:401})
     expect(sessionStorage.getItem('transivox_access_token')).toBeNull()
   })

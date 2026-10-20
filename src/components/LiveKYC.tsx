@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from 'react'
-import {AlertTriangle, BadgeCheck, Check, FileText, ShieldCheck, UploadCloud, X} from 'lucide-react'
+import {WarningIcon as AlertTriangle, SealCheckIcon as BadgeCheck, CheckIcon as Check, FileTextIcon as FileText, ShieldCheckIcon as ShieldCheck, CloudArrowUpIcon as UploadCloud, XIcon as X} from '@phosphor-icons/react'
 import {ApiError, apiFetch, type CurrentUser} from '../lib/api'
 import './LiveKYC.css'
 

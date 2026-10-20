@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.time import india_now
-from app.models import CargoItem, RequestStop, TransportRequest, User, VehicleCategory
+from app.models import AvailableRoute, CargoItem, RequestStop, TransportRequest, User, VehicleCategory
 from app.schemas import TransportRequestCreate, TransportRequestSummary, VehicleCategoryRead
 from app.api.auth import require_roles
 
@@ -28,6 +28,7 @@ def _public_id() -> str:
 def _summary(item: TransportRequest) -> TransportRequestSummary:
     return TransportRequestSummary(
         id=item.id,
+        available_route_id=item.available_route_id,
         public_id=item.public_id,
         status=item.status,
         booking_mode=item.booking_mode,
@@ -56,6 +57,12 @@ async def vehicle_categories(db: AsyncSession = Depends(get_db)) -> list[Vehicle
 
 @router.post("/requests", response_model=TransportRequestSummary, status_code=status.HTTP_201_CREATED)
 async def create_request(payload: TransportRequestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> TransportRequestSummary:
+    if payload.available_route_id:
+        route = await db.get(AvailableRoute, payload.available_route_id)
+        if not route or route.status != 'active' or route.departure_at <= datetime.now(UTC):
+            raise HTTPException(409, 'Selected shared route is no longer published; no capacity has been reserved')
+        if payload.vehicle_category_id != route.vehicle_category_id:
+            raise HTTPException(422, 'Shared request vehicle category must match the selected route')
     earliest_pickup = payload.earliest_pickup_at
     latest_pickup = payload.latest_pickup_at
     delivery_deadline = payload.delivery_deadline_at
@@ -75,6 +82,7 @@ async def create_request(payload: TransportRequestCreate, db: AsyncSession = Dep
             )
     item = TransportRequest(
         customer_id=user.id,
+        available_route_id=payload.available_route_id,
         public_id=_public_id(),
         status="published" if payload.publish else "draft",
         pickup_address=payload.pickup_address,

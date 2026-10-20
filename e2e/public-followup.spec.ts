@@ -1,6 +1,16 @@
 import {expect,test} from '@playwright/test'
 
+const pendingByPage = new WeakMap<object,Set<string>>()
+test.afterEach(async({page},testInfo)=>{
+  if(testInfo.status!==testInfo.expectedStatus)await testInfo.attach('pending-request-paths',{body:JSON.stringify([...pendingByPage.get(page)||[]]),contentType:'application/json'})
+})
+
 test('provider sees needs-documents explanation and private upload path',async({page})=>{
+  const pending=new Set<string>()
+  pendingByPage.set(page,pending)
+  page.on('request',request=>{const url=new URL(request.url());pending.add(url.origin+url.pathname)})
+  page.on('requestfinished',request=>{const url=new URL(request.url());pending.delete(url.origin+url.pathname)})
+  page.on('requestfailed',request=>{const url=new URL(request.url());pending.delete(url.origin+url.pathname)})
   await page.addInitScript(()=>sessionStorage.setItem('transivox_access_token','fictional-access'))
   await page.route('**/api/v1/**',route=>{
     const path=new URL(route.request().url()).pathname
@@ -137,8 +147,11 @@ test('logout clears protected screens across browser Back and reload',async({pag
   })
   await page.route('**/api/v1/**',route=>{
     const path=new URL(route.request().url()).pathname
-    if(path.endsWith('/auth/logout')){
+    if(path.endsWith('/auth/session/migrate')){
       expect(route.request().postDataJSON()).toEqual({refresh_token:'fictional-refresh'})
+      return route.fulfill({json:{access_token:'fictional-access'}})
+    }
+    if(path.endsWith('/auth/session/logout')){
       return route.fulfill({status:204})
     }
     if(!route.request().headers().authorization)return route.fulfill({status:401,json:{detail:'Sign in required'}})
@@ -230,7 +243,7 @@ test('shipping route preserves entered details across refresh',async({page})=>{
 })
 
 test('edited shipping details survive sign-in instead of reverting to homepage values',async({page})=>{
-  await page.route('**/auth/login',route=>route.fulfill({json:{access_token:'fictional-ux-session',refresh_token:'fictional-ux-refresh',user:{id:'00000000-0000-4000-8000-000000000004',full_name:'Fictional customer',email:'ux.customer@example.com',roles:['customer']}}}))
+  await page.route('**/auth/session/login',route=>route.fulfill({json:{access_token:'fictional-ux-session',refresh_token:'fictional-ux-refresh',user:{id:'00000000-0000-4000-8000-000000000004',full_name:'Fictional customer',email:'ux.customer@example.com',roles:['customer']}}}))
   await page.goto('/')
   await page.getByLabel('Pickup location',{exact:true}).fill('Pune')
   await page.getByLabel('Drop location',{exact:true}).fill('Mumbai')
@@ -257,7 +270,7 @@ test('edited shipping details survive sign-in instead of reverting to homepage v
 test('successful sign-in reloads the current private bookings screen',async({page})=>{
   await page.route('**/api/v1/**',route=>{
     const path=new URL(route.request().url()).pathname
-    if(path.endsWith('/auth/login'))return route.fulfill({json:{access_token:'fictional-ux-session',refresh_token:'fictional-ux-refresh',user:{id:'00000000-0000-4000-8000-000000000004',full_name:'Fictional customer',email:'ux.customer@example.com',roles:['customer']}}})
+    if(path.endsWith('/auth/session/login'))return route.fulfill({json:{access_token:'fictional-ux-session',refresh_token:'fictional-ux-refresh',user:{id:'00000000-0000-4000-8000-000000000004',full_name:'Fictional customer',email:'ux.customer@example.com',roles:['customer']}}})
     if(path.endsWith('/bookings'))return route.request().headers().authorization?route.fulfill({json:[]}):route.fulfill({status:401,json:{detail:'Sign in required'}})
     return route.fulfill({status:503,json:{detail:'Unavailable test boundary'}})
   })
@@ -275,10 +288,12 @@ test('successful sign-in reloads the current private bookings screen',async({pag
 
 test('route illustration is honest, static for reduced motion, and footer fits mobile',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'})
-  await page.setViewportSize({width:390,height:844})
+  await page.setViewportSize({width:1440,height:900})
   await page.goto('/')
   await expect(page.getByText('Route illustration · not live tracking',{exact:true})).toBeVisible()
   expect(await page.locator('.illustrated-route').evaluate(element=>getComputedStyle(element).animationName)).toBe('none')
+  await page.setViewportSize({width:390,height:844})
+  await expect(page.locator('.route-illustration')).toBeHidden()
   await expect(page.getByRole('contentinfo').getByText('Monday–Friday · 10:00–18:00 IST',{exact:true})).toBeVisible()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   await page.screenshot({path:'test-results/ui-followup-mobile.png',fullPage:true})

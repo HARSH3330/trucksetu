@@ -15,13 +15,20 @@ export function captureApiFailures(page: Page) {
   })
 }
 
+export async function blockExternalFonts(page:Page){
+  // Offline local journeys must not spend their deadline on Google font fetches.
+  // This does not intercept the application API, storage adapter or business rules.
+  await page.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//,route=>route.abort())
+}
+
 export async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/')
-  await page.getByRole('button', {name: 'Sign in', exact: true}).click()
+  await blockExternalFonts(page)
+  await page.goto('/', {waitUntil:'domcontentloaded'})
+  await page.locator('header').getByRole('button', {name: 'Sign in', exact: true}).click()
   await page.getByLabel('Email address').fill(email)
   await page.getByLabel('Password').fill(password)
-  const login = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/auth/login') && response.request().method()==='POST')
-  await page.getByRole('button', {name: /Sign in securely/}).click()
+  const login = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/auth/session/login') && response.request().method()==='POST')
+  await page.getByRole('dialog').locator('form').getByRole('button', {name:'Sign in',exact:true}).click()
   const result = await login
   if(!result.ok())throw new Error(`Login API failed with HTTP ${result.status()} (response values redacted)`)
   const {user}=await result.json()

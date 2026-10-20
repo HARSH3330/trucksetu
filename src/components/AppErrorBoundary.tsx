@@ -1,5 +1,5 @@
 import React from 'react'
-import {AlertTriangle, RefreshCw} from 'lucide-react'
+import {WarningIcon as AlertTriangle, ArrowClockwiseIcon as RefreshCw} from '@phosphor-icons/react'
 import './AppErrorBoundary.css'
 
 type State={failed:boolean}

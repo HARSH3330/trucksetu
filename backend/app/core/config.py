@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated, List
+from typing import Annotated, List, Literal
 from decimal import Decimal
 
 from pydantic import field_validator, model_validator
@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     # ── App ──────────────────────────────────────────────
     APP_NAME: str = "TransivoX"
     APP_VERSION: str = "1.0.0"
-    BUILD_SHA: str = "local"
+    BUILD_SHA: str = "unknown"
+    VERCEL_GIT_COMMIT_SHA: str = ""
     APP_ENV: str = "development"
     DEBUG: bool = True
     ALLOWED_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:3000", "http://localhost:5173"]
@@ -45,6 +46,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    AUTH_COOKIE_SAMESITE: Literal['none','lax','strict'] = 'none'
     JWT_ISSUER: str = "transivox-api"
     JWT_AUDIENCE: str = "transivox-web"
 

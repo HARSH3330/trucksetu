@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {BadgeCheck, Building2, FileCheck2, FilePlus2, ReceiptIndianRupee} from 'lucide-react'
+import {SealCheckIcon as BadgeCheck, BuildingsIcon as Building2, FileTextIcon as FileCheck2, FilePlusIcon as FilePlus2, ReceiptIcon as ReceiptIndianRupee} from '@phosphor-icons/react'
 import {ApiError, apiFetch, type CurrentUser} from '../lib/api'
 import './LiveInvoices.css'
 

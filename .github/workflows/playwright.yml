@@ -71,7 +71,7 @@ jobs:
       - name: Check PostgreSQL serialization and rejection persistence
         env:
           PYTHONPATH: backend
-        run: python -m pytest backend/tests/integration/test_kyc_serialization.py backend/tests/integration/test_release_counter_persistence.py backend/tests/integration/test_phone_widget_database.py backend/tests/integration/test_verified_phone_migration.py -q
+        run: python -m pytest backend/tests/integration -q
       - name: Run deterministic KYC journey
         run: npm run e2e:kyc
       - uses: actions/upload-artifact@v4

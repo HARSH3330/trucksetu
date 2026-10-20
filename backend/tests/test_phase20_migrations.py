@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import shutil
 import sys
 from pathlib import Path
 
@@ -15,9 +16,9 @@ def test_migration_history_is_single_complete_chain() -> None:
     config = Config(str(BACKEND / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND / "migrations"))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["20261014_23"]
+    assert scripts.get_heads() == ["20261014_24"]
     revisions = list(scripts.walk_revisions(base="base", head="heads"))
-    assert len(revisions) == 23
+    assert len(revisions) == 24
     assert revisions[-1].down_revision is None
 
 
@@ -32,3 +33,15 @@ def test_clean_database_upgrade_compiles_as_postgresql_sql() -> None:
     assert "CREATE TABLE alembic_version" in result.stdout
     assert "20260909_18" in result.stdout
     assert "::json" in result.stdout
+
+
+def test_powershell_migration_check_fails_closed_on_native_command_failure() -> None:
+    shell=shutil.which('pwsh') or shutil.which('powershell')
+    if not shell:
+        import pytest
+        pytest.skip('PowerShell is not installed on this platform')
+    script=BACKEND.parent/'scripts'/'check-migrations.ps1'
+    command="function global:python { $global:LASTEXITCODE=7 }; & '"+str(script).replace("'","''")+"'"
+    result=subprocess.run([shell,'-NoProfile','-Command',command],capture_output=True,text=True,check=False,timeout=30)
+    assert result.returncode!=0, 'Migration checker reported success after a failed Python command'
+    assert 'compiles successfully' not in result.stdout

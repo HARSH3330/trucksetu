@@ -30,6 +30,7 @@ Derived from current source, not existing environment values. No credentials are
 | Razorpay | `RAZORPAY_KEY_SECRET` | API | Secret | Matching test-mode key secret |
 | Razorpay webhook | `RAZORPAY_WEBHOOK_SECRET` | API | Secret, separate from API key secret | The secret selected for the sandbox webhook endpoint |
 | Browser/API boundary | `ALLOWED_ORIGINS` | API | Public comma-separated origins | Exact website origins, including approved custom domain; no wildcard |
+| Browser refresh cookie | `AUTH_COOKIE_SAMESITE` | API | Public policy setting | `none` for HTTPS cross-site API (may be browser-blocked); prefer same-site API custom domain with `lax`. Local test/development uses non-Secure Lax for HTTP. Cookie is HttpOnly and finite. |
 | Browser/API boundary | `TRUSTED_HOSTS` | API | Public comma-separated hostnames | API deployment/custom-domain hostnames |
 
 These are the settings read by these integrations; general application/database/security settings remain required. Boto3 can also use its standard credential-provider chain when explicit access keys are empty; that is SDK behavior, not a new TransivoX configuration field.

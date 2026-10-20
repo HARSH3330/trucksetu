@@ -15,13 +15,12 @@ from app.core.database import get_db
 from app.core.security import generate_otp, hash_otp, verify_otp
 from app.core.rate_limit import enforce_rate_limit
 from app.domain import TripStatus, available_allocation, ensure_trip_transition
-from app.models import AuditLog, AvailableRoute, Booking, BookingAllocation, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, Quote, SharedMatchEvaluation, TransportRequest, Trip, TripOtp, TripStatusHistory, User
+from app.models import AuditLog, Booking, BookingAllocation, CarrierVehicle, DriverProfile, ProviderProfile, Quote, TransportRequest, Trip, TripOtp, TripStatusHistory, User
 from app.services.communications import ChannelProvider
 from app.services.dependencies import get_trip_otp_delivery
 from app.schemas import BookingCreate, DriverAssignment, OtpVerify, TripStatusUpdate
 from app.api.auth import require_roles
 from app.api.vehicles import vehicle_is_document_eligible
-from app.services.capacity import release_reservation
 from app.services.driver_eligibility import require_verified_driver_identity
 from app.api.vehicle_documents import require_accepted_documents
 from app.api.terms import require_terms
@@ -144,29 +143,12 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     total = Decimal("0")
     shared_quotes = [quote for quote in quotes if quote.service_mode == "SHARED_CAPACITY"]
-    reservation = None
     if shared_quotes:
-        if payload.capacity_reservation_id is None:
-            raise HTTPException(status_code=422, detail="A valid capacity hold is required for shared capacity")
-        reservation = await db.scalar(select(CapacityReservation).where(CapacityReservation.id == payload.capacity_reservation_id).with_for_update())
-        if reservation is None or reservation.customer_id != user.id or reservation.status != "reserved":
-            raise HTTPException(status_code=409, detail="The shared-capacity hold is invalid or has expired")
-        if reservation.expires_at <= datetime.now(UTC):
-            route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == reservation.available_route_id).with_for_update())
-            if route:
-                release_reservation(route, reservation, "expired")
-            await db.commit()
-            raise HTTPException(status_code=409, detail="The shared-capacity hold has expired")
-        match = await db.get(SharedMatchEvaluation, reservation.match_evaluation_id)
-        route = await db.get(AvailableRoute, reservation.available_route_id)
-        if match is None or route is None or match.request_id != request.id or match.available_route_id != route.id:
-            raise HTTPException(status_code=409, detail="The capacity hold does not belong to this transport request")
-        if any(quote.provider_id != route.provider_id for quote in shared_quotes):
-            raise HTTPException(status_code=409, detail="The capacity hold does not belong to the selected provider")
+        raise HTTPException(422, 'Shared quotations require explicit current-revision acceptance at /quotes/{id}/accept-shared')
     booking = Booking(
         public_id=_booking_id(), request_id=request.id, customer_id=user.id,
-        booking_mode=shared_quotes[0].service_mode if shared_quotes else "FULL_VEHICLE",
-        schedule_mode=request.schedule_mode, capacity_reservation_id=reservation.id if reservation else None,
+        booking_mode="FULL_VEHICLE",
+        schedule_mode=request.schedule_mode,
         total_amount=Decimal("0"), customer_snapshot={"customer_id": str(user.id), "terms_version": acceptance.version, "terms_acceptance_id": str(acceptance.id)},
         route_snapshot={"pickup": request.pickup_address, "destination": request.destination_address, "stops": [stop.address for stop in request.stops]},
         cargo_snapshot={"category": request.cargo.category, "description": request.cargo.description, "weight_tonnes": str(request.cargo.weight_tonnes)},
@@ -187,8 +169,6 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
         quote.status = "accepted"
         total += agreed
     booking.total_amount = total
-    if reservation:
-        reservation.status = "confirmed"
     if new_total == request.vehicle_count:
         request.status = "allocated"
     db.add(booking)
@@ -213,6 +193,10 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
     await require_verified_driver_identity(db, driver)
     vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == payload.carrier_vehicle_id).with_for_update().execution_options(populate_existing=True))
     booking = await db.get(Booking, allocation.booking_id)
+    if booking and getattr(booking,'booking_mode',None)=='SHARED_CAPACITY':
+        accepted=booking.route_snapshot or {}
+        if accepted.get('carrier_vehicle_id')!=str(payload.carrier_vehicle_id) or accepted.get('driver_id')!=str(payload.driver_id):
+            raise HTTPException(409,'Shared booking assignment must use its accepted route vehicle and driver; a changed route requires a new reviewed quotation')
     request = await db.get(TransportRequest, booking.request_id) if booking else None
     trip_end = request.delivery_deadline_at if request and request.delivery_deadline_at else datetime.now(UTC)
     if request and request.delivery_deadline_at and request.delivery_deadline_at <= datetime.now(UTC):

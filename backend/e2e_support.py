@@ -13,11 +13,14 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy.engine import make_url
 
 from app.main import app as production_app
 from app.services.dependencies import get_private_document_storage,get_document_storage_factory,get_trip_otp_delivery,get_account_email_delivery,get_phone_verifier
 from app.services.msg91_widget import InvalidWidgetVerification
 from app.services.storage import ALLOWED_CONTENT_TYPES
+from app.core.config import settings
+from e2e_database import safe_database_url
 
 
 class LocalDocumentStorage:
@@ -103,6 +106,11 @@ def require_e2e_control(expected: str, provided: str | None) -> None:
 def create_e2e_app() -> FastAPI:
     if os.getenv('APP_ENV', '').lower() != 'test' or os.getenv('TRANSIVOX_E2E', '').lower() != 'true':
         raise RuntimeError('E2E support API is available only in explicit local test mode')
+    # Enforce this here too, not only in e2e_server: a direct ASGI import must
+    # never enable simulated clean scans against an application/production DB.
+    raw=safe_database_url()
+    if os.getenv('E2E_REAL_AWS','').lower()!='false' or make_url(settings.DATABASE_URL).set(drivername='postgresql')!=make_url(raw).set(drivername='postgresql'):
+        raise RuntimeError('Fake support API must be bound to the isolated E2E database with E2E_REAL_AWS=false')
     token = os.getenv('E2E_CONTROL_TOKEN', '')
     if len(token) < 16:
         raise RuntimeError('E2E_CONTROL_TOKEN must contain at least 16 characters')

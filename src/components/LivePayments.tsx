@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {BadgeCheck, Banknote, Check, Clock3, CreditCard, ReceiptText, ShieldCheck} from 'lucide-react'
+import {SealCheckIcon as BadgeCheck, MoneyIcon as Banknote, CheckIcon as Check, ClockIcon as Clock3, CreditCardIcon as CreditCard, ReceiptIcon as ReceiptText, ShieldCheckIcon as ShieldCheck} from '@phosphor-icons/react'
 import {ApiError, apiFetch, type CurrentUser} from '../lib/api'
 import './LivePayments.css'
 import ManualRefundPanel from './ManualRefundPanel'

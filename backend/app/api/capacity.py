@@ -28,7 +28,7 @@ router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=
 def _route_read(item: AvailableRoute, score: int = 0, provider_name: str | None = None,
                 provider_rating: Decimal | None = None, provider_verified: bool = False,
                 vehicle_name: str | None = None) -> dict[str, object]:
-    return {"id": str(item.id), "origin": item.origin_city, "destination": item.destination_city,
+    return {"id": str(item.id), "vehicle_category_id":str(item.vehicle_category_id), "origin": item.origin_city, "destination": item.destination_city,
             "route_cities": item.ordered_route_cities, "departure_at": item.departure_at.isoformat(),
             "remaining_capacity_tonnes": str(item.remaining_capacity_tonnes),
             "remaining_volume_m3": str(item.remaining_volume_m3),
@@ -182,8 +182,10 @@ async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservati
 
 
 @router.post("/admin/capacity/release-expired")
-async def release_expired(_: User = Depends(require_roles("admin", "superadmin")), db: AsyncSession = Depends(get_db)) -> dict[str, int]:
-    return {"released": await release_expired_capacity_holds(db)}
+async def release_expired(admin: User = Depends(require_roles("admin", "superadmin")), db: AsyncSession = Depends(get_db)) -> dict[str, int]:
+    released=await release_expired_capacity_holds(db)
+    db.add(AuditLog(actor_id=admin.id,action='capacity.expired_holds_released',entity_type='capacity_reservation',entity_id=None,after={'released':released}))
+    return {"released":released}
 
 
 @router.post('/capacity-reservations/{reservation_id}/release')

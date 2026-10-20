@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {ArrowRight, Bell, Check, Clock3, MessageCircle, ShieldCheck} from 'lucide-react'
+import {ArrowRightIcon as ArrowRight, BellIcon as Bell, CheckIcon as Check, ClockIcon as Clock3, ChatCircleIcon as MessageCircle, ShieldCheckIcon as ShieldCheck} from '@phosphor-icons/react'
 import {ApiError, apiFetch, type ChatMessage, type Conversation, type CurrentUser, type NotificationFeed, type NotificationPreferences} from '../lib/api'
 import './LiveCommunications.css'
 
