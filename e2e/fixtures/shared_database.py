@@ -41,6 +41,7 @@ async def prepare():
                 'provider_email': actors[2].email, 'customer_email': actors[0].email,
                 'request_id': str(shipment.id), 'public_id': shipment.public_id,
                 'route_id': str(route.id), 'category_id': str(route.vehicle_category_id),
+                'vehicle_id': str(route.carrier_vehicle_id), 'driver_id': str(route.driver_id),
                 'pickup': route.departure_at.isoformat(), 'delivery': route.expected_arrival_at.isoformat(),
             }))
     finally:

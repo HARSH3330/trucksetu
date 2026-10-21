@@ -35,6 +35,18 @@ test('reopened browser context restores role using a persistent cookie, then log
     expect(await page.evaluate(()=>sessionStorage.getItem('transivox_refresh_token'))).toBeNull()
     await page.reload()
     await expect(page.locator('header .avatar')).toBeVisible()
+    // Logout must remain a visible, usable header action on phones and desktop,
+    // rather than only being reachable through a hidden account menu.
+    for(const width of [390,1440]){
+      await page.setViewportSize({width,height:844})
+      const logout=page.getByRole('button',{name:'Sign out',exact:true})
+      await expect(logout).toBeVisible()
+      const bounds=await logout.boundingBox()
+      expect(bounds).not.toBeNull()
+      expect(bounds!.x).toBeGreaterThanOrEqual(0)
+      expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(width)
+      expect(bounds!.height).toBeGreaterThanOrEqual(44)
+    }
     await page.getByRole('button',{name:'Sign out',exact:true}).click()
     await expect(page.getByText('Signed out.',{exact:true})).toBeVisible()
     expect((await reopened.cookies()).some(cookie=>cookie.name==='transivox_refresh')).toBe(false)

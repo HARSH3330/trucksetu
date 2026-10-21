@@ -303,3 +303,18 @@ npx playwright show-report
 ## Release recommendation
 
 **NO-GO for public launch.** Real database journeys, payment reconciliation, real scan/review/delivery, required shared-capacity workflows, legal/security review, deployed configuration, alerts and backup restoration are not proven. No staging integration verified during this work; no functionality explicitly deferred by the owner.
+
+## 21 October continuation — current evidence supersedes historical counts
+
+See `2026-10-21-launch-preparation-handoff.md` and changed-source manifest for the
+exact dirty candidate based on 66c63d1. Production remains ccd594d / schema 22.
+Fresh non-DB checks: 353 backend, 46 frontend, 37 public-browser and 4 responsive
+design tests passed; lint/domain typing/offline migrations through 24 passed.
+These browser checks use simulated APIs. New real shared publication/request and
+mobile vehicle-review cases collect/type-check but are blocked by Docker HTTP500
+and guarded local PostgreSQL timeout. No fallback DB, deploy or production write.
+Historical 19 October PostgreSQL results are retained, not promoted to a fresh pass.
+Current payment-state/logging fixes and patched Vite tooling remain uncommitted.
+Scanning, real sandbox reconciliation, email receipt, full operational/mobile
+journeys, alerts/restore and security/legal gates remain open. OTP/Maps are only
+excluded from this package, not completed; four unresolved product decisions remain.

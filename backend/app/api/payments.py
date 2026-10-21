@@ -25,6 +25,28 @@ from app.core.routing import AuthenticationFirstRoute
 router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["payments and invoices"])
 
 
+async def _locked_payment_booking(db: AsyncSession, query):
+    located = await db.scalar(query)
+    if located is None:
+        return None, None
+    # Booking first, matching cancellation/payment creation lock order. Re-read
+    # payment after waiting so a concurrent callback cannot overwrite new state.
+    booking = await db.scalar(select(Booking).where(Booking.id == located.booking_id).with_for_update().execution_options(populate_existing=True))
+    payment = await db.scalar(query.with_for_update().execution_options(populate_existing=True))
+    return payment, booking
+
+
+def _record_advance_confirmation(db: AsyncSession, payment: Payment, booking: Booking | None) -> None:
+    if booking is None or payment.payment_type != 'advance':
+        return
+    if booking.status == 'advance_pending':
+        booking.status = 'booking_confirmed'
+    elif booking.status != 'booking_confirmed':
+        # Record actual funds without reversing cancellation/trip/dispute state.
+        # Refund entitlement stays with the existing reviewed cancellation rules.
+        db.add(AuditLog(action='payment.late_confirmation_requires_review',entity_type='payment',entity_id=payment.id,after={'booking_id':str(booking.id),'booking_status':booking.status}))
+
+
 async def _decimal_setting(db: AsyncSession, key: str, fallback: Decimal) -> Decimal:
     item = await db.get(ApplicationSetting, key)
     return Decimal(str(item.value["value"])) if item and "value" in item.value else fallback
@@ -189,14 +211,13 @@ async def offline_payment(booking_id: uuid.UUID, payload: OfflinePaymentCreate, 
 
 @router.post("/payments/{payment_id}/confirm-offline")
 async def confirm_offline(payment_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("admin", "superadmin"))) -> dict[str, str]:
-    payment = await db.scalar(select(Payment).where(Payment.id == payment_id).with_for_update())
+    payment, booking = await _locked_payment_booking(db, select(Payment).where(Payment.id == payment_id))
     if payment is not None and payment.provider == "offline" and payment.status == "paid":
         return {"status": "paid"}
     if payment is None or payment.provider != "offline" or payment.status != "pending_confirmation":
         raise HTTPException(status_code=409, detail="Payment is not awaiting offline confirmation")
     payment.status, payment.confirmed_by, payment.paid_at = "paid", user.id, datetime.now(UTC)
-    booking = await db.get(Booking, payment.booking_id)
-    if booking and payment.payment_type == "advance": booking.status = "booking_confirmed"
+    _record_advance_confirmation(db, payment, booking)
     return {"status": payment.status}
 
 
@@ -206,14 +227,25 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
     body = await request.body()
     if not verify_razorpay_signature(body, x_razorpay_signature):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
-    payload = await request.json(); event_id = x_razorpay_event_id
+    try:
+        payload = await request.json()
+    except ValueError as exc:
+        raise HTTPException(400, 'Invalid payment event') from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get('event'), str):
+        raise HTTPException(400, 'Invalid payment event')
+    event_id = x_razorpay_event_id
+    await acquire_idempotency_lock(db, f'razorpay-event:{event_id}')
     if await db.scalar(select(PaymentEvent).where(PaymentEvent.gateway_event_id == event_id)):
         return {"received": True}
     event_type = payload.get("event")
     if event_type != "payment.captured":
         return {"received": True}
-    entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
-    payment = await db.scalar(select(Payment).where(Payment.gateway_order_id == entity.get("order_id")).with_for_update())
+    envelope = payload.get('payload')
+    payment_data = envelope.get('payment') if isinstance(envelope, dict) else None
+    entity = payment_data.get('entity') if isinstance(payment_data, dict) else None
+    if not isinstance(entity, dict) or not isinstance(entity.get('order_id'), str) or not entity['order_id']:
+        raise HTTPException(400, 'Invalid captured payment event')
+    payment, booking = await _locked_payment_booking(db, select(Payment).where(Payment.gateway_order_id == entity.get("order_id")))
     if payment:
         rejection = validate_captured_payment(entity, payment.amount, payment.currency)
         if rejection:
@@ -224,8 +256,7 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
             db.add(PaymentEvent(payment_id=payment.id, event_type="payment.captured.duplicate", gateway_event_id=event_id, payload=payload))
             return {"received": True}
         payment.status, payment.gateway_payment_id, payment.method, payment.paid_at = "paid", entity.get("id"), entity.get("method"), datetime.now(UTC)
-        booking = await db.get(Booking, payment.booking_id)
-        if booking and payment.payment_type == "advance": booking.status = "booking_confirmed"
+        _record_advance_confirmation(db, payment, booking)
         db.add(PaymentEvent(payment_id=payment.id, event_type=event_type, gateway_event_id=event_id, payload=payload))
     else:
         db.add(AuditLog(action="payment.webhook_unknown_order", entity_type="payment", after={"event_id": event_id}))

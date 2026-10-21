@@ -100,3 +100,34 @@ def test_customer_can_set_trip_contact_only_with_current_password(recovery):
     assert user.mobile is None
     assert client.patch(path,headers=headers,json={'mobile':'+919999999999','password':'CurrentFictional123!'}).status_code==200
     assert user.mobile=='+919999999999' and user.mobile_verified is False
+
+
+@pytest.mark.parametrize('invalid_state',['expired','consumed','attempt_limit'])
+def test_reset_invalid_states_preserve_password_and_session_version(recovery,invalid_state):
+    client,user,record,token,_,db=recovery
+    if invalid_state=='expired':record.expires_at=datetime.now(UTC)-timedelta(seconds=1)
+    elif invalid_state=='consumed':record.used_at=datetime.now(UTC)
+    else:
+        from app.core.config import settings
+        record.attempts=settings.OTP_MAX_ATTEMPTS
+    before=(user.password_hash,user.auth_version)
+    result=client.post('/api/v1/auth/password-reset/confirm',json={'email':user.email,'token':token,'password':'AnotherFictional123!'})
+    assert result.status_code==400
+    assert (user.password_hash,user.auth_version)==before
+    db.execute.assert_not_awaited()
+
+
+def test_email_verification_expiry_and_invalid_attempts_never_verify_account(recovery):
+    from app.core.security import hash_otp
+    client,user,record,_,_,db=recovery
+    record.channel='email';record.code_hash=hash_otp('135790')
+    record.expires_at=datetime.now(UTC)-timedelta(seconds=1)
+    body={'email':user.email,'code':'135790'}
+    assert client.post('/api/v1/auth/verify-email',json=body).status_code==400
+    assert not user.email_verified
+    record.expires_at=datetime.now(UTC)+timedelta(minutes=5)
+    assert client.post('/api/v1/auth/verify-email',json={**body,'code':'246801'}).status_code==400
+    assert record.attempts==1 and not user.email_verified
+    db.commit.assert_awaited()
+    assert client.post('/api/v1/auth/verify-email',json=body).status_code==200
+    assert user.email_verified and record.used_at is not None
