@@ -3,22 +3,23 @@
   "deployed_frontend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
   "deployed_backend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
   "candidate_branch": "release/customer-first-20261026",
-  "candidate_head": "ba3057784e36f1c984e90f54b0695586a8c97650",
+  "candidate_head": "ed4d0739488ea6c647f7b9cdf1d0218696c2a4f9",
   "commits_not_deployed": [
+    "ed4d0739488ea6c647f7b9cdf1d0218696c2a4f9",
     "ba3057784e36f1c984e90f54b0695586a8c97650",
     "66c63d17897837afc88f457dab0c0e7b8942ac2a",
     "d5f4306697518d7a1335482ce37f49f1d41c4f06"
   ],
-  "file_count": 297,
-  "tracked_changed": 172,
-  "untracked_source_files": 125,
+  "file_count": 299,
+  "tracked_changed": 298,
+  "untracked_source_files": 1,
   "categories": {
-    "build_ci_configuration": 10,
+    "build_ci_configuration": 11,
     "documentation": 57,
     "operations_dependencies_and_helpers": 14,
     "backend_runtime": 43,
     "database_migrations": 7,
-    "backend_tests": 65,
+    "backend_tests": 66,
     "browser_verification": 33,
     "infrastructure_templates_not_deployed": 19,
     "frontend_runtime": 43,
@@ -26,7 +27,7 @@
   },
   "credential_scan": {
     "known_local_values_and_high_confidence_patterns": "PASS",
-    "included_commit_patches_scanned": 3,
+    "included_commit_patches_scanned": 4,
     "findings": [],
     "forbidden_tracked_or_candidate_paths": [],
     "limitations": "No general-purpose entropy scanner available; this is exact known-value/pattern plus path review, not a guarantee against all unknown credentials."
@@ -41,7 +42,7 @@
     },
     {
       "path": ".gitattributes",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "build_ci_configuration",
       "sha256": "fdc1379147b641725cbdba80d127a3751886b6bba503021c5680319edc256950",
       "bytes": 34
@@ -57,8 +58,8 @@
       "path": ".github/workflows/playwright.yml",
       "change": "M",
       "category": "build_ci_configuration",
-      "sha256": "4e702f20925a35ad605580ce3980c6683cca32c1be1ec166e4602755e23d83f7",
-      "bytes": 3687
+      "sha256": "709e5569be4660ff90f323bf10e82de057ea9d19ba86c161af6b2d6d24a9a8d0",
+      "bytes": 3683
     },
     {
       "path": ".gitignore",
@@ -132,7 +133,7 @@
     },
     {
       "path": "backend/app/api/connection_fee_policy.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "1a87c926db93f7713a9aca52ce45a168b473308b864773aa2bbb69c058effcf9",
       "bytes": 5477
@@ -146,14 +147,14 @@
     },
     {
       "path": "backend/app/api/customer_kyc.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "995c39ddeb8b9f8ab35327597da5d53710bd29053ccc4c91db75952962347952",
       "bytes": 10961
     },
     {
       "path": "backend/app/api/demands.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "c6b1c0c654b2bf34a4679458091144a056fb50eb3ca9332a398bcf4e3604bbea",
       "bytes": 33510
@@ -230,7 +231,7 @@
     },
     {
       "path": "backend/app/core/marketplace_flags.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "7e8cb052dd5c5b18b9ea3e118eb396784d05b31bd20184ae19d001ffa8983899",
       "bytes": 957
@@ -279,7 +280,7 @@
     },
     {
       "path": "backend/app/services/account_email.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "782c7b8feadb4cb4c4d30f7b85157beded53dc50f4936541e10d940b07719c4d",
       "bytes": 840
@@ -293,49 +294,49 @@
     },
     {
       "path": "backend/app/services/connection_fee_rules.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "375e67ce1dd7b0b9d76b1275af760bb618466c46fe1131a1ff343908ae6f3e90",
       "bytes": 3487
     },
     {
       "path": "backend/app/services/connection_refunds.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "a79f596ac20dafb25faec8e19db7f7c5ada49a436f47f48fdc7bc452cbc1d14f",
       "bytes": 8510
     },
     {
       "path": "backend/app/services/contact_access.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "2a78f58aefb994f685b4b5f1c89b628a2d498b1013048631eb9ee5f66ec0e0a7",
       "bytes": 2400
     },
     {
       "path": "backend/app/services/customer_kyc.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "8bdbed5176c1b961962e08f625f1bd3aade03d6fc373e5f5b6832f5f15ea8866",
       "bytes": 3800
     },
     {
       "path": "backend/app/services/demand_marketplace.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "2e6c54492b7e6005ffaa7bb5bd5cd2e34ea4d3af435abe3ae58c358daa776272",
       "bytes": 18855
     },
     {
       "path": "backend/app/services/demand_policy.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "9a20b5efd2917ce36bc9c8302323a5fb2cc3f6a3a467d42a788773b6ce7c8e94",
       "bytes": 3735
     },
     {
       "path": "backend/app/services/demand_schemas.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "d943b18b6d012bf65abfa5311bca99d8101d554bdc6d92c7d645482a15d9583a",
       "bytes": 3482
@@ -370,7 +371,7 @@
     },
     {
       "path": "backend/app/services/scan_contract.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_runtime",
       "sha256": "67aea615b1269f181cc7d4296932e3735532c8d484ff8240edaa2399ae3aff0c",
       "bytes": 2019
@@ -398,14 +399,14 @@
     },
     {
       "path": "backend/connection_refund_sandbox.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "operations_dependencies_and_helpers",
       "sha256": "fe7f54363ce6bcb0a145d649a5ca84843dd70492d0871ccc342fe2cac677e327",
       "bytes": 2228
     },
     {
       "path": "backend/constraints-security.txt",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "operations_dependencies_and_helpers",
       "sha256": "adacbb7159a696edadd0d10c0fae0dbc7bb56aec3cd3a09383f8e712b1761451",
       "bytes": 185
@@ -419,7 +420,7 @@
     },
     {
       "path": "backend/e2e_journey_guard.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "operations_dependencies_and_helpers",
       "sha256": "938d4a1fc91e41f5db9890e5417ba789c9660a3593e5d55847839d370a962b12",
       "bytes": 824
@@ -454,35 +455,35 @@
     },
     {
       "path": "backend/migrations/versions/20261021_25_customer_demand_marketplace.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "database_migrations",
       "sha256": "6821cc9ec398a9a9945b4b591d3276e67ef0b8594605c456b0fb609cf904a7d8",
       "bytes": 4709
     },
     {
       "path": "backend/migrations/versions/20261023_26_customer_kyc.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "database_migrations",
       "sha256": "38ffee63c14aaf771352c6fc28d8415e12fd628b899c2f7265c1efd0968f71a5",
       "bytes": 2414
     },
     {
       "path": "backend/migrations/versions/20261023_27_connection_fee_policy.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "database_migrations",
       "sha256": "7b8abc8b9282be4cd784d91b3df92c8700c8722714a56da11dfafd8f39dc00a6",
       "bytes": 2436
     },
     {
       "path": "backend/migrations/versions/20261023_28_sandbox_refund_execution.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "database_migrations",
       "sha256": "abc85d6150e776239f1eef80012813487a13a920cdccb9fbb2eb7569518dc753",
       "bytes": 1301
     },
     {
       "path": "backend/migrations/versions/20261025_29_demand_locations.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "database_migrations",
       "sha256": "cedac8c13fefea9f59aebf9bd1545a8bfa5502032d0ffb116455a52f08ca6f2f",
       "bytes": 532
@@ -496,7 +497,7 @@
     },
     {
       "path": "backend/razorpay_webhook_relay.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "operations_dependencies_and_helpers",
       "sha256": "5178a2454a04566e87a574a33d1d142e4ebf5a9789252c9c935476df33f03460",
       "bytes": 1953
@@ -510,7 +511,7 @@
     },
     {
       "path": "backend/scan_worker.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "operations_dependencies_and_helpers",
       "sha256": "c5ded5bdadb825ab14dd3a353e87bb88a8ff6d8a5ec46314f7dcd60e64e82c78",
       "bytes": 8799
@@ -524,7 +525,7 @@
     },
     {
       "path": "backend/tests/integration/conftest.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "c8cf9767726659e327ec20ff6ad1684278cd261d040d072fba5e4d27cedad850",
       "bytes": 444
@@ -538,7 +539,7 @@
     },
     {
       "path": "backend/tests/integration/test_connection_fee_policy_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "61f6145db7017ad4e7a245c909dbba41ca280b1eb5ab8e12df3b122b111da37c",
       "bytes": 14097
@@ -552,28 +553,28 @@
     },
     {
       "path": "backend/tests/integration/test_customer_kyc_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "f649efc2b7fb7710eadc5fe30289dade9e5b552cd547588a93fb22995f9f0cfd",
       "bytes": 9285
     },
     {
       "path": "backend/tests/integration/test_demand_locations_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "3c25bb7beace4ebc47649c5d56e39a27ce60a2d4e92f2344ba594c1f3a35304e",
       "bytes": 2690
     },
     {
       "path": "backend/tests/integration/test_demand_marketplace_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "2253cd18017002be473cf3d31b19dd7920cbb38b57bcc2b01faa779c552581e5",
       "bytes": 19665
     },
     {
       "path": "backend/tests/integration/test_demand_milestone_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "fac3fd25036587808c0c46e0c2ae9965b38694914e23fc8220605f4ae05e8ed5",
       "bytes": 19219
@@ -587,21 +588,21 @@
     },
     {
       "path": "backend/tests/integration/test_http_rate_isolation.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
-      "sha256": "5e4defc50126daf33c37991be7e5254743f06ee0681ee0a7dec4007d82f57e82",
-      "bytes": 717
+      "sha256": "f40de5dc02c7234eb8896b2077859253ee66ecbe68de24f9ef8f33981baa664a",
+      "bytes": 953
     },
     {
       "path": "backend/tests/integration/test_local_email_capture_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "c5ab5ec419cab4f5f5322a681d514538436902444c01abfcd4aedc0a22d88ca3",
       "bytes": 8400
     },
     {
       "path": "backend/tests/integration/test_local_email_races_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "b9f1634ddb18f7281d0663c33542482a0b4aeb1c93f15d608c27e1b1fe26e1c5",
       "bytes": 7199
@@ -629,14 +630,14 @@
     },
     {
       "path": "backend/tests/integration/test_request_creation_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "13d2a9c4e870108736ecfb6e1cf1587b76b80a5df9441f7b375f4762c8efba3c",
       "bytes": 2324
     },
     {
       "path": "backend/tests/integration/test_sandbox_refund_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "3b83fef55eb197e42e3be49b3b99e2b373c732c45c7f5ba37da8cd5a14b3dfc3",
       "bytes": 9314
@@ -650,7 +651,7 @@
     },
     {
       "path": "backend/tests/test_account_email_links.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "8de6db7ab3f80eda4527fa098412a33692ce026bdf977beb6d43858915833c88",
       "bytes": 1402
@@ -692,7 +693,7 @@
     },
     {
       "path": "backend/tests/test_connection_fee_rules.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "96b34b9bb3f0f74fe26afecce2f7af82759f446999702f2e76e7d93d0c9d9bca",
       "bytes": 2546
@@ -706,31 +707,38 @@
     },
     {
       "path": "backend/tests/test_customer_kyc.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "e6449889cb149e016790681e5f11a644ee6af928f0714f5e038e4d3f21f06376",
       "bytes": 2342
     },
     {
       "path": "backend/tests/test_customer_kyc_renewal.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "0c28ee9068e3434ff088eb26215ac502ac7096e06645e0217a3451d01ff55451",
       "bytes": 732
     },
     {
       "path": "backend/tests/test_demand_locations.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "3d734d3286114017608176e50267d730ba2964bee4ffe460f47bea477c023e05",
       "bytes": 1594
     },
     {
       "path": "backend/tests/test_demand_marketplace.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "b66672df5c05692b9ff878c503ec1a6ea1279b35f6324b7cdc7e5adeaf3d5a1d",
       "bytes": 7033
+    },
+    {
+      "path": "backend/tests/test_dependency_manifests.py",
+      "change": "UNTRACKED",
+      "category": "backend_tests",
+      "sha256": "a6f91fe03de83fa98b3e49cbe21690089283f90fa385d7e031b624e3b3742414",
+      "bytes": 503
     },
     {
       "path": "backend/tests/test_driver_identity_gate.py",
@@ -769,7 +777,7 @@
     },
     {
       "path": "backend/tests/test_jwt_compatibility.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "261f3e6e84e16dd91ec4b373104510cda9c070e2ab93c3396dc1eeb7a906374b",
       "bytes": 1270
@@ -839,21 +847,21 @@
     },
     {
       "path": "backend/tests/test_razorpay_sandbox.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "b6a4397f2941245d5eecd9371522dbe9adad6dcd358d930aff1f50480f517127",
       "bytes": 5435
     },
     {
       "path": "backend/tests/test_razorpay_webhook_relay.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "8172c4e52d32fa14da3c2ab07e65c8bdfb7efdccb5abe879b257259e9c6ec812",
       "bytes": 2998
     },
     {
       "path": "backend/tests/test_refund_cli_schema.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "730846dcca3120122507f97ffd9e860d78cd16cef691ffbabe995c1847ace156",
       "bytes": 1497
@@ -888,7 +896,7 @@
     },
     {
       "path": "backend/tests/test_scan_contract.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "41a08ced999af8640777dbced3eba9b79045699bb50b9d09776e1d28c0787799",
       "bytes": 2501
@@ -979,7 +987,7 @@
     },
     {
       "path": "backend/vercel.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "operations_dependencies_and_helpers",
       "sha256": "3d3d723d834320eca6d0bdbd65ff3a57760532e5f1b4cc25aaf9d34bfe543b36",
       "bytes": 106
@@ -988,8 +996,8 @@
       "path": "docs/PROJECT_HANDOFF.md",
       "change": "A",
       "category": "documentation",
-      "sha256": "cce2e0fbaebfbd4d7817795642dff43eb01c4d8de6b5f7c7b888a1b836ec1b25",
-      "bytes": 43814
+      "sha256": "004ad6c90c6812873b868dc53e0e3298e4e3009ebe51f0ebf9de4a80fdd51722",
+      "bytes": 45116
     },
     {
       "path": "docs/operations/2026-10-20-alerts-recovery-legal.md",
@@ -1014,56 +1022,56 @@
     },
     {
       "path": "docs/operations/2026-10-23-connection-fee-policy.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "d915f45b7c7b2f6d0124af2c831f7d1714398faf63436d0f20421dda3a687df3",
       "bytes": 4466
     },
     {
       "path": "docs/operations/2026-10-23-isolated-preview-release.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "f9fa199fffd248a3532f7497d7253368a8b9889bff78784259905cd91e549f28",
       "bytes": 5444
     },
     {
       "path": "docs/operations/2026-10-26-coordinated-production-release.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "1f442a37ec774b10ca899652f452c6ac11e3cfb0f75bd1490bc8538406bc8ac6",
       "bytes": 22629
     },
     {
       "path": "docs/operations/2026-10-26-kyc-consent-draft.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "6c7a3f2c300c21bd34cb0c3e981243fd1588673a4ca5df278ca7944682b1cdb9",
       "bytes": 2672
     },
     {
       "path": "docs/operations/2026-10-26-release-isolation.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
-      "sha256": "a4fa00dcb822be8c27ad81abc69a86bd85f742ae7d41017b3a6267eb7c4e9cef",
-      "bytes": 6183
+      "sha256": "ef795d01cf8069bf8a669505c937570698ed75f112bcac8c923555d08934d472",
+      "bytes": 8431
     },
     {
       "path": "docs/operations/account-email-setup.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "98039b68dedc770fe83a1dc8907b2ef56e0b66b6df5876e5a5b3fc0ad3ad53cc",
       "bytes": 8085
     },
     {
       "path": "docs/operations/customer-demand-marketplace.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "9559663865f724b0ee4ae611c360f162d31ad402c691d2d7b9aadc0f19552625",
       "bytes": 5639
     },
     {
       "path": "docs/operations/local-demand-maps.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "4b81e3ae87283fdff13fa9987f87ec2a48a0e13d8953b1968de7bb5e31e6a3d2",
       "bytes": 2652
@@ -1084,49 +1092,49 @@
     },
     {
       "path": "docs/superpowers/plans/2026-10-21-customer-demand-marketplace.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "07cb0ff8f123cba1a66098a2e979a52bdc94362c23a390d0c3f2fa521bbc7465",
       "bytes": 3164
     },
     {
       "path": "docs/superpowers/plans/2026-10-23-mvp-milestone-continuation.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "fdacef717383ede0cfc6b4e6b1aedec21b0ead513b22f64767b74bd5fc1f770f",
       "bytes": 3181
     },
     {
       "path": "docs/superpowers/plans/2026-10-23-razorpay-sandbox-refunds.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "fe46a677feec686672026f5380067d023fe7d87cc87df05bcb9eebf9bc490820",
       "bytes": 3076
     },
     {
       "path": "docs/superpowers/plans/2026-10-23-scanner-release-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "941a0e1f9605feaecb3ef6b54f1675d7b4c93ea55d2fbd7b17174b74b2cb16e7",
       "bytes": 1790
     },
     {
       "path": "docs/superpowers/plans/2026-10-25-account-email.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "46e6a32381456afca1073d897a834af4b72c588f1e80363cf2147ae94308da0f",
       "bytes": 1503
     },
     {
       "path": "docs/superpowers/plans/2026-10-25-demand-maps.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "c7bc0550fade618396b507566e90b532ffeaacfd0d9f07d1145d8bb81ab68730",
       "bytes": 1039
     },
     {
       "path": "docs/superpowers/specs/2026-10-21-customer-demand-marketplace-design.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "39c6c2a1eb377cb3cb4339da9a3834680dbfc6600f4cc068628f7ca861d9c7b4",
       "bytes": 6258
@@ -1140,7 +1148,7 @@
     },
     {
       "path": "docs/superpowers/specs/2026-10-23-private-clamav-design.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "704b5b003b65a20402e24752d6ee94793e5ed658c903e5831c7d34c67b86d9b5",
       "bytes": 3575
@@ -1273,63 +1281,63 @@
     },
     {
       "path": "docs/testing/2026-10-23-customer-demand-source-manifest.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "62c6edc484a9b671476d9ba331f7dcdd24ea8446db4a42ba7e2e7f0e23ebf502",
       "bytes": 8672
     },
     {
       "path": "docs/testing/2026-10-23-customer-demand-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "9d54adaa75cf5685d66ce2c05efc0bb65f0bd83c7cb1ef8bc73d2b67749c23e5",
       "bytes": 9549
     },
     {
       "path": "docs/testing/2026-10-23-scanner-fee-release-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "f07c43f16eac3432b6bb0ebca6d4184164fa6128e0bc6e862a3ea16d4a96b3e2",
       "bytes": 12801
     },
     {
       "path": "docs/testing/2026-10-23-scanner-fee-source-manifest.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "d903bea76c407dbbe79b5bd6925d0064910fea36b4d006f84d4842da0b556cab",
       "bytes": 14317
     },
     {
       "path": "docs/testing/2026-10-24-razorpay-source-manifest.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "c2863ea7d548664c64f31959e22f48c6eca1804f673396faaf7c066253cfd361",
       "bytes": 16522
     },
     {
       "path": "docs/testing/2026-10-24-razorpay-test-mode-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "e3c51d4bdc8012e6317e2b442dfba5bc5ca9619d233ff029e9c4734ce1fc0986",
       "bytes": 9838
     },
     {
       "path": "docs/testing/2026-10-25-account-email-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "5d2a5b48aed1c6405a689c98d0854a6bdab7c697a76f0846081039ac7b05b04b",
       "bytes": 6215
     },
     {
       "path": "docs/testing/2026-10-25-brevo-real-email-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "3fb5d15e6e72e608c1c98c7cd7600d5eed783bf39cbbb10796031f3083b174e7",
       "bytes": 6697
     },
     {
       "path": "docs/testing/2026-10-25-coordinated-release-manifest.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": null,
       "bytes": null,
@@ -1337,49 +1345,49 @@
     },
     {
       "path": "docs/testing/2026-10-25-local-google-maps-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "4058b5f4f52d889e6ee56208c3255ce720673a33e605bf1b9e8029ebdbe098ba",
       "bytes": 8916
     },
     {
       "path": "docs/testing/2026-10-25-maps-source-manifest.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "5c7c6e2b04625dbbd692ab90ae270f59ae66d76f92ac5375b499992c4b8de0bd",
       "bytes": 4140
     },
     {
       "path": "docs/testing/2026-10-25-razorpay-test-execution.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "83dbde802ce8a1dfc7a258464e69ad618d14264b93cff26a8650812a902af7cb",
       "bytes": 2833
     },
     {
       "path": "docs/testing/2026-10-26-coordinated-release-verification.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "documentation",
       "sha256": "74a7110db9a1418f39c5dc930a389b6b497b77c0e3081f9a0a4872662be6528c",
       "bytes": 5949
     },
     {
       "path": "e2e/customer-verification.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "4cca686af9a86a3ea4c82b442f14ddf9995734bcb3cd42f2a2fa71274ab13f65",
       "bytes": 1496
     },
     {
       "path": "e2e/demand-marketplace.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "7cf7cfe195c87e8d067535cc33013857927f23a9f0d289fa999982e7f8ae5e69",
       "bytes": 15763
     },
     {
       "path": "e2e/demand-session.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "03eeefcbe530c98f95f911d2614db1da5bccd442937af006a36093d1bd2e3654",
       "bytes": 5069
@@ -1393,21 +1401,21 @@
     },
     {
       "path": "e2e/fixtures/customerJourney.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "33d7c7c6d22d6f34a07a32c379834e5b37b2d1b315636fa1d3570c3f66137f85",
       "bytes": 4557
     },
     {
       "path": "e2e/fixtures/demand_database.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "26353ae4657c520a5d9dc029b1f1a9fa6d75042d5be067b899d69262f8bdac88",
       "bytes": 2395
     },
     {
       "path": "e2e/fixtures/mapsHarness.tsx",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "08d349242d69ddc21f0586497c55393aa0b1b354e73d2f7a76cd523d84fb8aff",
       "bytes": 680
@@ -1421,14 +1429,14 @@
     },
     {
       "path": "e2e/journey-global-setup.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "cb736d79b2b10c0241e6e5f89db07e90c4bc89eaa2a12c3364546d1083aaec3e",
       "bytes": 547
     },
     {
       "path": "e2e/maps-harness.html",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "bb0209e6aad9640b0c6ed8bfc6acc8afc956dd1a3b6e1c5e683b766bbde70d10",
       "bytes": 183
@@ -1477,35 +1485,35 @@
     },
     {
       "path": "e2e/release-customer-kyc.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "67c93f206c67a552cbb6d1817a01ecaccd111012a74690ad2ab7c715cd9f613b",
       "bytes": 3506
     },
     {
       "path": "e2e/release-demand-management.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "61b11afc8b9a499c0c2070e221e890814623556d834d348071421335021195d5",
       "bytes": 9357
     },
     {
       "path": "e2e/release-demand-maps-real.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "7c16f72dc28b96956121fb0f500b7d6442287acb16b9ab72944a2bb4491c4bc0",
       "bytes": 2824
     },
     {
       "path": "e2e/release-demand-maps.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "e74ac061e6b79c0c9a29fbf0ea9d364b54f03629e34923c344c11d02036559d6",
       "bytes": 10229
     },
     {
       "path": "e2e/release-email.spec.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "0c783b708d2d507b5ba8635d219cc149682f6cff5994792a8290b8dbae0acff2",
       "bytes": 1940
@@ -1533,7 +1541,7 @@
     },
     {
       "path": "e2e/serve-maps-harness.mjs",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "5a2b8197f8a2da3610795503c0e9e3c357ecc5c38755f519c32e523215809fad",
       "bytes": 566
@@ -1547,49 +1555,49 @@
     },
     {
       "path": "ops/aws/clamav/DEPLOYMENT_PROPOSAL.md",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "9e911dbb708e79a3eca485dc842d54e3ee5c887b6eca26c4a044cfa88b4c19fb",
       "bytes": 11228
     },
     {
       "path": "ops/aws/clamav/api-result-reader-policy.proposed.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "2a2b3155ac9cb9859021181a9b49d5e4d990af890e14ac0079776f78a10fe509",
       "bytes": 956
     },
     {
       "path": "ops/aws/clamav/application.env.example",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "b715709a8a7351d756ab6e1d828ff1e33a49aa2049d2497d96c8a7af8603d20c",
       "bytes": 315
     },
     {
       "path": "ops/aws/clamav/notification-fragment.proposed.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "733edfd2ede987f67a04320c170cae282fef11201dff2233da1e18cb723bff0a",
       "bytes": 389
     },
     {
       "path": "ops/aws/clamav/prepare_backfill.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "64c95b9e5861c81c29fd551bf739f2f836eaa018be342c44ca066f4392665293",
       "bytes": 1236
     },
     {
       "path": "ops/aws/clamav/scanner-stack.proposed.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "d544ee641241c6a2c4a1e6422217ea57c1a49b22ecf17c6eaf91bf23c5e32195",
       "bytes": 21047
     },
     {
       "path": "ops/aws/clamav/verify_access.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "0c75c91bcc1170718921ff09b55cc08a9a6120b5815d3966185562c4f9a661e5",
       "bytes": 2405
@@ -1631,42 +1639,42 @@
     },
     {
       "path": "ops/clamav/Dockerfile",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "ae8427befed9d5611f0d7225fed4ffd0164bd8d01030917e0c59506bfeabdcaf",
       "bytes": 593
     },
     {
       "path": "ops/clamav/Dockerfile.dockerignore",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "c788b9026b767af8e0d1b28aa77ad2ea681f2ccc135d2e7750496e6cf2425ff5",
       "bytes": 164
     },
     {
       "path": "ops/clamav/clamd.conf",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "e3e84918de7ad9edfafd83e80b0865ab5aed2a92824559d5127b4a27f60498b4",
       "bytes": 419
     },
     {
       "path": "ops/clamav/test_real_scanner.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "193d4941144eabfbe36ecb625a9e1e1753b3f7614356901f77204e52d3ef9bdc",
       "bytes": 3300
     },
     {
       "path": "ops/preview/api.env.example",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "1f2159ddb13bce643cc5791ea50acf0a3a26000687c859843f2b528bca788f8d",
       "bytes": 1232
     },
     {
       "path": "ops/preview/frontend.env.example",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "infrastructure_templates_not_deployed",
       "sha256": "4d0a8d633365e7bfcb00c752d6d92db8a574a86a6ecfdcb9fe856a7252f2f212",
       "bytes": 175
@@ -1694,7 +1702,7 @@
     },
     {
       "path": "playwright.demand.config.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "b4ce38db3042e62a4a4149a77cd3184d90ec010e239492eb6c585f50262caca8",
       "bytes": 1717
@@ -1708,28 +1716,28 @@
     },
     {
       "path": "playwright.email.config.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "1b82a44f85ab789bad5d1055908513d666683d9eb39f72c32635207e6993f0f0",
       "bytes": 568
     },
     {
       "path": "playwright.journeys.config.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "343f802eff3c50456ec47a42990a4e6b4f451cd0f4665533dfb08cd695ae8f1b",
       "bytes": 905
     },
     {
       "path": "playwright.maps-real.config.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "057159baf807b4961bac8607f670a605fbee332b16337f95fe6a9b01b7e70240",
       "bytes": 388
     },
     {
       "path": "playwright.maps.config.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "browser_verification",
       "sha256": "236adf76d7ce2e54d28960341396bdba00e940b3e998aadcab7e15b6cd53c01d",
       "bytes": 631
@@ -1740,6 +1748,13 @@
       "category": "browser_verification",
       "sha256": "b92625260cfed62c7fda95d49de94aebaee8b10dac519bd1fba4bb5dfb1eb8cd",
       "bytes": 1101
+    },
+    {
+      "path": "pyproject.toml",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "6013bab4cb87f3bf56773292ef8e8f7311dcf96cf9d1811bad8f42ff0db5920c",
+      "bytes": 825
     },
     {
       "path": "scripts/check-migrations.ps1",
@@ -1778,49 +1793,49 @@
     },
     {
       "path": "src/components/ConnectionFeeReview.tsx",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "ac34ad474b82ffcb051767ff366505ee8d01b19874ab6830c4a0405bd0334871",
       "bytes": 3571
     },
     {
       "path": "src/components/CustomerHome.tsx",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "e818b6c7c3765075af4b1fbdd7d3ed5dd4a008e7e12faea6b3f6b5fe284c5028",
       "bytes": 3933
     },
     {
       "path": "src/components/CustomerVerification.tsx",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "f4e67f5fd7bd41f5ae4d6c4bb40413f4310b4fb623443cb99d213646378b3455",
       "bytes": 9950
     },
     {
       "path": "src/components/DemandComposer.tsx",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "1172b7c680fc82a8fe9ed2e1b6b620c64e8c6a5bb9c971c2d04442f4366e0218",
       "bytes": 14462
     },
     {
       "path": "src/components/DemandLocationMap.tsx",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "37e7de09306e7e898a71ebde898573df82c50276b292e5d25a93077cd60a3bc4",
       "bytes": 7592
     },
     {
       "path": "src/components/DemandMarketplace.css",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "337891ccc1b5c27caeca93e8b197bfa8f09811a3eb922904e76dfde1708f9698",
       "bytes": 9153
     },
     {
       "path": "src/components/DemandWorkspace.tsx",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "37997bef728d0cb2563b19f50bcd70d54607d8b10d6183ae7cb3cfd684148dc5",
       "bytes": 28406
@@ -1988,14 +2003,14 @@
     },
     {
       "path": "src/lib/account-email-link.test.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_tests",
       "sha256": "5eeaa0063f565158e57c8c5bac7034cd2c194863db92998ae1e121704f0803be",
       "bytes": 745
     },
     {
       "path": "src/lib/account-email-link.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "473cb280869ab5f78d29998abbe87b5354a921ab0b6ba98fb582492c748489c9",
       "bytes": 735
@@ -2016,14 +2031,14 @@
     },
     {
       "path": "src/lib/connection-fee-status.test.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_tests",
       "sha256": "63f725fcc46105dd519d179db6356b36b6863f4cd4849a32969febc776ac92ab",
       "bytes": 854
     },
     {
       "path": "src/lib/connectionCheckout.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "19ee6c6e8d919ac1970e7c081d4839dd29a741cfcd91d8542e6a9ce3de2cb290",
       "bytes": 1420
@@ -2037,28 +2052,28 @@
     },
     {
       "path": "src/lib/demand-location.test.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_tests",
       "sha256": "a17725b4c855ad40d7ea72a2fe81b36558b9da6b51efe2b4ee3c5a2b5410c5ee",
       "bytes": 1219
     },
     {
       "path": "src/lib/demand-location.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "cbfcccc9ba4b6306fbc05ee822880d7a3a3613f76a9f3b5ae4967439148032f2",
       "bytes": 993
     },
     {
       "path": "src/lib/demand-types.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "e7c62373d70e9cc047d1dac25825772c97eeb53ec71d5433bd09309c1aee07a8",
       "bytes": 4284
     },
     {
       "path": "src/lib/google-maps.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "frontend_runtime",
       "sha256": "efd744ac94d0af6dcc33fc675e93c43b878c3fcb86badeb8fa596a694e082406",
       "bytes": 2707
@@ -2093,7 +2108,7 @@
     },
     {
       "path": "vercel.json",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "build_ci_configuration",
       "sha256": "3d3d723d834320eca6d0bdbd65ff3a57760532e5f1b4cc25aaf9d34bfe543b36",
       "bytes": 106
@@ -2107,7 +2122,7 @@
     },
     {
       "path": "vite.maps-harness.config.ts",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "build_ci_configuration",
       "sha256": "dc8323ce5efc848f75a4d1247ea7bd49f4af1b5c70c966a4780d795224ff3b0e",
       "bytes": 224
