@@ -3,19 +3,20 @@
   "deployed_frontend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
   "deployed_backend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
   "candidate_branch": "release/customer-first-20261026",
-  "candidate_head": "ed4d0739488ea6c647f7b9cdf1d0218696c2a4f9",
+  "candidate_head": "1099527c6e8330be3858349370da5a68d7c2f4f8",
   "commits_not_deployed": [
+    "1099527c6e8330be3858349370da5a68d7c2f4f8",
     "ed4d0739488ea6c647f7b9cdf1d0218696c2a4f9",
     "ba3057784e36f1c984e90f54b0695586a8c97650",
     "66c63d17897837afc88f457dab0c0e7b8942ac2a",
     "d5f4306697518d7a1335482ce37f49f1d41c4f06"
   ],
-  "file_count": 299,
-  "tracked_changed": 298,
+  "file_count": 300,
+  "tracked_changed": 299,
   "untracked_source_files": 1,
   "categories": {
     "build_ci_configuration": 11,
-    "documentation": 57,
+    "documentation": 58,
     "operations_dependencies_and_helpers": 14,
     "backend_runtime": 43,
     "database_migrations": 7,
@@ -27,7 +28,7 @@
   },
   "credential_scan": {
     "known_local_values_and_high_confidence_patterns": "PASS",
-    "included_commit_patches_scanned": 4,
+    "included_commit_patches_scanned": 5,
     "findings": [],
     "forbidden_tracked_or_candidate_paths": [],
     "limitations": "No general-purpose entropy scanner available; this is exact known-value/pattern plus path review, not a guarantee against all unknown credentials."
@@ -58,8 +59,8 @@
       "path": ".github/workflows/playwright.yml",
       "change": "M",
       "category": "build_ci_configuration",
-      "sha256": "709e5569be4660ff90f323bf10e82de057ea9d19ba86c161af6b2d6d24a9a8d0",
-      "bytes": 3683
+      "sha256": "44975a0ac979c8596eeef82f40f740392bf8fb321edbd2193636ecf38cd53523",
+      "bytes": 4425
     },
     {
       "path": ".gitignore",
@@ -735,7 +736,7 @@
     },
     {
       "path": "backend/tests/test_dependency_manifests.py",
-      "change": "UNTRACKED",
+      "change": "A",
       "category": "backend_tests",
       "sha256": "a6f91fe03de83fa98b3e49cbe21690089283f90fa385d7e031b624e3b3742414",
       "bytes": 503
@@ -996,8 +997,8 @@
       "path": "docs/PROJECT_HANDOFF.md",
       "change": "A",
       "category": "documentation",
-      "sha256": "004ad6c90c6812873b868dc53e0e3298e4e3009ebe51f0ebf9de4a80fdd51722",
-      "bytes": 45116
+      "sha256": "11c421c645404055273f061c9e157d9672c8e9ec8e85f16a297532e3c1dde7d0",
+      "bytes": 46716
     },
     {
       "path": "docs/operations/2026-10-20-alerts-recovery-legal.md",
@@ -1045,15 +1046,22 @@
       "path": "docs/operations/2026-10-26-kyc-consent-draft.md",
       "change": "A",
       "category": "documentation",
-      "sha256": "6c7a3f2c300c21bd34cb0c3e981243fd1588673a4ca5df278ca7944682b1cdb9",
-      "bytes": 2672
+      "sha256": "fb411b6b332559507ce3c6cdca83d2020fd5cc2a01eb22e4bef52a00c314ba72",
+      "bytes": 3415
+    },
+    {
+      "path": "docs/operations/2026-10-26-recovery-isolation-incident.md",
+      "change": "UNTRACKED",
+      "category": "documentation",
+      "sha256": "1dd438cb07ca617f60e11324e2ca732a5d7c0b6fb71e28f4acfcef1ee64a8d99",
+      "bytes": 4855
     },
     {
       "path": "docs/operations/2026-10-26-release-isolation.md",
       "change": "A",
       "category": "documentation",
-      "sha256": "ef795d01cf8069bf8a669505c937570698ed75f112bcac8c923555d08934d472",
-      "bytes": 8431
+      "sha256": "d628ce347eb7fa64602edde5d5fea486ff33719712fa9a5e19f3c4c05164189c",
+      "bytes": 8837
     },
     {
       "path": "docs/operations/account-email-setup.md",
@@ -1697,8 +1705,8 @@
       "path": "playwright.config.ts",
       "change": "M",
       "category": "browser_verification",
-      "sha256": "9c6d16098c834e591a68f1d1148af56f779692696d8da875845cf78b2227c4b9",
-      "bytes": 2668
+      "sha256": "ed21dd3e372095340bd286a8fe95ae112823465694c090deab6a3e50e803dbf4",
+      "bytes": 2731
     },
     {
       "path": "playwright.demand.config.ts",

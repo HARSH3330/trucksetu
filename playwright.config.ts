@@ -20,7 +20,7 @@ const localEnvironment = {
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: realAws ? '**/*.aws.spec.ts' : ['**/kyc*.spec.ts','**/release-*.spec.ts'],
+  testMatch: realAws ? '**/*.aws.spec.ts' : ['**/kyc*.spec.ts','**/release-session.spec.ts','**/release-shared.spec.ts','**/release-vehicle.spec.ts'],
   testIgnore: realAws ? [] : ['**/*.aws.spec.ts'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

@@ -90,3 +90,19 @@ jobs:
 
       - name: Verify customer-first demand, fee and session journeys
         run: npx playwright test --config playwright.demand.config.ts --project=chromium
+
+      - name: Verify configured customer KYC and demand management
+        run: npx playwright test --config playwright.journeys.config.ts --project=chromium
+      - name: Verify Maps simulated failure and pin workflows
+        run: npx playwright test --config playwright.maps.config.ts
+      - name: Verify email link UI with simulated account responses
+        run: npx playwright test --config playwright.email.config.ts
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-customer-release-reports
+          path: |
+            playwright-report-demand/
+            playwright-report-journeys/
+            playwright-report-maps/
+          retention-days: 14

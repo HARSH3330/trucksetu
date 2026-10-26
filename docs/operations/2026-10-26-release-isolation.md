@@ -1,3 +1,5 @@
+> CORRECTION: recovery restoration was NOT isolated; provider finalization moved the original endpoint/default. Original binding is restored, but intervening writes are un-reconciled. [Incident record](2026-10-26-recovery-isolation-incident.md) supersedes earlier PASS/isolation/production-untouched statements below. Separate preview is now migrated29and its compute disabled. Release remains blocked.
+
 # Release isolation and remaining gates — 26 October 2026
 
 ## Actual changes and verification
