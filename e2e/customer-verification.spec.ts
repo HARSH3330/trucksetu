@@ -15,7 +15,7 @@ for(const width of [1440,390])test(`customer verification fails closed without a
   await signIn(page,data.customer_email,providerAccount.password,'My requirements')
   await page.goto('/#kyc')
   await expect(page.getByRole('heading',{name:'Customer verification',exact:true})).toBeVisible()
-  await expect(page.getByRole('status').filter({hasText:'Customer verification requirements are awaiting approved setup'})).toBeVisible()
+  await expect(page.getByRole('alert').filter({hasText:'Customer verification requirements are awaiting approved setup'})).toBeVisible()
   await expect(page.getByRole('button',{name:'Start customer verification',exact:true})).toHaveCount(0)
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   await page.screenshot({path:testInfo.outputPath(`customer-verification-${width}.png`),fullPage:true})

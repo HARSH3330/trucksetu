@@ -3,20 +3,21 @@
   "deployed_frontend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
   "deployed_backend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
   "candidate_branch": "release/customer-first-20261026",
-  "candidate_head": "1099527c6e8330be3858349370da5a68d7c2f4f8",
+  "candidate_head": "d4efac586a4ee5e49e478fd304f6c65743ef3664",
   "commits_not_deployed": [
+    "d4efac586a4ee5e49e478fd304f6c65743ef3664",
     "1099527c6e8330be3858349370da5a68d7c2f4f8",
     "ed4d0739488ea6c647f7b9cdf1d0218696c2a4f9",
     "ba3057784e36f1c984e90f54b0695586a8c97650",
     "66c63d17897837afc88f457dab0c0e7b8942ac2a",
     "d5f4306697518d7a1335482ce37f49f1d41c4f06"
   ],
-  "file_count": 300,
-  "tracked_changed": 299,
+  "file_count": 301,
+  "tracked_changed": 300,
   "untracked_source_files": 1,
   "categories": {
     "build_ci_configuration": 11,
-    "documentation": 58,
+    "documentation": 59,
     "operations_dependencies_and_helpers": 14,
     "backend_runtime": 43,
     "database_migrations": 7,
@@ -28,7 +29,7 @@
   },
   "credential_scan": {
     "known_local_values_and_high_confidence_patterns": "PASS",
-    "included_commit_patches_scanned": 5,
+    "included_commit_patches_scanned": 6,
     "findings": [],
     "forbidden_tracked_or_candidate_paths": [],
     "limitations": "No general-purpose entropy scanner available; this is exact known-value/pattern plus path review, not a guarantee against all unknown credentials."
@@ -997,8 +998,8 @@
       "path": "docs/PROJECT_HANDOFF.md",
       "change": "A",
       "category": "documentation",
-      "sha256": "11c421c645404055273f061c9e157d9672c8e9ec8e85f16a297532e3c1dde7d0",
-      "bytes": 46716
+      "sha256": "af7c257b6fa9f6c04d08a56dd941dc90ee70a7455c1069d657c82acf058d0b73",
+      "bytes": 48059
     },
     {
       "path": "docs/operations/2026-10-20-alerts-recovery-legal.md",
@@ -1050,8 +1051,15 @@
       "bytes": 3415
     },
     {
-      "path": "docs/operations/2026-10-26-recovery-isolation-incident.md",
+      "path": "docs/operations/2026-10-26-production-integration-settings.md",
       "change": "UNTRACKED",
+      "category": "documentation",
+      "sha256": "2c3a500c7c06960cdebdadc29b7ba0c12ce8e2ccfd673607fd89f8e2d187fb0b",
+      "bytes": 8038
+    },
+    {
+      "path": "docs/operations/2026-10-26-recovery-isolation-incident.md",
+      "change": "A",
       "category": "documentation",
       "sha256": "1dd438cb07ca617f60e11324e2ca732a5d7c0b6fb71e28f4acfcef1ee64a8d99",
       "bytes": 4855
@@ -1383,8 +1391,8 @@
       "path": "e2e/customer-verification.spec.ts",
       "change": "A",
       "category": "browser_verification",
-      "sha256": "4cca686af9a86a3ea4c82b442f14ddf9995734bcb3cd42f2a2fa71274ab13f65",
-      "bytes": 1496
+      "sha256": "acc84988b4d4dcaabd262be37c3df6ef33f6415d242f102348fa6b9595963765",
+      "bytes": 1495
     },
     {
       "path": "e2e/demand-marketplace.spec.ts",
