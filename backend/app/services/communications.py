@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 import smtplib
+import ssl
 from email.message import EmailMessage
 
 import httpx
@@ -61,9 +62,11 @@ class SmtpEmailProvider(ChannelProvider):
         if not settings.SMTP_HOST or not settings.EMAIL_FROM:
             raise RuntimeError("Email provider is not configured")
         email=EmailMessage();email["From"]=settings.EMAIL_FROM;email["To"]=recipient;email["Subject"]=self.subject;email.set_content(message)
+        if settings.EMAIL_REPLY_TO:
+            email["Reply-To"]=settings.EMAIL_REPLY_TO
         def deliver() -> None:
             with smtplib.SMTP(settings.SMTP_HOST,settings.SMTP_PORT,timeout=15) as client:
-                client.starttls()
+                client.starttls(context=ssl.create_default_context())
                 if settings.SMTP_USERNAME:client.login(settings.SMTP_USERNAME,settings.SMTP_PASSWORD)
                 refused=client.send_message(email)
                 if refused:

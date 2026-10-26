@@ -1,0 +1,94 @@
+import {expect,test,type Page} from '@playwright/test'
+import {createHmac,randomUUID} from 'node:crypto'
+import {providerAccount} from './fixtures/accounts'
+import {signIn} from './fixtures/api'
+import {api,fixture,demandPayload,auth,startAndUpload,cleanAndSubmit,approve} from './fixtures/customerJourney'
+const localMinute=(value:string)=>{const date=new Date(Math.ceil(new Date(value).getTime()/60000)*60000);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16)}
+async function simulatedCapture(page:Page,order:string){
+ const id='local-journey-'+randomUUID()
+ const body=JSON.stringify({event:'payment.captured',payload:{payment:{entity:{id:'pay_LOCAL_'+randomUUID().replaceAll('-',''),order_id:order,amount:120000,currency:'INR',status:'captured'}}}})
+ const headers={'Content-Type':'application/json','X-Razorpay-Signature':createHmac('sha256','local-demand-webhook-secret').update(body).digest('hex'),'X-Razorpay-Event-Id':id}
+ expect((await page.request.post(api+'/connection-fees/webhook',{headers,data:body})).status()).toBe(200)
+ expect((await page.request.post(api+'/connection-fees/webhook',{headers,data:body})).status()).toBe(200)
+}
+
+test('provider bid revision/withdrawal, captured assignment, trip gates and persistent refund history',async({browser},testInfo)=>{
+ test.setTimeout(240000)
+ const data=fixture(),customer=await browser.newContext({viewport:{width:390,height:950}}),provider=await browser.newContext({viewport:{width:390,height:950}}),admin=await browser.newContext()
+ try{
+  const c=await customer.newPage(),p=await provider.newPage(),a=await admin.newPage()
+  await signIn(c,data.customer_email,providerAccount.password,'My requirements')
+  const kyc=await startAndUpload(c);await cleanAndSubmit(c,kyc.storage_key)
+  await signIn(a,data.admin_email,providerAccount.password,'Marketplace control centre');await approve(a,kyc.application.id)
+  const description='Fictional management cartons '+randomUUID().replace(/[0-9-]/g,'x')
+  const posted=await c.request.post(api+'/demands',{headers:await auth(c),data:demandPayload(data,description)})
+  expect(posted.status()).toBe(201);const demand=await posted.json()
+  await signIn(p,data.provider_email,providerAccount.password,'Demand & bid workspace')
+  await p.goto('/#loads')
+  const card=p.locator('.demand-card').filter({hasText:description}),open=card.getByRole('button',{name:'Submit or revise transport bid',exact:true})
+  await open.click()
+  const title=p.getByRole('heading',{name:'Bid for Delhi → Noida',exact:true})
+  await expect(title).toBeFocused()
+  await p.keyboard.press('Escape');await expect(title).toHaveCount(0);await expect(open).toBeFocused()
+  async function fillBid(amount:string){
+   await open.click()
+   await p.getByLabel('Your verified vehicle',{exact:true}).selectOption(data.vehicle_id)
+   for(const [label,value] of [['Total transport quote (INR)',amount],['Pickup availability — local time',localMinute(data.pickup)],['Estimated delivery — local time',localMinute(data.delivery)],['Bid valid until — local time',localMinute(new Date(Date.now()+3600000).toISOString())],['Included services','Transport and loading'],['Excluded services — state None if none','None']])await p.getByLabel(label,{exact:true}).fill(value)
+   await p.getByRole('button',{name:amount==='750'?'Submit transport bid':'Submit revised bid',exact:true}).click()
+   await expect(p.getByText('Bid submitted. The customer can compare it before selecting.',{exact:true})).toBeVisible()
+  }
+  await fillBid('750')
+  await p.getByRole('button',{name:'My bids',exact:true}).click()
+  await p.getByRole('button',{name:'Withdraw bid',exact:true}).click()
+  await expect(p.locator('.demand-card').getByText(/withdrawn/)).toBeVisible()
+  await p.getByRole('button',{name:'Available demands',exact:true}).click();await fillBid('800')
+  await p.setViewportSize({width:1440,height:950});await p.screenshot({path:testInfo.outputPath('provider-revised-bid-desktop.png'),fullPage:true});await p.setViewportSize({width:390,height:950})
+  await c.goto('/#requirements')
+  const customerCard=c.locator('.demand-card').filter({hasText:description})
+  await customerCard.getByRole('button',{name:'Compare bids & connection',exact:true}).click()
+  await customerCard.getByRole('button',{name:'Review bid & connection fee',exact:true}).click()
+  const review=customerCard.getByRole('region',{name:'Review selected bid and fee'})
+  await expect(review).toContainText('₹800.00');await expect(review).toContainText('₹1,200.00')
+  await review.getByRole('checkbox').check();await review.getByRole('button',{name:'Select this bid',exact:true}).click()
+  await c.getByRole('button',{name:'Pay ₹1,200.00 connection fee',exact:true}).click()
+  await expect(c.getByText('Isolated sandbox checkout:',{exact:false})).toBeVisible()
+  const selections=(await c.request.get(api+'/demand-selections/mine',{headers:await auth(c)})).json()
+  const selection=(await selections).find((s:{request_id:string})=>s.request_id===demand.id)
+  const order=await c.request.post(api+'/demand-selections/'+selection.id+'/order',{headers:await auth(c)})
+  expect(order.status()).toBe(200)
+  await p.goto('/#bookings')
+  await expect(p.getByText('Trip actions are blocked until the connection fee and booking status permit operations.',{exact:true})).toBeVisible()
+  await expect(p.getByRole('button',{name:'Assign resources',exact:true})).toHaveCount(0)
+  await simulatedCapture(c,(await order.json()).order_id)
+  await p.goto('/#loads');await p.getByRole('button',{name:'Selected / bookings',exact:true}).click()
+  await p.getByLabel('Verified driver',{exact:true}).selectOption(data.driver_id)
+  await p.getByRole('button',{name:'Confirm driver assignment',exact:true}).click()
+  await p.getByRole('button',{name:'Active trips & bookings',exact:true}).click()
+  await p.getByRole('button',{name:'Mark heading to pickup',exact:true}).click()
+  await p.getByRole('button',{name:'Mark arrived at pickup',exact:true}).click()
+  await expect(p.getByRole('button',{name:'Mark loaded',exact:true})).toHaveCount(0)
+  const booking=(await (await p.request.get(api+'/bookings',{headers:await auth(p)})).json()).find((b:{id:string})=>b.id===selection.booking_id),trip=booking.trips[0]
+  expect((await p.request.post(api+'/trips/'+trip.id+'/status',{headers:await auth(p),data:{target:'loaded'}})).status()).toBe(409)
+  expect((await c.request.post(api+'/trips/'+trip.id+'/status',{headers:await auth(c),data:{target:'loaded'}})).status()).toBe(403)
+  await p.screenshot({path:testInfo.outputPath('provider-trip-verification-gate-mobile.png'),fullPage:true})
+  // A separate paid booking is cancelled before reveal. No external charge/refund.
+  const later={...data,pickup:new Date(new Date(data.pickup).getTime()+2*86400000).toISOString(),delivery:new Date(new Date(data.delivery).getTime()+2*86400000).toISOString()}
+  const desc='Fictional cancellation cartons '+randomUUID().replace(/[0-9-]/g,'x')
+  const created=await c.request.post(api+'/demands',{headers:await auth(c),data:demandPayload(later,desc)});expect(created.status()).toBe(201)
+  const next=await created.json()
+  const offered=await p.request.post(api+'/demands/'+next.id+'/bids',{headers:await auth(p),data:{expected_request_revision:1,vehicle_id:data.vehicle_id,amount:'900.00',currency:'INR',pickup_at:later.pickup,delivery_at:later.delivery,expires_at:new Date(Date.now()+3600000).toISOString(),inclusions:'Transport','exclusions':'None'}});expect(offered.status()).toBe(201)
+  const chosen=await c.request.post(api+'/demands/'+next.id+'/select',{headers:await auth(c),data:{quote_id:(await offered.json()).id,expected_quote_version:1,expected_request_revision:1,idempotency_key:'local-refund-'+randomUUID(),accepted_fee_policy_version:'local-fee-v1',accept_terms:true}});expect(chosen.status()).toBe(201)
+  const chosenData=await chosen.json(),createdOrder=await c.request.post(api+'/demand-selections/'+chosenData.id+'/order',{headers:await auth(c)})
+  expect(createdOrder.status()).toBe(200);await simulatedCapture(c,(await createdOrder.json()).order_id)
+  await c.goto('/#requirements');const cancelledCard=c.locator('.demand-card').filter({hasText:desc})
+  await cancelledCard.getByRole('button',{name:'Compare bids & connection',exact:true}).click()
+  c.once('dialog',dialog=>dialog.accept());await cancelledCard.getByRole('button',{name:'Cancel before contact reveal',exact:true}).click()
+  await expect(cancelledCard.getByRole('heading',{name:'Cancellation and refund status',exact:true})).toBeVisible()
+  await c.reload();await cancelledCard.getByRole('button',{name:'Compare bids & connection',exact:true}).click()
+  await expect(cancelledCard.getByText('Full refund requested:',{exact:false})).toBeVisible()
+  await expect(cancelledCard.getByRole('button',{name:'Reveal contact',exact:true})).toHaveCount(0)
+  expect((await c.request.get(api+'/demand-selections/'+chosenData.id+'/contact',{headers:await auth(c)})).status()).toBe(200)
+  expect(await c.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  await c.screenshot({path:testInfo.outputPath('refund-request-history-mobile.png'),fullPage:true})
+ }finally{await customer.close();await provider.close();await admin.close()}
+})

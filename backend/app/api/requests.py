@@ -33,9 +33,9 @@ def _summary(item: TransportRequest) -> TransportRequestSummary:
         status=item.status,
         booking_mode=item.booking_mode,
         schedule_mode=item.schedule_mode,
-        pickup_address=item.pickup_address,
+        pickup_address=item.pickup_city,
         pickup_city=item.pickup_city,
-        destination_address=item.destination_address,
+        destination_address=item.destination_city,
         destination_city=item.destination_city,
         pickup_date=item.pickup_date,
         pickup_time=item.pickup_time,
@@ -57,6 +57,11 @@ async def vehicle_categories(db: AsyncSession = Depends(get_db)) -> list[Vehicle
 
 @router.post("/requests", response_model=TransportRequestSummary, status_code=status.HTTP_201_CREATED)
 async def create_request(payload: TransportRequestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> TransportRequestSummary:
+    if not settings.ENABLE_LEGACY_PROVIDER_MARKETPLACE and payload.__class__ is TransportRequestCreate and not (payload.available_route_id and payload.booking_mode == 'SHARED_CAPACITY' and settings.ENABLE_SHARED_CAPACITY):
+        raise HTTPException(409,'Use customer demand publication; shared-capacity support remains available separately')
+    if payload.publish:
+        from app.services.customer_kyc import require_customer_kyc
+        await require_customer_kyc(db, user)
     if payload.available_route_id:
         route = await db.get(AvailableRoute, payload.available_route_id)
         if not route or route.status != 'active' or route.departure_at <= datetime.now(UTC):
@@ -108,6 +113,8 @@ async def create_request(payload: TransportRequestCreate, db: AsyncSession = Dep
     db.add(item)
     await db.flush()
     await db.refresh(item)
+    # Refresh expires relationships; load them explicitly before synchronous serialization.
+    await db.refresh(item, attribute_names=["cargo", "stops"])
     return _summary(item)
 
 
@@ -119,7 +126,7 @@ async def marketplace_requests(
 ) -> list[TransportRequestSummary]:
     query = (
         select(TransportRequest)
-        .where(TransportRequest.status == "published")
+        .where(TransportRequest.status == "published", TransportRequest.marketplace_mode == "legacy")
         .options(selectinload(TransportRequest.stops), selectinload(TransportRequest.cargo))
         .order_by(TransportRequest.pickup_date)
     )

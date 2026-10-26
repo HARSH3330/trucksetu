@@ -28,7 +28,7 @@ async def test_assignment_rechecks_suspension_under_vehicle_lock(monkeypatch):
             assert query._execution_options.get('populate_existing')
             return current
     async def get(entity, _):
-        return {bookings.DriverProfile:driver, bookings.BookingAllocation:allocation, bookings.ProviderProfile:provider, bookings.CarrierVehicle:stale, bookings.Booking:SimpleNamespace(request_id=uuid.uuid4()), bookings.TransportRequest:shipment}.get(entity)
+        return {bookings.DriverProfile:driver, bookings.BookingAllocation:allocation, bookings.ProviderProfile:provider, bookings.CarrierVehicle:stale, bookings.Booking:SimpleNamespace(request_id=uuid.uuid4(),route_snapshot={}), bookings.TransportRequest:shipment}.get(entity)
     db = SimpleNamespace(scalar=scalar, get=get, add=Mock(), commit=AsyncMock())
     monkeypatch.setattr(bookings, 'require_verified_driver_identity', AsyncMock())
     monkeypatch.setattr(bookings, 'vehicle_is_document_eligible', lambda vehicle, _:vehicle.status=='approved')

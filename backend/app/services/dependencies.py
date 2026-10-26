@@ -33,3 +33,11 @@ def get_account_email_delivery() -> ChannelProvider:
     sender=SmtpEmailProvider()
     sender.subject='TransivoX account security'
     return sender
+
+
+def get_optional_account_email_delivery() -> ChannelProvider | None:
+    # Registration must retain its existing session behavior when email is unavailable.
+    try:
+        return get_account_email_delivery()
+    except HTTPException:
+        return None

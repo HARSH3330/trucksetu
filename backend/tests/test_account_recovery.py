@@ -131,3 +131,14 @@ def test_email_verification_expiry_and_invalid_attempts_never_verify_account(rec
     db.commit.assert_awaited()
     assert client.post('/api/v1/auth/verify-email',json=body).status_code==200
     assert user.email_verified and record.used_at is not None
+
+
+def test_resend_cooldown_does_not_send_or_disclose_account(recovery):
+    client,user,record,_,sender,db=recovery
+    record.created_at=datetime.now(UTC)
+    known=client.post('/api/v1/auth/verification/resend',json={'email':user.email})
+    assert known.status_code==202
+    sender.send.assert_not_awaited()
+    db.scalar.side_effect=None;db.scalar.return_value=None
+    unknown=client.post('/api/v1/auth/verification/resend',json={'email':'another-fictional@example.com'})
+    assert unknown.status_code==202 and known.json()==unknown.json()

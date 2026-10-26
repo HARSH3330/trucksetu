@@ -27,6 +27,6 @@
     "@types/node": "^26.6.4",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "vitest": "latest"
+    "vitest": "4.1.12"
   }
 }

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from app.api.connection_fee_policy import router as connection_fee_policy_router
+from app.api.customer_kyc import router as customer_kyc_router
+from app.api.demands import router as demand_marketplace_router
+
 from contextlib import asynccontextmanager
 from decimal import Decimal
 import logging
@@ -62,6 +66,9 @@ app.add_middleware(
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.TRUSTED_HOSTS)
 app.add_middleware(OperationsMiddleware)
+app.include_router(connection_fee_policy_router)
+app.include_router(customer_kyc_router)
+app.include_router(demand_marketplace_router)
 app.include_router(customer_marketplace_router)
 app.include_router(quotation_router)
 app.include_router(booking_router)

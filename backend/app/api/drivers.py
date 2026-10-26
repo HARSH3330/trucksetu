@@ -185,8 +185,8 @@ async def my_driver_trips(
             "booking_public_id": booking.public_id,
             "status": trip.status,
             "vehicle_registration": trip.vehicle_registration,
-            "pickup": booking.route_snapshot.get("pickup"),
-            "destination": booking.route_snapshot.get("destination"),
+            "pickup": booking.route_snapshot.get("pickup") or booking.route_snapshot.get("pickup_city"),
+            "destination": booking.route_snapshot.get("destination") or booking.route_snapshot.get("destination_city"),
         }
         for trip, booking in rows.all()
     ]

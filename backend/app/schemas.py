@@ -26,6 +26,7 @@ class CargoCreate(BaseModel):
     length_m: Decimal = Field(gt=0, le=30, max_digits=7, decimal_places=3)
     width_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
     height_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
+    packaging_type: str | None = Field(default=None, max_length=100)
     dimensions_are_per_package: bool = False
     volume_m3: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=3)
     fragile: bool = False

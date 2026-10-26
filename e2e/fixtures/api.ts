@@ -21,7 +21,7 @@ export async function blockExternalFonts(page:Page){
   await page.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//,route=>route.abort())
 }
 
-export async function signIn(page: Page, email: string, password: string) {
+export async function signIn(page: Page, email: string, password: string, expectedHeading?: string) {
   await blockExternalFonts(page)
   await page.goto('/', {waitUntil:'domcontentloaded'})
   await page.locator('header').getByRole('button', {name: 'Sign in', exact: true}).click()
@@ -36,7 +36,7 @@ export async function signIn(page: Page, email: string, password: string) {
   const heading=roles.some(role=>['admin','superadmin'].includes(role))?'Marketplace control centre'
     :roles.some(role=>['provider','fleet_owner'].includes(role))?'Provider dashboard'
     :roles.includes('driver')?'Trip operations':'Customer dashboard'
-  await page.getByRole('heading', {name: heading, exact:true}).waitFor()
+  await page.getByRole('heading', {name: expectedHeading || heading, exact:true}).waitFor()
 }
 
 export async function accessToken(page: Page): Promise<string> {

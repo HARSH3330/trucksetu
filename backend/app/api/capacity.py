@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import acquire_idempotency_lock, get_db
+from app.services.demand_policy import public_text
 from app.domain import reserve_capacity, route_match_score
 from app.models import AuditLog, AvailableRoute, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, SharedMatchEvaluation, TransportRequest, User, VehicleCategory
 from app.api.auth import require_roles
@@ -39,7 +40,7 @@ def _route_read(item: AvailableRoute, score: int = 0, provider_name: str | None 
             "minimum_acceptable_earning": str(item.minimum_acceptable_earning),
             "minimum_booking_tonnes": str(item.minimum_booking_tonnes), "price_amount": str(item.price_amount),
             "price_basis": item.price_basis, "allowed_cargo_types": item.allowed_cargo_types, "match_score": score,
-            "provider_name": provider_name, "provider_rating": str(provider_rating) if provider_rating is not None else None,
+            "provider_name": public_text(provider_name), "provider_rating": str(provider_rating) if provider_rating is not None else None,
             "provider_verified": provider_verified, "vehicle_name": vehicle_name}
 
 

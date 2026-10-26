@@ -28,8 +28,8 @@ for(const prerequisites of ['seeded','ui-created'] as const)test(`real ${prerequ
       await p.goto('/#capacity',{waitUntil:'domcontentloaded'})
       await p.getByText('Publish shared capacity',{exact:true}).click()
       const form=p.getByRole('form',{name:'Publish shared capacity',exact:true})
-      await form.getByLabel('Route vehicle',{exact:true}).selectOption(data.vehicle_id)
-      await form.getByLabel('Route driver',{exact:true}).selectOption(data.driver_id)
+      await form.getByRole('combobox',{name:'Route vehicle',exact:true}).selectOption(data.vehicle_id)
+      await form.getByRole('combobox',{name:'Route driver',exact:true}).selectOption(data.driver_id)
       for(const [label,value] of [
         ['Route origin city','Delhi'],['Route destination city','Noida'],
         ['Route origin address','NOT REAL Delhi loading depot'],['Route destination address','NOT REAL Noida unloading depot'],
@@ -41,7 +41,7 @@ for(const prerequisites of ['seeded','ui-created'] as const)test(`real ${prerequ
         ['Route price (INR)','123'],['Minimum acceptable earning (INR)','100'],
         ['Maximum deviation (km)','10'],['Maximum added time (minutes)','60'],['Allowed cargo types','Furniture'],
       ])await form.getByLabel(label,{exact:true}).fill(value)
-      await form.getByLabel('Price basis',{exact:true}).selectOption('negotiated')
+      await form.getByRole('combobox',{name:'Price basis',exact:true}).selectOption('negotiated')
       const published=p.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/available-routes'&&response.request().method()==='POST')
       await form.getByRole('button',{name:'Publish route',exact:true}).click()
       const routeResponse=await published
@@ -87,6 +87,8 @@ for(const prerequisites of ['seeded','ui-created'] as const)test(`real ${prerequ
       expect(await c.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
     }
     await p.goto('/#capacity',{waitUntil:'domcontentloaded'})
+    // Another browser created the request after this provider page loaded.
+    if(prerequisites==='ui-created')await p.reload({waitUntil:'domcontentloaded'})
     await p.getByText('Quote selected-route capacity requests',{exact:true}).click()
     await p.getByRole('combobox',{name:'Capacity request',exact:true}).selectOption(data.request_id)
     await p.getByRole('combobox',{name:'Route vehicle category',exact:true}).selectOption(data.category_id)

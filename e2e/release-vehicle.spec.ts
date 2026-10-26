@@ -11,6 +11,8 @@ const control=process.env.E2E_CONTROL_TOKEN||'transivox-e2e-control-token'
 const kinds=['rc','insurance','fitness','pollution','permit'] as const
 
 test('mobile vehicle creation, protected uploads, scan gate, rejection/replacement and manual approval',async({browser},testInfo)=>{
+  // Six upload/scan cycles and independent manual reviews run sequentially.
+  test.setTimeout(120_000)
   const fixture=spawnSync(process.env.E2E_PYTHON||'python',[path.resolve('e2e/fixtures/shared_database.py')],{cwd:process.cwd(),env:process.env,encoding:'utf8',input:JSON.stringify({password:providerAccount.password})})
   expect(fixture.status,'Guarded fictional identities/category fixture; details redacted').toBe(0)
   const data=JSON.parse(fixture.stdout)
@@ -24,7 +26,7 @@ test('mobile vehicle creation, protected uploads, scan gate, rejection/replaceme
     await p.getByRole('button',{name:'Add vehicle',exact:true}).click()
     const registration='TEST-'+randomUUID().slice(0,8).toUpperCase()
     const expiry=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
-    await p.getByLabel('Vehicle category',{exact:true}).selectOption(data.category_id)
+    await p.getByRole('combobox',{name:'Vehicle category',exact:true}).selectOption(data.category_id)
     for(const [label,value] of [
       ['Registration number',registration],['Maximum payload (tonnes)','2'],
       ['Internal length (m)','2'],['Internal width (m)','2'],['Internal height (m)','2'],
@@ -40,7 +42,7 @@ test('mobile vehicle creation, protected uploads, scan gate, rejection/replaceme
     const fleetCard=p.locator('.fleet-list article').filter({has:p.getByText(registration,{exact:true})})
     await fleetCard.getByText('Private documents',{exact:true}).click()
     async function upload(kind:string,name=`${kind}-fictional.pdf`){
-      await fleetCard.getByLabel('Document type',{exact:true}).selectOption(kind)
+      await fleetCard.getByRole('combobox',{name:'Document type',exact:true}).selectOption(kind)
       await fleetCard.getByLabel('Document expiry',{exact:true}).fill(expiry)
       await fleetCard.getByLabel('Harmless test or genuine authorised vehicle file',{exact:true}).setInputFiles({name,mimeType:'application/pdf',buffer:createIdentityTestPdf(kind,testInfo.testId)})
       const pending=p.waitForResponse(value=>new URL(value.url()).pathname===`/api/v1/carrier-vehicles/${vehicle.id}/documents`&&value.request().method()==='POST')
@@ -62,9 +64,11 @@ test('mobile vehicle creation, protected uploads, scan gate, rejection/replaceme
     for(const kind of kinds.slice(1))await upload(kind)
     async function reviewCard(page:Page){
       await page.goto('/#vehicle-review',{waitUntil:'domcontentloaded'})
+      // Refresh documents changed by the independent provider browser.
+      await page.reload({waitUntil:'domcontentloaded'})
       const card=page.locator('.vehicle-review-list article').filter({has:page.getByText(registration,{exact:true})})
       await card.getByText('Private document review',{exact:true}).click()
-      await card.getByLabel('Document review reason',{exact:true}).fill('Harmless fictional file manually reviewed')
+      await card.getByRole('textbox',{name:'Document review reason',exact:true}).fill('Harmless fictional file manually reviewed')
       return card
     }
     let card=await reviewCard(a)
@@ -90,7 +94,7 @@ test('mobile vehicle creation, protected uploads, scan gate, rejection/replaceme
     }
     await card.getByRole('button',{name:'Approve',exact:true}).click()
     const decision=a.locator('.vehicle-decision')
-    await decision.getByLabel('Review reason',{exact:true}).fill('All five harmless current files manually accepted')
+    await decision.getByRole('textbox',{name:'Review reason',exact:true}).fill('All five harmless current files manually accepted')
     await decision.getByRole('button',{name:'Confirm approved',exact:true}).click()
     await a.getByRole('button',{name:/^approved /}).click()
     await expect(a.getByText(registration,{exact:true})).toBeVisible()

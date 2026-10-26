@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
+from jwt import PyJWTError as JWTError
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,9 @@ from app.core.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, create_refresh_token, generate_otp, get_password_hash, hash_otp, hash_token, token_hash_matches, verify_otp, verify_password, verify_token
 from app.models import AccountVerification, AuditLog, RefreshSession, User, UserRole
 from app.services.msg91_widget import canonical_mobile
+from app.services.account_email import account_email_message
+from app.services.communications import ChannelProvider
+from app.services.dependencies import get_optional_account_email_delivery
 
 from app.core.routing import AuthenticationFirstRoute
 
@@ -97,7 +100,7 @@ async def issue_session(user: User, request: Request, db: AsyncSession, family_i
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depends(get_db), sender: Annotated[ChannelProvider | None, Depends(get_optional_account_email_delivery)] = None) -> dict[str, object]:
     await enforce_rate_limit(request, "signup", settings.SIGNUP_RATE_LIMIT, 3600, payload.email)
     role = payload.role.lower()
     if role not in PUBLIC_ROLES:
@@ -110,6 +113,15 @@ async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depe
     code = generate_otp()
     db.add(AccountVerification(user_id=user.id, channel="email", code_hash=hash_otp(code), expires_at=datetime.now(UTC) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)))
     result = await issue_session(user, request, db)
+    # Persist the account, token and session before attempting external delivery.
+    await db.commit()
+    acknowledged=False
+    if sender is not None:
+        try:
+            acknowledged=bool(await sender.send(user.email,account_email_message(user.email,'email',code)))
+        except Exception:
+            pass  # Never log provider exceptions, message bodies or credentials.
+    db.add(AuditLog(actor_id=user.id,action='auth.account_email_accepted' if acknowledged else 'auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after={'channel':'email','source':'registration'}))
     result["verification_required"] = True
     if settings.is_development:
         result["development_verification_code"] = code

@@ -53,6 +53,10 @@ async def _decimal_setting(db: AsyncSession, key: str, fallback: Decimal) -> Dec
 
 
 async def _payment_amount(db: AsyncSession, booking: Booking, payment_type: str) -> Decimal:
+    if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        raise HTTPException(409,'Transport payment collection is retained but outside this MVP; settle freight directly')
+    if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand':
+        raise HTTPException(409, 'Freight collection is separate and is not enabled for connection-fee bookings')
     paid = Decimal(str(await db.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.booking_id == booking.id, Payment.status == "paid"))))
     if payment_type == "advance":
         percent = await _decimal_setting(db, "default_advance_percent", settings.DEFAULT_ADVANCE_PERCENT)
@@ -87,7 +91,8 @@ async def payment_ledger(
             "booking_id": str(booking.id), "booking_public_id": booking.public_id, "booking_status": booking.status,
             "total_amount": str(booking.total_amount), "currency": booking.currency, "paid_amount": str(paid),
             "pending_amount": str(pending), "due_amount": str(max(booking.total_amount - paid, Decimal("0"))),
-            "can_report_payment": booking.customer_id == user.id or bool(roles.intersection({"admin", "superadmin"})),
+            "can_report_payment": bool(settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION and (booking.route_snapshot or {}).get("marketplace_mode") != "customer_demand" and (booking.customer_id == user.id or roles.intersection({"admin", "superadmin"}))),
+            "freight_payment_separate": (booking.route_snapshot or {}).get("marketplace_mode") == "customer_demand",
             "payments": [{"id": str(item.id), "payment_type": item.payment_type, "provider": item.provider,
                           "method": item.method, "amount": str(item.amount), "status": item.status,
                           "reference": item.metadata_json.get("reference") or None,
@@ -153,6 +158,8 @@ async def download_invoice(invoice_id: uuid.UUID, db: AsyncSession = Depends(get
 
 @router.post("/bookings/{booking_id}/payments/online", status_code=status.HTTP_201_CREATED)
 async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str | int]:
+    if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        raise HTTPException(409,'Transport payment collection is outside this MVP; settle freight directly')
     await acquire_idempotency_lock(db, payload.idempotency_key)
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None:
@@ -187,6 +194,8 @@ async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db
 
 @router.post("/bookings/{booking_id}/payments/offline", status_code=status.HTTP_201_CREATED)
 async def offline_payment(booking_id: uuid.UUID, payload: OfflinePaymentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
+    if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        raise HTTPException(409,'Transport payment collection is outside this MVP; settle freight directly')
     await acquire_idempotency_lock(db, payload.idempotency_key)
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None:
@@ -267,6 +276,8 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
 async def settlement_eligibility(booking_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("admin", "superadmin"))) -> dict[str, str | bool]:
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None: raise HTTPException(status_code=404, detail="Booking not found")
+    if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand' or not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        return {'eligible':False,'reason':'Freight settlement and percentage commission are outside the connection-fee MVP'}
     incomplete = await db.scalar(select(func.count(Trip.id)).join(BookingAllocation).where(BookingAllocation.booking_id == booking.id, Trip.status.not_in(["delivered", "completed"])))
     if incomplete:
         return {"eligible": False, "reason": "Every allocated trip must have delivery OTP verification and be delivered"}

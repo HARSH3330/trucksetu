@@ -25,8 +25,8 @@ async def test_accepted_shared_quote_revision_cannot_mutate_accepted_fields(monk
     from datetime import UTC,datetime,timedelta
     from fastapi import HTTPException
     user=SimpleNamespace(id=uuid.uuid4(),roles=[])
-    quote=SimpleNamespace(id=uuid.uuid4(),provider=SimpleNamespace(user_id=user.id),service_mode='SHARED_CAPACITY',status='accepted',version=2,estimated_pickup=datetime.now(UTC)+timedelta(days=1),expires_at=datetime.now(UTC),price_breakdown=[{'label':'Original','amount':'750'}],inclusions='Original',exclusions='None')
-    db=SimpleNamespace(scalar=AsyncMock(return_value=quote),flush=AsyncMock())
+    quote=SimpleNamespace(id=uuid.uuid4(),request_id=uuid.uuid4(),provider=SimpleNamespace(user_id=user.id),service_mode='SHARED_CAPACITY',status='accepted',version=2,estimated_pickup=datetime.now(UTC)+timedelta(days=1),expires_at=datetime.now(UTC),price_breakdown=[{'label':'Original','amount':'750'}],inclusions='Original',exclusions='None')
+    db=SimpleNamespace(scalar=AsyncMock(return_value=quote),get=AsyncMock(return_value=SimpleNamespace(marketplace_mode="legacy")),flush=AsyncMock())
     payload=QuoteUpdate(final_price='800',vehicles_offered=1,expires_at=datetime.now(UTC)+timedelta(hours=1),price_breakdown=[{'label':'Revised','amount':'800'}],inclusions='Changed',exclusions='None')
     before=(quote.expires_at,quote.price_breakdown,quote.inclusions)
     with pytest.raises(HTTPException) as error:

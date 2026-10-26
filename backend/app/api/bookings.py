@@ -47,6 +47,13 @@ async def _trip_parties(
     if allocation is None or provider is None or booking is None:
         # A trip without its booking parties is corrupt and must never be operable.
         raise HTTPException(status_code=409, detail="Trip allocation is incomplete")
+    if booking.status == 'connection_fee_pending':
+        raise HTTPException(409, 'Captured connection fee is required before trip operations')
+    if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand':
+        from app.models import DemandSelection
+        selection = await db.scalar(select(DemandSelection).where(DemandSelection.booking_id == booking.id))
+        if not selection or selection.status != 'paid' or selection.payment_status != 'captured' or booking.status in {'cancelled','disputed'}:
+            raise HTTPException(409,'An eligible captured connection fee is required before trip operations')
     return allocation, provider, booking
 
 
@@ -83,10 +90,16 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
     if not roles.intersection({"admin", "superadmin"}):
         provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
         if provider and roles.intersection({"provider", "fleet_owner"}):
-            query = query.join(BookingAllocation).where(BookingAllocation.provider_id == provider.id).distinct()
+            query = query.where(Booking.id.in_(select(BookingAllocation.booking_id).where(BookingAllocation.provider_id == provider.id)))
         else:
             query = query.where(Booking.customer_id == user.id)
     items = list(await db.scalars(query))
+    # Avoid DISTINCT over Booking JSON columns. One ownership subquery gives
+    # one booking per row; allocations remain filtered separately below.
+    from app.models import DemandSelection
+    demand_ids=[item.id for item in items if item.route_snapshot.get('marketplace_mode')=='customer_demand']
+    connections=list(await db.scalars(select(DemandSelection).where(DemandSelection.booking_id.in_(demand_ids)))) if demand_ids else []
+    connection_by_booking={selection.booking_id:selection for selection in connections}
     result: list[dict[str, object]] = []
     for item in items:
         visible_allocations = item.allocations
@@ -94,10 +107,16 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
             visible_allocations = [allocation for allocation in item.allocations if allocation.provider_id == provider.id]
         trips = [trip for allocation in visible_allocations for trip in allocation.trips]
         visible_total = sum((allocation.agreed_amount for allocation in visible_allocations), Decimal("0")) if provider else item.total_amount
+        connection=connection_by_booking.get(item.id)
+        ready=item.status not in {'connection_fee_pending','cancelled','disputed'}
+        if item.route_snapshot.get('marketplace_mode')=='customer_demand':
+            ready=bool(ready and connection and connection.status=='paid' and connection.payment_status=='captured')
         result.append({
+            "trip_operations_available":ready,
             "id": str(item.id), "public_id": item.public_id, "status": item.status,
             "booking_mode": item.booking_mode, "total_amount": str(visible_total), "currency": item.currency,
-            "pickup": item.route_snapshot.get("pickup"), "destination": item.route_snapshot.get("destination"),
+            "pickup": item.route_snapshot.get("pickup") or item.route_snapshot.get("pickup_city"), "destination": item.route_snapshot.get("destination") or item.route_snapshot.get("destination_city"),
+            "freight_payment_separate": item.route_snapshot.get("marketplace_mode") == "customer_demand",
             "trip_statuses": [trip.status for trip in trips],
             "trips": [{"id": str(trip.id), "status": trip.status,
                        "driver_id": str(trip.driver_id) if trip.driver_id else None,
@@ -116,6 +135,8 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
     request = await db.scalar(
         select(TransportRequest).where(TransportRequest.id == request_id).with_for_update().options(selectinload(TransportRequest.stops), selectinload(TransportRequest.cargo))
     )
+    if getattr(request, 'marketplace_mode', 'legacy') == 'customer_demand':
+        raise HTTPException(409, 'Use bid selection and the separate connection-fee lifecycle')
     if request is None or request.status != "published":
         raise HTTPException(status_code=409, detail="Request is not available for allocation")
     if request.customer_id != user.id:
@@ -193,6 +214,11 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
     await require_verified_driver_identity(db, driver)
     vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == payload.carrier_vehicle_id).with_for_update().execution_options(populate_existing=True))
     booking = await db.get(Booking, allocation.booking_id)
+    if booking and (booking.route_snapshot or {}).get('marketplace_mode') == 'customer_demand':
+        from app.models import DemandSelection
+        selected = await db.scalar(select(DemandSelection).where(DemandSelection.booking_id == booking.id))
+        if not selected or selected.status != 'paid' or selected.payment_status != 'captured' or selected.driver_id != payload.driver_id or selected.vehicle_id != payload.carrier_vehicle_id:
+            raise HTTPException(409, 'Confirm the verified assignment through the demand selection workflow')
     if booking and getattr(booking,'booking_mode',None)=='SHARED_CAPACITY':
         accepted=booking.route_snapshot or {}
         if accepted.get('carrier_vehicle_id')!=str(payload.carrier_vehicle_id) or accepted.get('driver_id')!=str(payload.driver_id):

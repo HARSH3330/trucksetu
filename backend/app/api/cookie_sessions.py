@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import auth
 from app.core.config import settings
 from app.core.database import get_db
+from app.services.communications import ChannelProvider
+from app.services.dependencies import get_optional_account_email_delivery
 
 COOKIE='transivox_refresh'
 PATH='/api/v1/auth/session'
@@ -48,8 +50,8 @@ async def login(payload:auth.LoginInput,request:Request,response:Response,db:Asy
 
 
 @router.post('/signup',status_code=201)
-async def signup(payload:auth.SignupInput,request:Request,response:Response,db:AsyncSession=Depends(get_db)):
-    result=await auth.signup(payload,request,db)
+async def signup(payload:auth.SignupInput,request:Request,response:Response,db:AsyncSession=Depends(get_db),sender:ChannelProvider|None=Depends(get_optional_account_email_delivery)):
+    result=await auth.signup(payload,request,db,sender)
     await db.commit()
     return cookie_result(result,response)
 

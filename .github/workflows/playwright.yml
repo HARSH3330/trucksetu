@@ -33,6 +33,11 @@ jobs:
       E2E_ADMIN_EMAIL: admin.e2e@example.com
       E2E_ADMIN_PASSWORD: AdminE2E123!Secure
       E2E_PYTHON: python
+      ENABLE_LEGACY_PROVIDER_MARKETPLACE: 'true'
+      ENABLE_TRANSPORT_PAYMENT_COLLECTION: 'true'
+      ENABLE_PROVIDER_FIRST_PUBLICATION: 'true'
+      VITE_LEGACY_PROVIDER_MARKETPLACE: 'true'
+      CUSTOMER_KYC_TEST_SIMULATION: 'true'
       APP_ENV: test
       TRANSIVOX_E2E: 'true'
       E2E_REAL_AWS: 'false'
@@ -82,3 +87,6 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 14
+
+      - name: Verify customer-first demand, fee and session journeys
+        run: npx playwright test --config playwright.demand.config.ts --project=chromium

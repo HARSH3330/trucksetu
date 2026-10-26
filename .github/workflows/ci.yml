@@ -31,6 +31,11 @@ jobs:
       E2E_ALLOWED_DATABASE_HOSTS: 127.0.0.1
       REDIS_URL: redis://localhost:6379/0
       SECRET_KEY: ci-only-long-random-secret-not-for-production
+      ENABLE_LEGACY_PROVIDER_MARKETPLACE: 'true'
+      ENABLE_TRANSPORT_PAYMENT_COLLECTION: 'true'
+      ENABLE_PROVIDER_FIRST_PUBLICATION: 'true'
+      VITE_LEGACY_PROVIDER_MARKETPLACE: 'true'
+      CUSTOMER_KYC_TEST_SIMULATION: 'true'
       APP_ENV: test
       TRANSIVOX_E2E: 'true'
       E2E_REAL_AWS: 'false'

@@ -38,6 +38,6 @@ export default defineConfig({
     {command: `"${python}" -m e2e_server --port ${new URL(apiOrigin).port || '8000'}`, cwd: './backend', url: `${apiOrigin}/health/live`, reuseExistingServer: false, env: localEnvironment, timeout: 120_000},
     // Serve the actual built client, avoiding dev-server HMR/optimizer reloads
     // during independent browser sessions. API and DB remain real and local.
-    {command: `npm run build && npm run preview -- --host 127.0.0.1 --port ${new URL(webUrl).port || '5173'} --strictPort`, url: webUrl, reuseExistingServer: false, env: {...process.env, VITE_API_URL: apiUrl,VITE_MSG91_WIDGET_ID:'',VITE_MSG91_WIDGET_TOKEN_AUTH:''}, timeout: 120_000},
+    {command: `npm run build -- --outDir dist-e2e && npm run preview -- --outDir dist-e2e --host 127.0.0.1 --port ${new URL(webUrl).port || '5173'} --strictPort`, url: webUrl, reuseExistingServer: false, env: {...process.env, VITE_API_URL: apiUrl,VITE_MSG91_WIDGET_ID:'',VITE_MSG91_WIDGET_TOKEN_AUTH:''}, timeout: 120_000},
   ],
 })

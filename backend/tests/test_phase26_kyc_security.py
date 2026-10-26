@@ -38,7 +38,7 @@ def test_document_access_fails_closed_without_clean_scan(scan_status: str | None
         "TagSet": [] if scan_status is None else [{"Key": "GuardDutyMalwareScanStatus", "Value": scan_status}]
     })
     with pytest.raises(ValueError, match="scan"):
-        storage.require_clean_scan("kyc/test/file.pdf")
+        storage.require_clean_scan("kyc/test/file.pdf", "immutable-test-version")
 
 
 def test_document_access_accepts_clean_guardduty_tag() -> None:
@@ -47,4 +47,4 @@ def test_document_access_accepts_clean_guardduty_tag() -> None:
     storage.client = SimpleNamespace(get_object_tagging=lambda **_: {
         "TagSet": [{"Key": "GuardDutyMalwareScanStatus", "Value": "NO_THREATS_FOUND"}]
     })
-    storage.require_clean_scan("kyc/test/file.pdf")
+    storage.require_clean_scan("kyc/test/file.pdf", "immutable-test-version")

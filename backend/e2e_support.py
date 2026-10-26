@@ -129,6 +129,10 @@ def create_e2e_app() -> FastAPI:
         allow_headers=['*'],
     )
     app.dependency_overrides[get_private_document_storage] = lambda: storage
+    # Publication rechecks call this service boundary outside FastAPI Depends.
+    # This override exists ONLY after exact local E2E guards above succeed.
+    from app.services import customer_kyc
+    customer_kyc.get_private_document_storage=lambda:storage
     app.dependency_overrides[get_document_storage_factory]=lambda:lambda:storage
     class LocalPhoneVerifier:
         async def verify(self,proof):
@@ -136,6 +140,15 @@ def create_e2e_app() -> FastAPI:
             # arbitrary callback. Not exposed as an HTTP production control.
             if proof not in app.state.phone_proofs:raise InvalidWidgetVerification('Unknown local proof')
             return app.state.phone_proofs[proof]
+    # This app is created only after the explicit local database safety guards.
+    # No gateway call or browser callback can capture a real payment here.
+    from app.api.demands import get_connection_gateway
+    import uuid
+    class LocalConnectionGateway:
+        is_simulated = True
+        async def create_order(self, amount, currency, receipt):
+            return {'id':'order_local_'+uuid.uuid4().hex,'amount':int(amount*100),'currency':currency,'local_simulation':True}
+    app.dependency_overrides[get_connection_gateway] = lambda:LocalConnectionGateway()
     app.state.phone_proofs={}
     app.dependency_overrides[get_phone_verifier]=lambda:LocalPhoneVerifier()
     outbox=[]

@@ -1,0 +1,3 @@
+import '../../src/styles.css';import '../../src/pilot.css';import '../../src/production-ui.css';import '../../src/design-ui.css';
+// Explicit synthetic component harness; excluded from the production bundle.
+import React from 'react';import{createRoot}from'react-dom/client';import DemandComposer from '../../src/components/DemandComposer';import '../../src/components/DemandMarketplace.css';createRoot(document.getElementById('root')!).render(<DemandComposer user={{roles:['customer']} as never} config={{publication_available:true,fee:{currency:'INR',amount:'82.50'}} as never} onSignIn={()=>{}} onPublished={()=>{document.body.dataset.published='true'}} onCancel={()=>{}}/>);

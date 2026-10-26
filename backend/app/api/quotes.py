@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.config import settings
+from app.services.demand_policy import public_text
 from app.models import AvailableRoute, Negotiation, ProviderProfile, Quote, QuoteVersion, TransportRequest, User, VehicleCategory
 from app.schemas import CounterOfferCreate, QuoteCreate, QuoteRead, QuoteUpdate
 from app.domain import ensure_provider_can_quote, next_quote_version
@@ -21,7 +23,7 @@ router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=
 
 def _read(quote: Quote) -> QuoteRead:
     return QuoteRead(
-        id=quote.id, request_id=quote.request_id, provider_name=quote.provider.display_name,
+        id=quote.id, request_id=quote.request_id, provider_name=public_text(quote.provider.display_name),
         available_route_id=quote.available_route_id, expires_at=quote.expires_at, currency=quote.currency or 'INR', price_breakdown=quote.price_breakdown or [], inclusions=quote.inclusions, exclusions=quote.exclusions,
         service_mode=quote.service_mode,
         verified=quote.provider.kyc_status == "verified", rating=quote.provider.rating,
@@ -29,17 +31,21 @@ def _read(quote: Quote) -> QuoteRead:
         cancellation_percent=quote.provider.cancellation_percent,
         vehicle_name=quote.vehicle_category.name, final_price=quote.final_price,
         vehicles_offered=quote.vehicles_offered, status=quote.status,
-        version=quote.version, notes=quote.notes,
+        version=quote.version, notes=public_text(quote.notes),
     )
 
 
 @router.post("/requests/{request_id}/quotes", response_model=QuoteRead, status_code=status.HTTP_201_CREATED)
 async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("provider", "fleet_owner", "admin", "superadmin"))) -> QuoteRead:
+    if not settings.ENABLE_LEGACY_PROVIDER_MARKETPLACE and payload.service_mode != 'SHARED_CAPACITY':
+        raise HTTPException(409,'Use customer-demand bidding')
     request = await db.get(TransportRequest, request_id)
     provider = await db.get(ProviderProfile, payload.provider_id)
     vehicle = await db.get(VehicleCategory, payload.vehicle_category_id)
     if request is None:
         raise HTTPException(status_code=404, detail="Request not found")
+    if getattr(request, 'marketplace_mode', 'legacy') == 'customer_demand':
+        raise HTTPException(409, 'Use the demand bidding lifecycle')
     if provider is None:
         raise HTTPException(status_code=404, detail="Provider not found")
     if provider.user_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
@@ -96,6 +102,9 @@ async def edit_quote(quote_id: uuid.UUID, payload: QuoteUpdate, db: AsyncSession
     quote = await db.scalar(select(Quote).where(Quote.id == quote_id).with_for_update().execution_options(populate_existing=True).options(selectinload(Quote.provider), selectinload(Quote.vehicle_category), selectinload(Quote.versions)))
     if quote is None:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    demand = await db.get(TransportRequest, quote.request_id)
+    if getattr(demand, 'marketplace_mode', 'legacy') == 'customer_demand':
+        raise HTTPException(409, 'Use the demand bidding lifecycle')
     if quote.provider.user_id != user.id and not {r.role for r in user.roles}.intersection({"admin", "superadmin"}):
         raise HTTPException(status_code=403, detail="You cannot edit another provider's quotation")
     try:
@@ -120,6 +129,8 @@ async def compare_quotes(request_id: uuid.UUID, db: AsyncSession = Depends(get_d
     request = await db.get(TransportRequest, request_id)
     if request is None:
         raise HTTPException(status_code=404, detail="Request not found")
+    if getattr(request, 'marketplace_mode', 'legacy') == 'customer_demand':
+        raise HTTPException(409, 'Use the demand bidding lifecycle')
     if request.customer_id != user.id and not {r.role for r in user.roles}.intersection({"admin", "superadmin"}):
         raise HTTPException(status_code=403, detail="Only the request owner can compare quotations")
     query = select(Quote).where(Quote.request_id == request_id, Quote.status == "active").options(selectinload(Quote.provider), selectinload(Quote.vehicle_category)).order_by(Quote.final_price)
