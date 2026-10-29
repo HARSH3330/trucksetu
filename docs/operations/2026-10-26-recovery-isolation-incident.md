@@ -1,5 +1,7 @@
 # Recovery rehearsal isolation incident — 26 October 2026
 
+> **29 October update:** authorized three-way READ ONLY retained-state comparison PASS; no surviving recovery-only records detected. New 0.25-CU read_only endpoint ep-morning-sunset-axii59da is suspended/idle. Historical zero-write/no-loss assurance remains limited by absent logs; owner review needed for closure. No data repair indicated. [Detailed findings](2026-10-29-incident-reconciliation.md). The dated original incident record follows.
+
 Status: RELEASE BLOCKED. Original endpoint/default/name restored; possible intervening writes NOT reconciled. No new application deployment or live payment was initiated. Do not claim production was untouched.
 
 ## What happened
@@ -25,3 +27,10 @@ Separate preview project aged-pine-27393574 contains no production users/booking
 ## Current CI evidence
 
 Commit1099527: main CI PASS:430backend unit tests,72isolated PostgreSQL tests,54frontend tests, lint/types/build and containers. Browser job still pending at record creation. Actual discovery revealed default legacy configuration collected19tests including customer/Maps/email checks requiring other server policies. Corrected discovery preserves8legacy/session/shared/vehicle cases and runs customer KYC/demand management, simulated Maps and email under their existing dedicated configurations. Real Google checks remain explicit opt-in, never CI proof. New browser outcome must be verified separately. Do not label collection listing as an executed browser PASS.
+
+
+## Owner sign-off for release preparation — 29 October 2026
+
+The owner explicitly accepted the documented retained-state reconciliation and historical-evidence limitation, and signed off the incident for release preparation. This is NOT a claim of absolute proof of no historical data loss. Preserve all incident copies and snap-little-tree-ax4fn88h. The one approved recovery read-only endpoint remains suspended. No data repair is indicated or authorized.
+
+Incident sign-off removes the incident-owner-review preparation gate. Production execution remains separate: final exact-head CI, private settings confirmation, fresh backup/isolated restore readiness and a reviewed migration/deployment window are still required. No migration, deployment, data repair, plan upgrade or email is authorized by this sign-off.

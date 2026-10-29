@@ -47,6 +47,6 @@ export async function approve(page:Page,id:string){
  await section.getByLabel('Customer review reason',{exact:true}).fill('Fictional local manual review of the configured sample document.')
  const record=section.getByRole('button',{name:'Record customer review',exact:true})
  await expect(record).toBeDisabled()
- await section.getByLabel('Decision for PAN',{exact:true}).selectOption('accepted')
+ await section.getByLabel(/^Decision for PAN/).selectOption('accepted')
  await record.click();await expect(section.getByText('Customer review recorded.',{exact:true})).toBeVisible()
 }

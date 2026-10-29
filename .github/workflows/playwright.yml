@@ -94,7 +94,13 @@ jobs:
       - name: Verify configured customer KYC and demand management
         run: npx playwright test --config playwright.journeys.config.ts --project=chromium
       - name: Verify Maps simulated failure and pin workflows
-        run: npx playwright test --config playwright.maps.config.ts
+        env:
+          VITE_GOOGLE_MAPS_BROWSER_KEY: synthetic-ci-maps-key
+          VITE_GOOGLE_MAPS_MAP_ID: DEMO_MAP_ID
+          VITE_API_URL: http://127.0.0.1:8000/api/v1
+        run: |
+          npx vite build --config vite.maps-harness.config.ts
+          npx playwright test --config playwright.maps.config.ts
       - name: Verify email link UI with simulated account responses
         run: npx playwright test --config playwright.email.config.ts
       - uses: actions/upload-artifact@v4
