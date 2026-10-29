@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.time import india_now
-from app.models import CargoItem, RequestStop, TransportRequest, User, VehicleCategory
+from app.models import AvailableRoute, CargoItem, RequestStop, TransportRequest, User, VehicleCategory
 from app.schemas import TransportRequestCreate, TransportRequestSummary, VehicleCategoryRead
 from app.api.auth import require_roles
 
@@ -28,13 +28,14 @@ def _public_id() -> str:
 def _summary(item: TransportRequest) -> TransportRequestSummary:
     return TransportRequestSummary(
         id=item.id,
+        available_route_id=item.available_route_id,
         public_id=item.public_id,
         status=item.status,
         booking_mode=item.booking_mode,
         schedule_mode=item.schedule_mode,
-        pickup_address=item.pickup_address,
+        pickup_address=item.pickup_city,
         pickup_city=item.pickup_city,
-        destination_address=item.destination_address,
+        destination_address=item.destination_city,
         destination_city=item.destination_city,
         pickup_date=item.pickup_date,
         pickup_time=item.pickup_time,
@@ -56,6 +57,17 @@ async def vehicle_categories(db: AsyncSession = Depends(get_db)) -> list[Vehicle
 
 @router.post("/requests", response_model=TransportRequestSummary, status_code=status.HTTP_201_CREATED)
 async def create_request(payload: TransportRequestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> TransportRequestSummary:
+    if not settings.ENABLE_LEGACY_PROVIDER_MARKETPLACE and payload.__class__ is TransportRequestCreate and not (payload.available_route_id and payload.booking_mode == 'SHARED_CAPACITY' and settings.ENABLE_SHARED_CAPACITY):
+        raise HTTPException(409,'Use customer demand publication; shared-capacity support remains available separately')
+    if payload.publish:
+        from app.services.customer_kyc import require_customer_kyc
+        await require_customer_kyc(db, user)
+    if payload.available_route_id:
+        route = await db.get(AvailableRoute, payload.available_route_id)
+        if not route or route.status != 'active' or route.departure_at <= datetime.now(UTC):
+            raise HTTPException(409, 'Selected shared route is no longer published; no capacity has been reserved')
+        if payload.vehicle_category_id != route.vehicle_category_id:
+            raise HTTPException(422, 'Shared request vehicle category must match the selected route')
     earliest_pickup = payload.earliest_pickup_at
     latest_pickup = payload.latest_pickup_at
     delivery_deadline = payload.delivery_deadline_at
@@ -75,6 +87,7 @@ async def create_request(payload: TransportRequestCreate, db: AsyncSession = Dep
             )
     item = TransportRequest(
         customer_id=user.id,
+        available_route_id=payload.available_route_id,
         public_id=_public_id(),
         status="published" if payload.publish else "draft",
         pickup_address=payload.pickup_address,
@@ -100,6 +113,8 @@ async def create_request(payload: TransportRequestCreate, db: AsyncSession = Dep
     db.add(item)
     await db.flush()
     await db.refresh(item)
+    # Refresh expires relationships; load them explicitly before synchronous serialization.
+    await db.refresh(item, attribute_names=["cargo", "stops"])
     return _summary(item)
 
 
@@ -111,7 +126,7 @@ async def marketplace_requests(
 ) -> list[TransportRequestSummary]:
     query = (
         select(TransportRequest)
-        .where(TransportRequest.status == "published")
+        .where(TransportRequest.status == "published", TransportRequest.marketplace_mode == "legacy")
         .options(selectinload(TransportRequest.stops), selectinload(TransportRequest.cargo))
         .order_by(TransportRequest.pickup_date)
     )

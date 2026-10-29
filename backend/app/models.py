@@ -103,8 +103,13 @@ class TransportRequest(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     customer_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    marketplace_mode: Mapped[str] = mapped_column(String(30), nullable=False, default='legacy', server_default='legacy')
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default='1')
+    available_route_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('available_routes.id'))
     public_id: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
+    pickup_location: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    destination_location: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     pickup_address: Mapped[str] = mapped_column(Text, nullable=False)
     pickup_city: Mapped[str] = mapped_column(String(100), nullable=False)
     destination_address: Mapped[str] = mapped_column(Text, nullable=False)
@@ -159,6 +164,7 @@ class CargoItem(Base):
     width_m: Mapped[Decimal | None] = mapped_column(Numeric(7, 3))
     height_m: Mapped[Decimal | None] = mapped_column(Numeric(7, 3))
     volume_m3: Mapped[Decimal | None] = mapped_column(Numeric(10, 3))
+    packaging_type: Mapped[str | None] = mapped_column(String(100))
     dimensions_are_per_package: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     fragile: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     perishable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -214,6 +220,8 @@ class KYCDocument(Base):
     application_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("kyc_applications.id", ondelete="CASCADE"), nullable=False)
     document_type: Mapped[str] = mapped_column(String(50), nullable=False)
     storage_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
+    # NULL is an explicit legacy/unbound record, never approval evidence.
+    storage_version_id: Mapped[str | None] = mapped_column(String(255))
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -244,6 +252,9 @@ class Quote(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     request_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("transport_requests.id", ondelete="CASCADE"), nullable=False)
+    available_route_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('available_routes.id'))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    price_breakdown: Mapped[list | None] = mapped_column(JSON)
     provider_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("provider_profiles.id"), nullable=False)
     service_mode: Mapped[str] = mapped_column(String(30), nullable=False, default="FULL_VEHICLE")
     vehicle_category_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("vehicle_categories.id"), nullable=False)
@@ -272,6 +283,7 @@ class QuoteVersion(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     quote_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("quotes.id", ondelete="CASCADE"), nullable=False)
+    snapshot: Mapped[dict | None] = mapped_column(JSON)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     final_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     vehicles_offered: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -365,6 +377,7 @@ class Booking(Base):
     public_id: Mapped[str] = mapped_column(String(30), nullable=False, unique=True, index=True)
     request_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("transport_requests.id"), nullable=False, index=True)
     customer_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    acceptance_key: Mapped[str | None] = mapped_column(String(100), unique=True)
     booking_mode: Mapped[str] = mapped_column(String(30), nullable=False, default="FULL_VEHICLE")
     schedule_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="SCHEDULED")
     capacity_reservation_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("capacity_reservations.id"), unique=True)
@@ -523,7 +536,6 @@ class Commission(Base):
     tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     provider_payable: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending_delivery")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Invoice(Base):
@@ -824,3 +836,122 @@ class AnalyticsEvent(Base):
     entity_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     properties: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda:datetime.now(UTC))
+
+
+class DemandDraft(Base):
+    __tablename__ = 'demand_drafts'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    customer_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('users.id'), nullable=False, index=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default='1')
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DemandSelection(Base):
+    """Separate connection-fee ledger: never counted as a freight payment."""
+    __tablename__ = 'demand_selections'
+    __table_args__ = (
+        Index('uq_demand_active_selection', 'request_id', unique=True, postgresql_where=text("status IN ('pending','paid')")),
+        CheckConstraint('fee_amount > 0 AND (fee_tax IS NULL OR fee_tax >= 0)', name='ck_connection_fee_positive'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    request_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('transport_requests.id'), nullable=False, index=True)
+    quote_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('quotes.id'), nullable=False)
+    booking_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('bookings.id'), nullable=False, unique=True)
+    customer_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('users.id'), nullable=False)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('carrier_vehicles.id'), nullable=False, index=True)
+    driver_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('driver_profiles.id'))
+    contact_kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    contact_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('users.id'), nullable=False)
+    contact_phone_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    request_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    quote_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    quote_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    fee_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    fee_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    fee_tax: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default='pending', server_default='pending')
+    payment_status: Mapped[str] = mapped_column(String(30), nullable=False, default='pending', server_default='pending')
+    order_state: Mapped[str] = mapped_column(String(30), nullable=False, default='not_created', server_default='not_created')
+    contact_revealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    credit_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('connection_fee_credits.id'))
+    gateway_order_id: Mapped[str | None] = mapped_column(String(100), unique=True)
+    gateway_payment_id: Mapped[str | None] = mapped_column(String(100), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ConnectionFeeEvent(Base):
+    __tablename__ = 'connection_fee_events'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    selection_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('demand_selections.id'), nullable=True, index=True)
+    gateway_event_id: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    outcome: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CustomerKYCApplication(Base):
+    __tablename__ = 'customer_kyc_applications'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('users.id'), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default='registered')
+    policy_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    required_documents: Mapped[list] = mapped_column(JSON, nullable=False)
+    consent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decision_reason: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey('users.id'))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CustomerKYCDocument(Base):
+    __tablename__ = 'customer_kyc_documents'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    application_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('customer_kyc_applications.id'), nullable=False, index=True)
+    document_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    storage_version_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default='uploaded')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ConnectionFeeRefundRequest(Base):
+    __tablename__='connection_fee_refund_requests'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid,primary_key=True,default=uuid.uuid4)
+    selection_id: Mapped[uuid.UUID] = mapped_column(Uuid,ForeignKey('demand_selections.id'),nullable=False,unique=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14,2),nullable=False)
+    tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(14,2))
+    currency: Mapped[str] = mapped_column(String(3),nullable=False)
+    status: Mapped[str] = mapped_column(String(30),nullable=False,default='requested')
+    reason: Mapped[str] = mapped_column(Text,nullable=False)
+    gateway_payment_id: Mapped[str | None] = mapped_column(String(100))
+    gateway_refund_id: Mapped[str | None] = mapped_column(String(100),unique=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(100),unique=True)
+    request_payload: Mapped[dict | None] = mapped_column(JSON)
+    attempt_count: Mapped[int] = mapped_column(Integer,nullable=False,default=0,server_default='0')
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error_code: Mapped[str | None] = mapped_column(String(60))
+    reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
+
+
+class ConnectionFeeCredit(Base):
+    __tablename__='connection_fee_credits'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid,primary_key=True,default=uuid.uuid4)
+    customer_id: Mapped[uuid.UUID] = mapped_column(Uuid,ForeignKey('users.id'),nullable=False)
+    source_selection_id: Mapped[uuid.UUID] = mapped_column(Uuid,ForeignKey('demand_selections.id'),nullable=False,unique=True)
+    issued_by: Mapped[uuid.UUID] = mapped_column(Uuid,ForeignKey('users.id'),nullable=False)
+    reason: Mapped[str] = mapped_column(Text,nullable=False)
+    status: Mapped[str] = mapped_column(String(30),nullable=False,default='available')
+    reserved_selection_id: Mapped[uuid.UUID | None] = mapped_column(Uuid,ForeignKey('demand_selections.id'),unique=True)
+    redeemed_selection_id: Mapped[uuid.UUID | None] = mapped_column(Uuid,ForeignKey('demand_selections.id'),unique=True)
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())

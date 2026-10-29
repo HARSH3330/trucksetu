@@ -16,6 +16,25 @@ from app.api.auth import current_user
 from app.core.database import get_db
 from app.models import KYCApplication, ProviderProfile
 from e2e_support import LocalDocumentStorage, create_e2e_app, require_e2e_control
+from app.core.config import settings
+
+
+@pytest.fixture(autouse=True)
+def isolated_fake_app_configuration(monkeypatch):
+    # Unit boundary only: no connection to this fictional local URL is opened.
+    raw='postgresql://fictional:fictional@127.0.0.1/transivox_e2e'
+    monkeypatch.setenv('E2E_DATABASE_URL',raw)
+    monkeypatch.setenv('E2E_ALLOWED_DATABASE_HOSTS','127.0.0.1')
+    monkeypatch.setenv('E2E_REAL_AWS','false')
+    monkeypatch.setattr(settings,'DATABASE_URL',raw)
+
+
+def test_direct_fake_app_import_cannot_bind_to_an_application_database(monkeypatch):
+    monkeypatch.setenv('APP_ENV','test');monkeypatch.setenv('TRANSIVOX_E2E','true')
+    monkeypatch.setenv('E2E_CONTROL_TOKEN','local-control-token-123')
+    monkeypatch.setattr(settings,'DATABASE_URL','postgresql://fictional:fictional@127.0.0.1/ordinary_app')
+    with pytest.raises(RuntimeError,match='bound to the isolated E2E database'):
+        create_e2e_app()
 
 
 def test_production_app_has_no_e2e_control_routes() -> None:

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_roles
@@ -14,16 +17,65 @@ from app.models import (
     Booking,
     BookingAllocation,
     DriverProfile,
+    KYCApplication,
     ProviderProfile,
     Trip,
     User,
     UserRole,
 )
 from app.schemas import DriverLinkCreate
+from app.api.kyc import REQUIRED, require_bound_clean_scan
+from app.services.dependencies import get_document_storage_factory
+from app.services.storage import PrivateDocumentStorage
 
 from app.core.routing import AuthenticationFirstRoute
 
 router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["drivers"])
+
+
+class DriverReactivation(BaseModel):
+    reason: str = Field(min_length=10, max_length=2000)
+
+
+@router.post('/admin/users/{user_id}/driver-reactivation')
+async def reactivate_driver(user_id: uuid.UUID, payload: DriverReactivation, db: AsyncSession = Depends(get_db), admin: User = Depends(require_roles('admin', 'superadmin')), storage_factory: Callable[[], PrivateDocumentStorage] = Depends(get_document_storage_factory)) -> dict[str, object]:
+    account = await db.scalar(select(User).where(User.id == user_id).options(selectinload(User.roles)).with_for_update())
+    if not account:
+        raise HTTPException(404, 'Driver account not found')
+    roles = {role.role for role in account.roles}
+    if 'driver' not in roles or roles.intersection({'admin', 'superadmin'}):
+        raise HTTPException(403, 'This operation is limited to non-privileged driver accounts')
+    if account.status != 'active':
+        raise HTTPException(409, 'Reactivate the account separately before driver review')
+    driver = await db.scalar(select(DriverProfile).where(DriverProfile.user_id == user_id).with_for_update())
+    if not driver:
+        raise HTTPException(404, 'Linked driver not found')
+    identity = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user_id, ProviderProfile.provider_type == 'driver').with_for_update())
+    if not identity or not identity.active or identity.kyc_status != 'verified':
+        raise HTTPException(409, 'Driver identity re-verification is required')
+    application = await db.scalar(select(KYCApplication).where(KYCApplication.provider_id == identity.id, KYCApplication.status == 'verified').options(selectinload(KYCApplication.documents)).order_by(KYCApplication.created_at.desc()).with_for_update())
+    if not application:
+        raise HTTPException(409, 'Verified driver application is required')
+    owner = await db.scalar(select(ProviderProfile).where(ProviderProfile.id == driver.provider_id).with_for_update())
+    if not owner or not owner.active or owner.kyc_status != 'verified':
+        raise HTTPException(409, 'Linked transport provider must be active and verified')
+    if not driver.licence_expires_on or driver.licence_expires_on < date.today():
+        raise HTTPException(422, 'Driver licence is expired')
+    accepted = {document.document_type:document for document in application.documents if document.status == 'accepted' and (not document.expires_on or document.expires_on >= date.today())}
+    if REQUIRED['driver'] - accepted.keys():
+        raise HTTPException(422, 'All current driver identity documents must be accepted')
+    try:
+        storage = storage_factory()
+    except Exception as exc:
+        raise HTTPException(503, 'Private document review unavailable') from exc
+    for kind in sorted(REQUIRED['driver']):
+        await require_bound_clean_scan(storage, accepted[kind])
+    before = {'active':driver.active, 'kyc_status':driver.kyc_status}
+    driver.active = True
+    driver.kyc_status = 'verified'
+    db.add(AuditLog(actor_id=admin.id, action='driver.reactivated', entity_type='driver_profile', entity_id=driver.id, before=before, after={'active':True, 'kyc_status':'verified', 'reason':payload.reason}))
+    await db.commit()
+    return {'id':str(driver.id), 'active':True, 'kyc_status':'verified'}
 
 
 def _masked_mobile(mobile: str | None) -> str:
@@ -133,8 +185,8 @@ async def my_driver_trips(
             "booking_public_id": booking.public_id,
             "status": trip.status,
             "vehicle_registration": trip.vehicle_registration,
-            "pickup": booking.route_snapshot.get("pickup"),
-            "destination": booking.route_snapshot.get("destination"),
+            "pickup": booking.route_snapshot.get("pickup") or booking.route_snapshot.get("pickup_city"),
+            "destination": booking.route_snapshot.get("destination") or booking.route_snapshot.get("destination_city"),
         }
         for trip, booking in rows.all()
     ]

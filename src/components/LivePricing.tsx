@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {Calculator, Clock3, IndianRupee, MapPin, Moon, PackageOpen, Route, Truck} from 'lucide-react'
+import {CalculatorIcon as Calculator, ClockIcon as Clock3, CurrencyInrIcon as IndianRupee, MapPinIcon as MapPin, MoonIcon as Moon, PackageIcon as PackageOpen, PathIcon as Route, TruckIcon as Truck} from '@phosphor-icons/react'
 import {publicFetch} from '../lib/api'
 import './LivePricing.css'
 

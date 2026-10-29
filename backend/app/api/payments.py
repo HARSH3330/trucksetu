@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from typing import Annotated
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,10 +18,33 @@ from app.api.auth import require_roles
 from app.schemas import InvoiceCreate, ManualRefundCreate, OfflinePaymentCreate, PaymentIntentCreate
 from app.domain import financial_snapshot
 from app.services.payments import RazorpayGateway, validate_captured_payment, verify_razorpay_signature
+from app.services.invoices import printable_invoice
 
 from app.core.routing import AuthenticationFirstRoute
 
 router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1", tags=["payments and invoices"])
+
+
+async def _locked_payment_booking(db: AsyncSession, query):
+    located = await db.scalar(query)
+    if located is None:
+        return None, None
+    # Booking first, matching cancellation/payment creation lock order. Re-read
+    # payment after waiting so a concurrent callback cannot overwrite new state.
+    booking = await db.scalar(select(Booking).where(Booking.id == located.booking_id).with_for_update().execution_options(populate_existing=True))
+    payment = await db.scalar(query.with_for_update().execution_options(populate_existing=True))
+    return payment, booking
+
+
+def _record_advance_confirmation(db: AsyncSession, payment: Payment, booking: Booking | None) -> None:
+    if booking is None or payment.payment_type != 'advance':
+        return
+    if booking.status == 'advance_pending':
+        booking.status = 'booking_confirmed'
+    elif booking.status != 'booking_confirmed':
+        # Record actual funds without reversing cancellation/trip/dispute state.
+        # Refund entitlement stays with the existing reviewed cancellation rules.
+        db.add(AuditLog(action='payment.late_confirmation_requires_review',entity_type='payment',entity_id=payment.id,after={'booking_id':str(booking.id),'booking_status':booking.status}))
 
 
 async def _decimal_setting(db: AsyncSession, key: str, fallback: Decimal) -> Decimal:
@@ -29,6 +53,10 @@ async def _decimal_setting(db: AsyncSession, key: str, fallback: Decimal) -> Dec
 
 
 async def _payment_amount(db: AsyncSession, booking: Booking, payment_type: str) -> Decimal:
+    if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        raise HTTPException(409,'Transport payment collection is retained but outside this MVP; settle freight directly')
+    if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand':
+        raise HTTPException(409, 'Freight collection is separate and is not enabled for connection-fee bookings')
     paid = Decimal(str(await db.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.booking_id == booking.id, Payment.status == "paid"))))
     if payment_type == "advance":
         percent = await _decimal_setting(db, "default_advance_percent", settings.DEFAULT_ADVANCE_PERCENT)
@@ -63,7 +91,8 @@ async def payment_ledger(
             "booking_id": str(booking.id), "booking_public_id": booking.public_id, "booking_status": booking.status,
             "total_amount": str(booking.total_amount), "currency": booking.currency, "paid_amount": str(paid),
             "pending_amount": str(pending), "due_amount": str(max(booking.total_amount - paid, Decimal("0"))),
-            "can_report_payment": booking.customer_id == user.id or bool(roles.intersection({"admin", "superadmin"})),
+            "can_report_payment": bool(settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION and (booking.route_snapshot or {}).get("marketplace_mode") != "customer_demand" and (booking.customer_id == user.id or roles.intersection({"admin", "superadmin"}))),
+            "freight_payment_separate": (booking.route_snapshot or {}).get("marketplace_mode") == "customer_demand",
             "payments": [{"id": str(item.id), "payment_type": item.payment_type, "provider": item.provider,
                           "method": item.method, "amount": str(item.amount), "status": item.status,
                           "reference": item.metadata_json.get("reference") or None,
@@ -112,8 +141,25 @@ async def issue_invoice(
     return {"invoice_id": str(invoice.id), "invoice_number": invoice.invoice_number, "status": invoice.status}
 
 
+@router.get("/invoices/{invoice_id}/download")
+async def download_invoice(invoice_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
+    invoice = await db.get(Invoice, invoice_id)
+    booking = await db.get(Booking, invoice.booking_id) if invoice else None
+    privileged = bool({role.role for role in user.roles}.intersection({"admin", "superadmin"}))
+    if invoice is None or booking is None or (booking.customer_id != user.id and not privileged):
+        raise HTTPException(404, "Invoice not found")
+    if invoice.status != "issued":
+        raise HTTPException(409, "Only issued invoice records can be downloaded")
+    content = printable_invoice(invoice, booking)
+    db.add(AuditLog(actor_id=user.id, action="invoice.downloaded", entity_type="invoice", entity_id=invoice.id))
+    await db.commit()
+    return {"filename": f"transivox-invoice-{invoice.id}.html", "content_type": "text/html", "content": content}
+
+
 @router.post("/bookings/{booking_id}/payments/online", status_code=status.HTTP_201_CREATED)
 async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str | int]:
+    if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        raise HTTPException(409,'Transport payment collection is outside this MVP; settle freight directly')
     await acquire_idempotency_lock(db, payload.idempotency_key)
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None:
@@ -148,6 +194,8 @@ async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db
 
 @router.post("/bookings/{booking_id}/payments/offline", status_code=status.HTTP_201_CREATED)
 async def offline_payment(booking_id: uuid.UUID, payload: OfflinePaymentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
+    if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        raise HTTPException(409,'Transport payment collection is outside this MVP; settle freight directly')
     await acquire_idempotency_lock(db, payload.idempotency_key)
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None:
@@ -172,14 +220,13 @@ async def offline_payment(booking_id: uuid.UUID, payload: OfflinePaymentCreate, 
 
 @router.post("/payments/{payment_id}/confirm-offline")
 async def confirm_offline(payment_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("admin", "superadmin"))) -> dict[str, str]:
-    payment = await db.scalar(select(Payment).where(Payment.id == payment_id).with_for_update())
+    payment, booking = await _locked_payment_booking(db, select(Payment).where(Payment.id == payment_id))
     if payment is not None and payment.provider == "offline" and payment.status == "paid":
         return {"status": "paid"}
     if payment is None or payment.provider != "offline" or payment.status != "pending_confirmation":
         raise HTTPException(status_code=409, detail="Payment is not awaiting offline confirmation")
     payment.status, payment.confirmed_by, payment.paid_at = "paid", user.id, datetime.now(UTC)
-    booking = await db.get(Booking, payment.booking_id)
-    if booking and payment.payment_type == "advance": booking.status = "booking_confirmed"
+    _record_advance_confirmation(db, payment, booking)
     return {"status": payment.status}
 
 
@@ -189,14 +236,25 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
     body = await request.body()
     if not verify_razorpay_signature(body, x_razorpay_signature):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
-    payload = await request.json(); event_id = x_razorpay_event_id
+    try:
+        payload = await request.json()
+    except ValueError as exc:
+        raise HTTPException(400, 'Invalid payment event') from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get('event'), str):
+        raise HTTPException(400, 'Invalid payment event')
+    event_id = x_razorpay_event_id
+    await acquire_idempotency_lock(db, f'razorpay-event:{event_id}')
     if await db.scalar(select(PaymentEvent).where(PaymentEvent.gateway_event_id == event_id)):
         return {"received": True}
     event_type = payload.get("event")
     if event_type != "payment.captured":
         return {"received": True}
-    entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
-    payment = await db.scalar(select(Payment).where(Payment.gateway_order_id == entity.get("order_id")).with_for_update())
+    envelope = payload.get('payload')
+    payment_data = envelope.get('payment') if isinstance(envelope, dict) else None
+    entity = payment_data.get('entity') if isinstance(payment_data, dict) else None
+    if not isinstance(entity, dict) or not isinstance(entity.get('order_id'), str) or not entity['order_id']:
+        raise HTTPException(400, 'Invalid captured payment event')
+    payment, booking = await _locked_payment_booking(db, select(Payment).where(Payment.gateway_order_id == entity.get("order_id")))
     if payment:
         rejection = validate_captured_payment(entity, payment.amount, payment.currency)
         if rejection:
@@ -207,8 +265,7 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
             db.add(PaymentEvent(payment_id=payment.id, event_type="payment.captured.duplicate", gateway_event_id=event_id, payload=payload))
             return {"received": True}
         payment.status, payment.gateway_payment_id, payment.method, payment.paid_at = "paid", entity.get("id"), entity.get("method"), datetime.now(UTC)
-        booking = await db.get(Booking, payment.booking_id)
-        if booking and payment.payment_type == "advance": booking.status = "booking_confirmed"
+        _record_advance_confirmation(db, payment, booking)
         db.add(PaymentEvent(payment_id=payment.id, event_type=event_type, gateway_event_id=event_id, payload=payload))
     else:
         db.add(AuditLog(action="payment.webhook_unknown_order", entity_type="payment", after={"event_id": event_id}))
@@ -219,6 +276,8 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
 async def settlement_eligibility(booking_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("admin", "superadmin"))) -> dict[str, str | bool]:
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None: raise HTTPException(status_code=404, detail="Booking not found")
+    if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand' or not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
+        return {'eligible':False,'reason':'Freight settlement and percentage commission are outside the connection-fee MVP'}
     incomplete = await db.scalar(select(func.count(Trip.id)).join(BookingAllocation).where(BookingAllocation.booking_id == booking.id, Trip.status.not_in(["delivered", "completed"])))
     if incomplete:
         return {"eligible": False, "reason": "Every allocated trip must have delivery OTP verification and be delivered"}
@@ -257,7 +316,7 @@ async def record_manual_refund(booking_id: uuid.UUID, payload: ManualRefundCreat
     await acquire_idempotency_lock(db, payload.idempotency_key)
     existing = await db.scalar(select(PaymentRefund).where(PaymentRefund.idempotency_key == payload.idempotency_key))
     if existing:
-        if existing.booking_id != booking_id:
+        if existing.booking_id != booking_id or existing.amount != payload.amount or existing.method != payload.method or existing.reference != payload.reference:
             raise HTTPException(409, "Idempotency key was already used for another operation")
         return {"refund_id": str(existing.id), "status": existing.status, "amount": str(existing.amount)}
     cancellation = await db.scalar(select(Cancellation).where(Cancellation.booking_id == booking_id).with_for_update())
@@ -270,3 +329,18 @@ async def record_manual_refund(booking_id: uuid.UUID, payload: ManualRefundCreat
     db.add(item); await db.flush()
     db.add(AuditLog(actor_id=admin.id, action="payment.refund_recorded", entity_type="payment_refund", entity_id=item.id, after={"booking_id": str(booking_id), "amount": str(payload.amount), "method": payload.method}))
     return {"refund_id": str(item.id), "status": item.status, "amount": str(item.amount)}
+
+
+@router.get("/admin/refunds")
+async def refund_queue(db: AsyncSession = Depends(get_db), admin: User = Depends(require_roles("admin", "superadmin")), page: Annotated[int, Query(ge=1, le=10000)] = 1) -> list[dict[str, str]]:
+    refunded = select(PaymentRefund.booking_id, func.sum(PaymentRefund.amount).label('processed')).where(PaymentRefund.status == 'processed').group_by(PaymentRefund.booking_id).subquery()
+    processed = func.coalesce(refunded.c.processed, 0)
+    query = select(Cancellation.booking_id, Booking.public_id, Cancellation.refund_amount, processed).join(Booking, Booking.id == Cancellation.booking_id).outerjoin(refunded, refunded.c.booking_id == Cancellation.booking_id).where(Cancellation.refund_amount > processed).order_by(Cancellation.created_at.desc(), Cancellation.id).offset((page - 1) * 100).limit(100)
+    rows = (await db.execute(query)).all()
+    result = []
+    for booking_id, public_id, approved_amount, processed_amount in rows:
+        processed_amount = Decimal(str(processed_amount))
+        remaining = max(approved_amount - processed_amount, Decimal("0"))
+        if remaining > 0:
+            result.append({"booking_id": str(booking_id), "booking_public_id": public_id, "approved_amount": str(approved_amount), "processed_amount": str(processed_amount), "remaining_amount": str(remaining)})
+    return result

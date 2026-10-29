@@ -15,18 +15,18 @@
     "e2e:kyc:report": "playwright show-report playwright-report"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@vitejs/plugin-react": "latest",
-    "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest",
-    "vite": "latest"
+    "vite": "8.2.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "vitest": "latest"
+    "vitest": "4.1.12"
   }
 }

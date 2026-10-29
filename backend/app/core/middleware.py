@@ -55,9 +55,12 @@ class OperationsMiddleware(BaseHTTPMiddleware):
         else:
             bucket.append(now);started=time.perf_counter()
             try:response=await call_next(request)
-            except Exception:
-                logger.exception(json.dumps({"event":"request_error","request_id":request_id,"path":request.url.path}))
-                raise
+            except Exception as exc:
+                # Provider/SQL exceptions may include credentials, parameters or
+                # private document URLs. Do not log their text or re-raise into
+                # the server's traceback logger; retain safe correlation instead.
+                logger.error(json.dumps({"event":"request_error","request_id":request_id,"path":request.url.path,"exception_type":type(exc).__name__}))
+                response=JSONResponse(status_code=500,content={"detail":"The request could not be completed. Contact support with the request ID.","request_id":request_id})
             duration=round((time.perf_counter()-started)*1000,2)
             logger.info(json.dumps({"event":"http_request","request_id":request_id,"method":request.method,"path":request.url.path,"status":response.status_code,"duration_ms":duration}))
         return secure_response(response,request_id,request.url.path)

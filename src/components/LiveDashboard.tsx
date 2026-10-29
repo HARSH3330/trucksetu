@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {ArrowRight, BadgeCheck, PackageCheck, ReceiptIndianRupee, Route, Star, Truck, WalletCards} from 'lucide-react'
+import {ArrowRightIcon as ArrowRight, SealCheckIcon as BadgeCheck, PackageIcon as PackageCheck, ReceiptIcon as ReceiptIndianRupee, PathIcon as Route, StarIcon as Star, TruckIcon as Truck, WalletIcon as WalletCards} from '@phosphor-icons/react'
 import {ApiError, apiFetch} from '../lib/api'
 
 type Summary={roles:string[];open_requests:number;active_quotes:number;active_bookings:number;active_trips:number;completed_bookings:number;total_booking_value:string;provider_rating:string|null;provider_kyc_status:string|null}

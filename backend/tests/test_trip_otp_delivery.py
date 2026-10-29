@@ -24,7 +24,7 @@ def journey(monkeypatch):
     trip=SimpleNamespace(id=uuid.uuid4(), allocation_id=uuid.uuid4(), status='arrived_at_pickup', history=[])
     allocation=SimpleNamespace(provider_id=uuid.uuid4(), booking_id=uuid.uuid4())
     provider=SimpleNamespace(user_id=operator.id)
-    booking=SimpleNamespace(customer_id=customer.id)
+    booking=SimpleNamespace(customer_id=customer.id,status="booking_confirmed")
     staged=[]
     async def get(model,key):
         return {'Trip':trip,'BookingAllocation':allocation,'ProviderProfile':provider,'Booking':booking,'User':customer}.get(model.__name__)

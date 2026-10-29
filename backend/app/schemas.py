@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -25,6 +26,7 @@ class CargoCreate(BaseModel):
     length_m: Decimal = Field(gt=0, le=30, max_digits=7, decimal_places=3)
     width_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
     height_m: Decimal = Field(gt=0, le=10, max_digits=7, decimal_places=3)
+    packaging_type: str | None = Field(default=None, max_length=100)
     dimensions_are_per_package: bool = False
     volume_m3: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=3)
     fragile: bool = False
@@ -53,6 +55,7 @@ class CargoCreate(BaseModel):
 
 
 class TransportRequestCreate(BaseModel):
+    available_route_id: uuid.UUID | None = None
     pickup_address: str = Field(min_length=3, max_length=500)
     pickup_city: str = Field(min_length=2, max_length=100)
     destination_address: str = Field(min_length=3, max_length=500)
@@ -81,6 +84,8 @@ class TransportRequestCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_pilot_request(self) -> "TransportRequestCreate":
+        if self.available_route_id and (self.booking_mode != 'SHARED_CAPACITY' or self.vehicle_count != 1):
+            raise ValueError('A selected shared route requires one shared-capacity request')
         restricted_terms = {"chemical", "chemicals", "fuel", "explosive", "explosives", "animal", "animals", "loose bulk"}
         if self.cargo.hazardous or self.cargo.temperature_controlled or self.cargo.category.strip().casefold() in restricted_terms:
             raise ValueError("This cargo needs specialist handling and is not available in the controlled pilot")
@@ -103,6 +108,7 @@ class TransportRequestCreate(BaseModel):
 
 
 class TransportRequestSummary(BaseModel):
+    available_route_id: uuid.UUID | None = None
     id: uuid.UUID
     public_id: str
     status: str
@@ -136,7 +142,23 @@ class VehicleCategoryRead(BaseModel):
     description: str | None
 
 
+class QuoteCharge(BaseModel):
+    label: str = Field(min_length=2, max_length=100)
+    amount: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
+
+
+class SharedQuoteAcceptance(BaseModel):
+    expected_version: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=8, max_length=100)
+    accept_final_price: Literal[True]
+    capacity_reservation_id: uuid.UUID | None = None
+
+
 class QuoteCreate(BaseModel):
+    available_route_id: uuid.UUID | None = None
+    expires_at: datetime | None = None
+    currency: Literal['INR'] = 'INR'
+    price_breakdown: list[QuoteCharge] = Field(default_factory=list, max_length=30)
     provider_id: uuid.UUID
     vehicle_category_id: uuid.UUID
     service_mode: str = Field(pattern="^(FULL_VEHICLE|SHARED_CAPACITY)$")
@@ -148,25 +170,43 @@ class QuoteCreate(BaseModel):
     inclusions: str | None = Field(default=None, max_length=2000)
     exclusions: str | None = Field(default=None, max_length=2000)
 
-    @field_validator("estimated_pickup", "estimated_delivery")
+    @field_validator("estimated_pickup", "estimated_delivery", "expires_at")
     @classmethod
-    def normalize_estimate(cls, value: datetime) -> datetime:
-        return utc_datetime(value)
+    def normalize_estimate(cls, value: datetime | None) -> datetime | None:
+        return utc_datetime(value) if value else None
 
     @model_validator(mode="after")
     def validate_estimate(self) -> "QuoteCreate":
+        if self.service_mode == 'SHARED_CAPACITY':
+            if not self.available_route_id or not self.expires_at or self.expires_at <= datetime.now(UTC) or self.expires_at > self.estimated_pickup:
+                raise ValueError('Shared quotation requires a selected route and future expiry no later than pickup')
+            if self.vehicles_offered != 1 or not self.price_breakdown or sum(item.amount for item in self.price_breakdown) != self.final_price:
+                raise ValueError('Shared quotation must identify one shipment and charges must sum to the final total')
+            if self.inclusions is None or self.exclusions is None:
+                raise ValueError('Declare shared quotation inclusions and exclusions (use None explicitly if none)')
         if self.estimated_pickup >= self.estimated_delivery:
             raise ValueError("Estimated delivery must be after pickup")
         return self
 
 
 class QuoteUpdate(BaseModel):
+    expires_at: datetime | None = None
+    price_breakdown: list[QuoteCharge] | None = Field(default=None, max_length=30)
+    inclusions: str | None = Field(default=None, max_length=2000)
+    exclusions: str | None = Field(default=None, max_length=2000)
     final_price: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     vehicles_offered: int = Field(ge=1, le=100)
     notes: str | None = Field(default=None, max_length=2000)
 
 
 class QuoteRead(BaseModel):
+    request_id: uuid.UUID | None = None
+    available_route_id: uuid.UUID | None = None
+    expires_at: datetime | None = None
+    currency: str = 'INR'
+    price_breakdown: list[dict] = Field(default_factory=list)
+    inclusions: str | None = None
+    exclusions: str | None = None
     id: uuid.UUID
     service_mode: str
     provider_name: str

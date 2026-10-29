@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated, List
+from typing import Annotated, List, Literal
 from decimal import Decimal
 
 from pydantic import field_validator, model_validator
@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     # ── App ──────────────────────────────────────────────
     APP_NAME: str = "TransivoX"
     APP_VERSION: str = "1.0.0"
-    BUILD_SHA: str = "local"
+    BUILD_SHA: str = "unknown"
+    VERCEL_GIT_COMMIT_SHA: str = ""
     APP_ENV: str = "development"
     DEBUG: bool = True
     ALLOWED_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:3000", "http://localhost:5173"]
@@ -45,6 +46,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    AUTH_COOKIE_SAMESITE: Literal['none','lax','strict'] = 'none'
     JWT_ISSUER: str = "transivox-api"
     JWT_AUDIENCE: str = "transivox-web"
 
@@ -57,8 +59,16 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_S3_BUCKET: str = ""
     AWS_REGION: str = "ap-south-1"
+    KYC_SCAN_PROVIDER: Literal['guardduty', 'clamav', 'disabled', 'test'] = 'guardduty'
+    KYC_SCAN_RESULTS_BUCKET: str = ""
+    KYC_SCAN_MAX_DEFINITION_AGE_HOURS: int = 48
+    CUSTOMER_KYC_REQUIRED_DOCUMENTS: str = ""
+    CUSTOMER_KYC_POLICY_VERSION: str = ""
+    CUSTOMER_KYC_CONSENT_TEXT: str = ""
+    CUSTOMER_KYC_TEST_SIMULATION: bool = False
 
     # ── Razorpay ──────────────────────────────────────────
+    ENABLE_RAZORPAY_SANDBOX: bool = False
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""
@@ -77,6 +87,23 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
     EMAIL_FROM: str = ""
+    EMAIL_REPLY_TO: str = ""
+    PUBLIC_FRONTEND_URL: str = ""
+    ACCOUNT_EMAIL_COOLDOWN_SECONDS: int = 60
+
+    @field_validator('PUBLIC_FRONTEND_URL')
+    @classmethod
+    def validate_public_frontend_url(cls, value: str) -> str:
+        from urllib.parse import urlsplit
+        if not value:
+            return value
+        parsed = urlsplit(value)
+        local = parsed.hostname in {'localhost', '127.0.0.1', '::1'}
+        if (parsed.scheme not in {'http', 'https'} or not parsed.hostname
+                or parsed.username or parsed.password or parsed.query or parsed.fragment
+                or parsed.path not in {'', '/'} or (parsed.scheme != 'https' and not local)):
+            raise ValueError('PUBLIC_FRONTEND_URL must be an HTTPS origin (HTTP loopback is allowed locally)')
+        return value.rstrip('/')
 
     # ── AI ────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""
@@ -106,6 +133,20 @@ class Settings(BaseSettings):
     TRUSTED_HOSTS: Annotated[List[str], NoDecode] = ["localhost", "127.0.0.1"]
 
     # ── Controlled pilot feature flags ────────────────────
+    # New commercial policies have no implicit production defaults.
+    ENABLE_CUSTOMER_DEMAND_MARKETPLACE: bool = True
+    ENABLE_LEGACY_PROVIDER_MARKETPLACE: bool = False
+    ENABLE_PROVIDER_FIRST_PUBLICATION: bool = False
+    DEMAND_MARKETPLACE_POLICY: str = ""
+    CONNECTION_FEE_POLICY: str = ""
+    ENABLE_REAL_CONNECTION_CHECKOUT: bool = False
+    ENABLE_TRANSPORT_PAYMENT_COLLECTION: bool = False
+    CONNECTION_FEE_AMOUNT: Decimal = Decimal("1000.00")
+    CONNECTION_FEE_TAX_RATE: Decimal = Decimal('0.20')
+    CONNECTION_FEE_TAX_CONFIRMED: bool = False
+    # Retained for compatibility with old local settings; checkout ignores it.
+    CONNECTION_FEE_WAIVER_TEST_TAX_AMOUNT: Decimal | None = None
+    CONNECTION_FEE_CURRENCY: str = "INR"
     ENABLE_SHARED_CAPACITY: bool = True
     ENABLE_IMMEDIATE_BOOKING: bool = True
     ENABLE_LIVE_GPS: bool = False
@@ -174,6 +215,8 @@ class Settings(BaseSettings):
         if self.APP_ENV == "production" and self.DEBUG:
             raise ValueError("DEBUG must be false in production")
         if self.APP_ENV == "production":
+            if self.PUBLIC_FRONTEND_URL and not self.PUBLIC_FRONTEND_URL.startswith("https://"):
+                raise ValueError("Production PUBLIC_FRONTEND_URL must use HTTPS")
             if not self.ALLOWED_ORIGINS or any(origin == "*" or not origin.startswith("https://") for origin in self.ALLOWED_ORIGINS):
                 raise ValueError("Production ALLOWED_ORIGINS must contain explicit HTTPS origins")
             if not self.TRUSTED_HOSTS or "*" in self.TRUSTED_HOSTS:

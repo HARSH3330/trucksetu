@@ -1,12 +1,12 @@
 import React,{useState} from 'react'
-import {X} from 'lucide-react'
+import {XIcon as X} from '@phosphor-icons/react'
 import {apiFetch,publicFetch} from '../lib/api'
 import PhoneVerification from './PhoneVerification'
 
 type Mode='request-reset'|'reset'|'verify'|'mobile'
-export default function AccountSecurity({close,initialEmail='',initialMode='request-reset',signedIn=false}:{close:()=>void;initialEmail?:string;initialMode?:Mode;signedIn?:boolean}){
+export default function AccountSecurity({close,initialEmail='',initialMode='request-reset',initialToken='',initialCode='',signedIn=false}:{close:()=>void;initialEmail?:string;initialMode?:Mode;initialToken?:string;initialCode?:string;signedIn?:boolean}){
   const [mode,setMode]=useState<Mode>(initialMode)
-  const [email,setEmail]=useState(initialEmail),[token,setToken]=useState(''),[password,setPassword]=useState(''),[code,setCode]=useState('')
+  const [email,setEmail]=useState(initialEmail),[token,setToken]=useState(initialToken),[password,setPassword]=useState(''),[code,setCode]=useState(initialCode)
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('')
   const [mobile,setMobile]=useState('')
   const [phoneRevision,setPhoneRevision]=useState(0)
@@ -39,7 +39,7 @@ export default function AccountSecurity({close,initialEmail='',initialMode='requ
       {mode!=='mobile'&&<label>Email address<input type="email" required maxLength={254} value={email} onChange={event=>setEmail(event.target.value)}/></label>}
       {mode==='mobile'&&signedIn&&<><label>Mobile for trip OTP<input type="tel" required pattern="\+?[0-9]{10,15}" maxLength={16} value={mobile} onChange={event=>setMobile(event.target.value)}/></label><label>Current password<input type="password" autoComplete="current-password" required maxLength={72} value={password} onChange={event=>setPassword(event.target.value)}/></label></>}
       {mode==='mobile'&&!signedIn&&<p role="alert">Sign in before changing your trip contact.</p>}
-      {mode==='reset'&&<><label>Password reset token<input type="password" name="token" autoComplete="off" required minLength={32} maxLength={128} value={token} onChange={event=>setToken(event.target.value)}/></label><label>New password<input type="password" autoComplete="new-password" required minLength={10} maxLength={72} value={password} onChange={event=>setPassword(event.target.value)}/><small>10–72 characters, including uppercase, lowercase and a number.</small></label></>}
+      {mode==='reset'&&<><label>Password reset token<input type="password" name="token" autoComplete="off" required minLength={32} maxLength={128} value={token} onChange={event=>setToken(event.target.value)}/></label><label>New password<input aria-describedby="account-password-requirements" type="password" autoComplete="new-password" required minLength={10} maxLength={72} value={password} onChange={event=>setPassword(event.target.value)}/></label><small id="account-password-requirements">10–72 characters, including uppercase, lowercase and a number.</small></>}
       {mode==='verify'&&<><button type="button" disabled={busy||!email} onClick={()=>void perform('/auth/verification/resend',{email},'If eligible and delivery is available, check your email for a new code. Delivery is not confirmed.')}>Request verification email</button><label>Email verification code<input inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6} value={code} onChange={event=>setCode(event.target.value.replace(/\D/g,''))}/></label></>}
       {error&&<div className="form-error" role="alert">{error}</div>}{message&&<p role="status">{message}</p>}
       <button className="auth-submit" disabled={busy||(mode==='mobile'&&!signedIn)}>{busy?'Please wait…':mode==='mobile'?'Save trip contact':mode==='request-reset'?'Request recovery email':mode==='reset'?'Set new password':'Verify email code'}</button>

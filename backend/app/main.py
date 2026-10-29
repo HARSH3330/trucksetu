@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from app.api.connection_fee_policy import router as connection_fee_policy_router
+from app.api.customer_kyc import router as customer_kyc_router
+from app.api.demands import router as demand_marketplace_router
+
 from contextlib import asynccontextmanager
 from decimal import Decimal
 import logging
@@ -10,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import text
-from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError, TimeoutError as PoolTimeoutError
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 
@@ -26,11 +30,13 @@ from app.api.quotes import router as quotation_router
 from app.api.bookings import router as booking_router
 from app.api.payments import router as payment_router
 from app.api.capacity import router as capacity_router
+from app.api.shared_bookings import router as shared_booking_router
 from app.api.trust import router as trust_router
 from app.api.communications import router as communications_router
 from app.api.ai import router as ai_router
 from app.api.operations import router as operations_router
 from app.api.auth import router as auth_router
+from app.api.cookie_sessions import router as cookie_session_router
 from app.api.kyc import router as kyc_router
 from app.api.pricing import router as pricing_router
 from app.api.vehicles import router as vehicle_router
@@ -56,20 +62,25 @@ app.add_middleware(
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-TransivoX-CSRF"],
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.TRUSTED_HOSTS)
 app.add_middleware(OperationsMiddleware)
+app.include_router(connection_fee_policy_router)
+app.include_router(customer_kyc_router)
+app.include_router(demand_marketplace_router)
 app.include_router(customer_marketplace_router)
 app.include_router(quotation_router)
 app.include_router(booking_router)
 app.include_router(payment_router)
 app.include_router(capacity_router)
+app.include_router(shared_booking_router)
 app.include_router(trust_router)
 app.include_router(communications_router)
 app.include_router(ai_router)
 app.include_router(operations_router)
 app.include_router(auth_router)
+app.include_router(cookie_session_router)
 app.include_router(recovery_router)
 app.include_router(phone_verification_router)
 app.include_router(kyc_router)
@@ -107,9 +118,30 @@ async def database_constraint_error(_: Request, exc: IntegrityError) -> JSONResp
 
 
 @app.exception_handler(DBAPIError)
-async def database_availability_error(_: Request, exc: DBAPIError) -> JSONResponse:
-    logger.error("Database operation failed: %s", exc.__class__.__name__)
-    return JSONResponse(status_code=503, content={"detail": "The database is temporarily unavailable; retry safely"})
+@app.exception_handler(PoolTimeoutError)
+async def database_availability_error(request: Request, exc: DBAPIError | PoolTimeoutError) -> JSONResponse:
+    # Never log str(exc), SQL, parameters or a connection URL. A ProgrammingError
+    # is not evidence of an outage (e.g. an undefined column needs schema repair).
+    original = getattr(exc, "orig", None)
+    sqlstate = getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)
+    if not isinstance(sqlstate, str) or not re.fullmatch(r"[A-Z0-9]{5}", sqlstate):
+        sqlstate = "unknown"
+    logger.error(
+        "Database operation failed: %s sqlstate=%s request_id=%s method=%s route=%s",
+        exc.__class__.__name__, sqlstate, getattr(request.state, "request_id", "unknown"),
+        request.method, request.scope.get("route").path if request.scope.get("route") else "unknown",
+    )
+    unavailable = isinstance(exc, (OperationalError, PoolTimeoutError)) or (
+        isinstance(exc, DBAPIError) and exc.connection_invalidated
+    )
+    return JSONResponse(
+        status_code=503 if unavailable else 500,
+        content={
+            "detail": "The database is temporarily unavailable; retry safely" if unavailable else
+            "The request could not be completed due to a server error. Contact support with the request ID.",
+            "request_id": getattr(request.state, "request_id", "unknown"),
+        },
+    )
 
 
 class TransitionRequest(BaseModel):
@@ -180,7 +212,11 @@ async def legacy_readiness() -> JSONResponse:
 
 @app.get("/version", tags=["operations"])
 async def version() -> dict[str, str]:
-    safe_sha = re.sub(r"[^a-fA-F0-9]", "", settings.BUILD_SHA)[:12] or "local"
+    # Validate whole identifiers; stripping characters turns "local" into "ca".
+    # Vercel's source metadata takes precedence over a manually supplied label.
+    safe_sha = next((candidate.lower() for candidate in
+                     (settings.VERCEL_GIT_COMMIT_SHA, settings.BUILD_SHA)
+                     if re.fullmatch(r"(?:[a-fA-F0-9]{7,40}|[a-fA-F0-9]{64})", candidate)), "unknown")
     return {"service": settings.APP_NAME, "version": settings.APP_VERSION, "build": safe_sha}
 
 

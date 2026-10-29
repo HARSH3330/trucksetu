@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from collections import defaultdict, deque
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import uuid
@@ -23,7 +24,7 @@ async def test_approval_requires_all_current_accepted_vehicle_files():
     with pytest.raises(HTTPException) as failure:
         await documents.require_accepted_documents(db,uuid.uuid4())
     assert failure.value.status_code==422
-    files=[SimpleNamespace(document_type=kind,status='accepted',expires_on=date.today()+timedelta(days=30)) for kind in documents.KINDS]
+    files=[SimpleNamespace(document_type=kind,status='accepted',storage_version_id='fictional-v1',expires_on=date.today()+timedelta(days=30)) for kind in documents.KINDS]
     db.scalars.return_value=files
     assert await documents.require_accepted_documents(db,uuid.uuid4())==files
     files[0].status='uploaded'
@@ -42,6 +43,10 @@ async def test_cross_provider_vehicle_document_access_is_concealed():
 
 
 def test_vehicle_private_upload_scan_and_review_flow(monkeypatch):
+    # Each TestClient otherwise shares "testclient" and the module-level budget
+    # with previous tests. Keep the real limit, but give this scenario its own
+    # limiter state; monkeypatch restores prior state after the test.
+    monkeypatch.setattr('app.core.middleware._requests',defaultdict(deque))
     provider=SimpleNamespace(id=uuid.uuid4(),user_id=uuid.uuid4())
     vehicle=SimpleNamespace(id=uuid.uuid4(),provider_id=provider.id,status='pending')
     actor=SimpleNamespace(id=provider.user_id,roles=[SimpleNamespace(role='provider')])
@@ -80,8 +85,10 @@ def test_vehicle_private_upload_scan_and_review_flow(monkeypatch):
             prepared=client.post(path+'/uploads',headers=headers,json=upload)
             assert prepared.status_code==200
             body={**upload,'storage_key':prepared.json()['storage_key'],'expires_on':(date.today()+timedelta(days=30)).isoformat()}
-            pending=client.post(path+'/documents',headers=headers,json=body)
-            assert pending.status_code==409 and not stored
+            for scan_state in [None,'PENDING','THREATS_FOUND','FAILED','UNSUPPORTED','ACCESS_DENIED']:
+                storage.status=scan_state
+                pending=client.post(path+'/documents',headers=headers,json=body)
+                assert pending.status_code==409 and not stored
             storage.status='NO_THREATS_FOUND';storage.detected=None
             assert client.post(path+'/documents',headers=headers,json=body).status_code==422
             storage.detected='application/pdf'
@@ -94,6 +101,10 @@ def test_vehicle_private_upload_scan_and_review_flow(monkeypatch):
             opened=client.get(download,headers=headers).json()
             assert opened['expires_in']==300
             assert opened['download_url'].endswith('version=v1') # reviewed bytes, never the replacement
+            for scan_state in [None,'THREATS_FOUND','FAILED','UNSUPPORTED','ACCESS_DENIED']:
+                storage.status=scan_state
+                blocked=client.get(download,headers=headers)
+                assert blocked.status_code==409 and 'download_url' not in blocked.json()
             review=f'/api/v1/admin/carrier-vehicles/{vehicle.id}/documents/{doc.id}/review'
             decision={'status':'accepted','reason':'Harmless fixture manually reviewed'}
             assert client.post(review,headers=headers,json=decision).status_code==403

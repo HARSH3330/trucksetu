@@ -1,0 +1,430 @@
+{
+  "date_ist": "2026-10-24",
+  "branch": "feature/customer-first-marketplace",
+  "head": "ba3057784e36f1c984e90f54b0695586a8c97650",
+  "schema_head": "20261023_28",
+  "state": "preserved uncommitted candidate; no push/deploy",
+  "previous_manifest": "2026-10-23-scanner-fee-source-manifest.json",
+  "combined_sha256": "3ad1546807cfc3305226b05e30c512d053edfeb65415ec0c8588167f82a1b8fb",
+  "changed_from_previous": [
+    ".env.example",
+    "backend/.env.example",
+    "backend/app/api/demands.py",
+    "backend/app/core/config.py",
+    "backend/app/models.py",
+    "backend/app/services/demand_marketplace.py",
+    "backend/tests/integration/test_connection_fee_policy_database.py",
+    "backend/tests/test_phase20_migrations.py"
+  ],
+  "new_files": [
+    "backend/app/services/connection_refunds.py",
+    "backend/connection_refund_sandbox.py",
+    "backend/razorpay_webhook_relay.py",
+    "backend/migrations/versions/20261023_28_sandbox_refund_execution.py",
+    "backend/tests/test_razorpay_sandbox.py",
+    "backend/tests/test_razorpay_webhook_relay.py",
+    "backend/tests/integration/test_sandbox_refund_database.py"
+  ],
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "8be1f4fb51bb73106d372c4880f2827ef96efa60dbd62989613b093120f89e3b"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "fdc1379147b641725cbdba80d127a3751886b6bba503021c5680319edc256950"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "b2057ee8031373449edd78dd84b3e77a573f3d8d3816448a3fea3764c7f28849"
+    },
+    {
+      "path": ".github/workflows/playwright.yml",
+      "sha256": "4e702f20925a35ad605580ce3980c6683cca32c1be1ec166e4602755e23d83f7"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "e309b53f993230b2f5c0b465cef029c59f8ec8b691994f0b48c09718bfc9431a"
+    },
+    {
+      "path": "backend/.env.example",
+      "sha256": "7a19ef6f259ebdd7d29ee40abea241d84c405cdcdb3b60949198b1ce71e78df1"
+    },
+    {
+      "path": "backend/app/api/bookings.py",
+      "sha256": "3b7c738907a3daa6b4b8f85918e671b35ec1a00e4a94f089d549161ebaf93b81"
+    },
+    {
+      "path": "backend/app/api/capacity.py",
+      "sha256": "05644fd754878953beef4e36c18da8c66f134a706fde19fa75253a37a8fe5497"
+    },
+    {
+      "path": "backend/app/api/communications.py",
+      "sha256": "fb2edd30e72aacbb3231c2da951d25c76dcd0715ad40adbc33c8dfd0f7c0b760"
+    },
+    {
+      "path": "backend/app/api/connection_fee_policy.py",
+      "sha256": "1a87c926db93f7713a9aca52ce45a168b473308b864773aa2bbb69c058effcf9"
+    },
+    {
+      "path": "backend/app/api/customer_kyc.py",
+      "sha256": "af36b918d78e74ccd32fa52d2469aae8a23663194a570dc077e30b38a38bccf7"
+    },
+    {
+      "path": "backend/app/api/demands.py",
+      "sha256": "12376afa27f844c047e08252dce1aa164c4d532a52b56f98000feeea2673fff0"
+    },
+    {
+      "path": "backend/app/api/drivers.py",
+      "sha256": "4acf99e1783ed5dcfe969911d08d55fc332100b6349b910583b39e120e82a3e0"
+    },
+    {
+      "path": "backend/app/api/payments.py",
+      "sha256": "c83f62260c9655989ef082a4fbe2ca75373eabd9449144881e62f6e23f7906a2"
+    },
+    {
+      "path": "backend/app/api/quotes.py",
+      "sha256": "69666e296a73133d0712f9379068a7f2997e01fc3fa54fe48ed339d4b25c7e03"
+    },
+    {
+      "path": "backend/app/api/requests.py",
+      "sha256": "adfe575f0963e3d5362d5dce4afa1e5c45a7f1c44f4f5b2b9f2c0b68bc1380f9"
+    },
+    {
+      "path": "backend/app/api/trust.py",
+      "sha256": "30472d83d4c6549d7c792f45a63615e714e490ca4dbdf35e8504f7f96466bb1d"
+    },
+    {
+      "path": "backend/app/core/config.py",
+      "sha256": "40fc5760b77983ce7dcde4219d15c9ac9f648f43e1d632d51a4b2cda9731f4f1"
+    },
+    {
+      "path": "backend/app/core/marketplace_flags.py",
+      "sha256": "7e8cb052dd5c5b18b9ea3e118eb396784d05b31bd20184ae19d001ffa8983899"
+    },
+    {
+      "path": "backend/app/core/routing.py",
+      "sha256": "39b0f05b369ac61f4e8fe488faabf3f2836df0d57c6a3167ab2b49c450f8ba9d"
+    },
+    {
+      "path": "backend/app/main.py",
+      "sha256": "aa46ec3236a27506f30b138a326427cd7736da3bd452031b2d72f7680bb40dcc"
+    },
+    {
+      "path": "backend/app/models.py",
+      "sha256": "0db19210c483a42eaf633afd87f76c3701ed83023c252b3f7ecc708d29ae2324"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "sha256": "c3ca8c619bf33c844dad5b41bc24b8f1f913765d232497284540592db6f481ab"
+    },
+    {
+      "path": "backend/app/services/connection_fee_rules.py",
+      "sha256": "375e67ce1dd7b0b9d76b1275af760bb618466c46fe1131a1ff343908ae6f3e90"
+    },
+    {
+      "path": "backend/app/services/connection_refunds.py",
+      "sha256": "a79f596ac20dafb25faec8e19db7f7c5ada49a436f47f48fdc7bc452cbc1d14f"
+    },
+    {
+      "path": "backend/app/services/contact_access.py",
+      "sha256": "2a78f58aefb994f685b4b5f1c89b628a2d498b1013048631eb9ee5f66ec0e0a7"
+    },
+    {
+      "path": "backend/app/services/customer_kyc.py",
+      "sha256": "9b8875e31851f35e3600ad57af58a4f366fef9a2894d5b318cd12c8ac8973417"
+    },
+    {
+      "path": "backend/app/services/demand_marketplace.py",
+      "sha256": "f29843ef78f6e66fb0857e4465791ed31e4a0ce18266c72c4fcaaaa7b803a5b6"
+    },
+    {
+      "path": "backend/app/services/demand_policy.py",
+      "sha256": "9a20b5efd2917ce36bc9c8302323a5fb2cc3f6a3a467d42a788773b6ce7c8e94"
+    },
+    {
+      "path": "backend/app/services/demand_schemas.py",
+      "sha256": "7948755664bd6c88cda3f70b1b794b63148b595ea82f377b42ef9e325b380935"
+    },
+    {
+      "path": "backend/app/services/payments.py",
+      "sha256": "bb538aa5976769ce4f7777417861953aad4b7ffb812d928a2fd7fd6e040128d6"
+    },
+    {
+      "path": "backend/app/services/scan_contract.py",
+      "sha256": "67aea615b1269f181cc7d4296932e3735532c8d484ff8240edaa2399ae3aff0c"
+    },
+    {
+      "path": "backend/app/services/storage.py",
+      "sha256": "5d51acfcd1ebd0d98675d18ddad3eb1a221a2fa752084c7d36fe4812a52e5829"
+    },
+    {
+      "path": "backend/connection_refund_sandbox.py",
+      "sha256": "8906b822affd9245cf1b12973b41ccc3bae7c2636e816d1fd1c1cf993ee821a8"
+    },
+    {
+      "path": "backend/e2e_support.py",
+      "sha256": "b0d42a84df470af75b57225c751af2d40edc40bde44fb23fde4ec100272013fa"
+    },
+    {
+      "path": "backend/migrations/versions/20261021_25_customer_demand_marketplace.py",
+      "sha256": "6821cc9ec398a9a9945b4b591d3276e67ef0b8594605c456b0fb609cf904a7d8"
+    },
+    {
+      "path": "backend/migrations/versions/20261023_26_customer_kyc.py",
+      "sha256": "38ffee63c14aaf771352c6fc28d8415e12fd628b899c2f7265c1efd0968f71a5"
+    },
+    {
+      "path": "backend/migrations/versions/20261023_27_connection_fee_policy.py",
+      "sha256": "7b8abc8b9282be4cd784d91b3df92c8700c8722714a56da11dfafd8f39dc00a6"
+    },
+    {
+      "path": "backend/migrations/versions/20261023_28_sandbox_refund_execution.py",
+      "sha256": "abc85d6150e776239f1eef80012813487a13a920cdccb9fbb2eb7569518dc753"
+    },
+    {
+      "path": "backend/razorpay_webhook_relay.py",
+      "sha256": "5178a2454a04566e87a574a33d1d142e4ebf5a9789252c9c935476df33f03460"
+    },
+    {
+      "path": "backend/scan_worker.py",
+      "sha256": "c5ded5bdadb825ab14dd3a353e87bb88a8ff6d8a5ec46314f7dcd60e64e82c78"
+    },
+    {
+      "path": "backend/tests/integration/conftest.py",
+      "sha256": "c8cf9767726659e327ec20ff6ad1684278cd261d040d072fba5e4d27cedad850"
+    },
+    {
+      "path": "backend/tests/integration/test_connection_fee_policy_database.py",
+      "sha256": "f25248f9765aa9f37680e0945e22db8711df19ffcabeae9ec0f37e844a47837b"
+    },
+    {
+      "path": "backend/tests/integration/test_customer_kyc_database.py",
+      "sha256": "4ab1a1898ada98b4bd60bbc8a50473c28b02a8b8fcd40d48b4f0995275be6d41"
+    },
+    {
+      "path": "backend/tests/integration/test_demand_marketplace_database.py",
+      "sha256": "2253cd18017002be473cf3d31b19dd7920cbb38b57bcc2b01faa779c552581e5"
+    },
+    {
+      "path": "backend/tests/integration/test_demand_milestone_database.py",
+      "sha256": "fac3fd25036587808c0c46e0c2ae9965b38694914e23fc8220605f4ae05e8ed5"
+    },
+    {
+      "path": "backend/tests/integration/test_http_rate_isolation.py",
+      "sha256": "5e4defc50126daf33c37991be7e5254743f06ee0681ee0a7dec4007d82f57e82"
+    },
+    {
+      "path": "backend/tests/integration/test_local_email_capture_database.py",
+      "sha256": "9fc7d072a9f257b66f0c35f7bdd74141e807183db2e1b8c6de500b84d3566266"
+    },
+    {
+      "path": "backend/tests/integration/test_request_creation_database.py",
+      "sha256": "13d2a9c4e870108736ecfb6e1cf1587b76b80a5df9441f7b375f4762c8efba3c"
+    },
+    {
+      "path": "backend/tests/integration/test_sandbox_refund_database.py",
+      "sha256": "3b83fef55eb197e42e3be49b3b99e2b373c732c45c7f5ba37da8cd5a14b3dfc3"
+    },
+    {
+      "path": "backend/tests/test_connection_fee_rules.py",
+      "sha256": "96b34b9bb3f0f74fe26afecce2f7af82759f446999702f2e76e7d93d0c9d9bca"
+    },
+    {
+      "path": "backend/tests/test_customer_kyc.py",
+      "sha256": "074417a34db63375808e54b909fbabf9d38d93375f4a02fed0e239ab5f6d13b6"
+    },
+    {
+      "path": "backend/tests/test_customer_kyc_renewal.py",
+      "sha256": "600ddcf852f86d1f0eca903890474a212ae137eea2727b52d5428a119843c920"
+    },
+    {
+      "path": "backend/tests/test_demand_marketplace.py",
+      "sha256": "3e52493a9dbcc76269ae975ef448ece66164dac430253888d60a52d01060f847"
+    },
+    {
+      "path": "backend/tests/test_phase20_migrations.py",
+      "sha256": "93e37570983b131b496372d461974e568ae05b874488aaaee5eb7666257a9885"
+    },
+    {
+      "path": "backend/tests/test_phase26_kyc_security.py",
+      "sha256": "a0187dc77c8b975e7a7ce601c7291be0037798f7008951964006fc4091b87fcf"
+    },
+    {
+      "path": "backend/tests/test_phase28_pilot_authorization.py",
+      "sha256": "b555eb6d28173f0b08a4c6cc100a075e54c029fb80230e4d0a15e6bf6069e486"
+    },
+    {
+      "path": "backend/tests/test_razorpay_sandbox.py",
+      "sha256": "b6a4397f2941245d5eecd9371522dbe9adad6dcd358d930aff1f50480f517127"
+    },
+    {
+      "path": "backend/tests/test_razorpay_webhook_relay.py",
+      "sha256": "8172c4e52d32fa14da3c2ab07e65c8bdfb7efdccb5abe879b257259e9c6ec812"
+    },
+    {
+      "path": "backend/tests/test_scan_contract.py",
+      "sha256": "41a08ced999af8640777dbced3eba9b79045699bb50b9d09776e1d28c0787799"
+    },
+    {
+      "path": "backend/tests/test_shared_quote_revision.py",
+      "sha256": "af7abc7fa3d6b42ab159db4a171eaf6bd5e2f47ba125161d248cc0582011d34f"
+    },
+    {
+      "path": "backend/tests/test_trip_otp_delivery.py",
+      "sha256": "aaadfe0871ffcb0c436b9f473d6b3e3e4609e70c59babfe5c59dff49e0ba8860"
+    },
+    {
+      "path": "backend/tests/test_vehicle_assignment_lock.py",
+      "sha256": "5e1fdf8e3b097e92f54608d0a8dca77cbd039da41b3c843e50cfedaa895d4629"
+    },
+    {
+      "path": "e2e/customer-verification.spec.ts",
+      "sha256": "4cca686af9a86a3ea4c82b442f14ddf9995734bcb3cd42f2a2fa71274ab13f65"
+    },
+    {
+      "path": "e2e/demand-marketplace.spec.ts",
+      "sha256": "7cf7cfe195c87e8d067535cc33013857927f23a9f0d289fa999982e7f8ae5e69"
+    },
+    {
+      "path": "e2e/demand-session.spec.ts",
+      "sha256": "03eeefcbe530c98f95f911d2614db1da5bccd442937af006a36093d1bd2e3654"
+    },
+    {
+      "path": "e2e/fixtures/api.ts",
+      "sha256": "bd7eaab1ee298dd77c4ff8777c8acefb4d629cd2ea7870ab1ab16c330f12e30a"
+    },
+    {
+      "path": "e2e/fixtures/demand_database.py",
+      "sha256": "26353ae4657c520a5d9dc029b1f1a9fa6d75042d5be067b899d69262f8bdac88"
+    },
+    {
+      "path": "e2e/release-shared.spec.ts",
+      "sha256": "8a7ccc3c113570d2dc037ff0c99338982e600f7056a7b785ae9240039f77a13f"
+    },
+    {
+      "path": "e2e/release-vehicle.spec.ts",
+      "sha256": "096552f53db565319d8304e6db34364edbee8807e7f510a425c11dfaef854ad2"
+    },
+    {
+      "path": "ops/aws/clamav/api-result-reader-policy.proposed.json",
+      "sha256": "2a2b3155ac9cb9859021181a9b49d5e4d990af890e14ac0079776f78a10fe509"
+    },
+    {
+      "path": "ops/aws/clamav/application.env.example",
+      "sha256": "b715709a8a7351d756ab6e1d828ff1e33a49aa2049d2497d96c8a7af8603d20c"
+    },
+    {
+      "path": "ops/aws/clamav/notification-fragment.proposed.json",
+      "sha256": "733edfd2ede987f67a04320c170cae282fef11201dff2233da1e18cb723bff0a"
+    },
+    {
+      "path": "ops/aws/clamav/prepare_backfill.py",
+      "sha256": "64c95b9e5861c81c29fd551bf739f2f836eaa018be342c44ca066f4392665293"
+    },
+    {
+      "path": "ops/aws/clamav/scanner-stack.proposed.json",
+      "sha256": "d544ee641241c6a2c4a1e6422217ea57c1a49b22ecf17c6eaf91bf23c5e32195"
+    },
+    {
+      "path": "ops/aws/clamav/verify_access.py",
+      "sha256": "0c75c91bcc1170718921ff09b55cc08a9a6120b5815d3966185562c4f9a661e5"
+    },
+    {
+      "path": "ops/clamav/Dockerfile",
+      "sha256": "b0a5bbaf91b9d72297529ed174e25ef07ab1d8391eedee1648c7ca4edfff1b04"
+    },
+    {
+      "path": "ops/clamav/Dockerfile.dockerignore",
+      "sha256": "c788b9026b767af8e0d1b28aa77ad2ea681f2ccc135d2e7750496e6cf2425ff5"
+    },
+    {
+      "path": "ops/clamav/clamd.conf",
+      "sha256": "e3e84918de7ad9edfafd83e80b0865ab5aed2a92824559d5127b4a27f60498b4"
+    },
+    {
+      "path": "ops/clamav/test_real_scanner.py",
+      "sha256": "193d4941144eabfbe36ecb625a9e1e1753b3f7614356901f77204e52d3ef9bdc"
+    },
+    {
+      "path": "ops/preview/api.env.example",
+      "sha256": "49c58427cfa2caac6a5a8926532b29993487dbfff975896c19551416209a57a2"
+    },
+    {
+      "path": "ops/preview/frontend.env.example",
+      "sha256": "4d0a8d633365e7bfcb00c752d6d92db8a574a86a6ecfdcb9fe856a7252f2f212"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "9c6d16098c834e591a68f1d1148af56f779692696d8da875845cf78b2227c4b9"
+    },
+    {
+      "path": "playwright.demand.config.ts",
+      "sha256": "b4ce38db3042e62a4a4149a77cd3184d90ec010e239492eb6c585f50262caca8"
+    },
+    {
+      "path": "src/components/ConnectionFeeReview.tsx",
+      "sha256": "acfe42951e6e2c08046c637bf5bf96b2ea34f0fe52b914dd7d9fdb0f6b33e019"
+    },
+    {
+      "path": "src/components/CustomerHome.tsx",
+      "sha256": "39967546c435acdd959c9b2bb96fa8e7267c77b8ba9521ee23bf2c037aad9226"
+    },
+    {
+      "path": "src/components/CustomerVerification.tsx",
+      "sha256": "dffc703ef25b74ba42e330f928e74c75ec95d09bb2c486050c17fa873a15a818"
+    },
+    {
+      "path": "src/components/DemandComposer.tsx",
+      "sha256": "d5a35c07a6148b4585b5e52f071c6d01cf07f2ff03c19844b8331c7a937551f0"
+    },
+    {
+      "path": "src/components/DemandMarketplace.css",
+      "sha256": "f80b08361faf44133f1d80f3f316b1518b04d753e46ef8dbb8209bfd4ed1e792"
+    },
+    {
+      "path": "src/components/DemandWorkspace.tsx",
+      "sha256": "5c6ec1f0327fbf3e71659d7d5198120f45c5e920ffc1422c924c80a989c4608f"
+    },
+    {
+      "path": "src/components/LiveAdmin.tsx",
+      "sha256": "0779d4ae9ccf937a0ebd78509272e99d9a27787c98cfc73a80abb02d276bd3d2"
+    },
+    {
+      "path": "src/components/LiveCapacity.tsx",
+      "sha256": "40d9d7cb52aeefb73adf13c4caa5f4b661dbbb6c3364589f155b451589468185"
+    },
+    {
+      "path": "src/components/LivePayments.tsx",
+      "sha256": "d0804d7a639f47bad1cde7a0ec620f5faf781f848cd0f6b6ce2a1b4cdaf59b24"
+    },
+    {
+      "path": "src/components/PublicInformation.tsx",
+      "sha256": "0bbb4f402f1e7993ef6e4c552d516ef844695eb39ea40345025533e88a029d87"
+    },
+    {
+      "path": "src/lib/connectionCheckout.ts",
+      "sha256": "19ee6c6e8d919ac1970e7c081d4839dd29a741cfcd91d8542e6a9ce3de2cb290"
+    },
+    {
+      "path": "src/lib/demand-types.ts",
+      "sha256": "162e3ab6afa923cc55fea9a4881c29d9999f7837caa829a5e47fe09e09498ca5"
+    },
+    {
+      "path": "src/lib/routes.ts",
+      "sha256": "c2646ec6f8df48054b3876bc48e7ce852b72115fc9076d670c667128fc826a81"
+    },
+    {
+      "path": "src/main.tsx",
+      "sha256": "da107e092ea0eb7de2d40d0c55ce7cb4ba5969fd892feb6cf2b35a1ded3065ad"
+    },
+    {
+      "path": "vite.config.ts",
+      "sha256": "1ab21f4838612f95ef07d1e60722933c0267067b21fb6294f4265c460b36226d"
+    }
+  ],
+  "exclusions": "Documentation, private credentials, generated evidence, helper scripts outside repository, uploads/dumps/dependencies",
+  "additional_tracked_files": [
+    "backend/app/services/payments.py"
+  ]
+}

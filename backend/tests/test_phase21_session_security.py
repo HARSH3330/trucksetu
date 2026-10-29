@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 import pytest
 from pydantic import ValidationError
 from fastapi.testclient import TestClient

@@ -1,0 +1,2 @@
+import {defineConfig,devices} from '@playwright/test'
+export default defineConfig({testDir:'./e2e',testMatch:'release-email.spec.ts',workers:1,retries:0,reporter:'list',outputDir:'test-results/email',use:{...devices['Desktop Chrome'],baseURL:'http://127.0.0.1:5192',trace:'off',screenshot:'off'},webServer:{command:'npm run build && npm run preview -- --host 127.0.0.1 --port 5192 --strictPort',url:'http://127.0.0.1:5192',reuseExistingServer:false,env:{...process.env,VITE_API_URL:'http://127.0.0.1:9/api/v1',VITE_GOOGLE_MAPS_BROWSER_KEY:'synthetic-unused-key'}}})
