@@ -1,0 +1,75 @@
+{
+  "source_commit": "634b41df258fa74e0e900643cc202896b3e146d3",
+  "branch": "release/customer-first-20261026",
+  "production_execution_authorized": false,
+  "artifact_kind": "Local exact-commit source/build packages; not Vercel deployment outputs",
+  "backend_wheel_source_files_verified": 64,
+  "frontend_build": {
+    "api_origin": "https://trucksetu-api-nine.vercel.app/api/v1",
+    "maps_values": "Existing Production public browser configuration, omitted",
+    "legacy_provider_marketplace": false
+  },
+  "artifacts": [
+    {
+      "file": "candidate-source-634b41df.zip",
+      "sha256": "c347fa2269d1594acb78040e0af3082aecb7409b9f91845d969797e465f1e765",
+      "bytes": 966824
+    },
+    {
+      "file": "artifacts/backend-source-634b41df.zip",
+      "sha256": "b3592d44517cadb14c02f635c70c27cf974b94e2f8a6367fac7c009d9d3908b9",
+      "bytes": 333080
+    },
+    {
+      "file": "artifacts/frontend-634b41df.zip",
+      "sha256": "ae3ff213b27899d30862ae36dd63b50a92aaaac6d167740f6a042e933ca3404c",
+      "bytes": 156833
+    },
+    {
+      "file": "artifacts/transivox_backend-1.0.0-py3-none-any.whl",
+      "sha256": "c3f731b3e392036b00a4bbba88e820c216275c33f33e8b0a47c87e6a68631893",
+      "bytes": 150282
+    }
+  ],
+  "limitations": [
+    "No target Vercel deployment IDs before separately authorized staging/deployment",
+    "Fresh backup and isolated restore unperformed; separate authorization required",
+    "SMTP sensitive-value correctness awaiting private owner confirmation",
+    "Production functionality and email receipt not tested"
+  ],
+  "ci": {
+    "status": "PASS",
+    "head_sha": "634b41df258fa74e0e900643cc202896b3e146d3",
+    "checkout_merge_sha": "4deae52d3ffe335dfd1e005c7fd6db281fe157b1",
+    "identical_source_tree": "f301e936c0a38362913ef51989e368bb4581e170",
+    "runs": [
+      40858565724,
+      40858565740
+    ],
+    "jobs": {
+      "backend": 123395665692,
+      "frontend": 123395664960,
+      "containers": 123396677361,
+      "browser": 123395664593
+    },
+    "report_artifacts": [
+      {
+        "id": 12890308105,
+        "sha256": "06ddfb0cbc27ee9c466438c2e3584f229538879fb5dc8d58f742c8d03187d842"
+      },
+      {
+        "id": 12890756857,
+        "sha256": "81a09ed7d5cd2ee2c16f53a12ce33b596769a3fdfc56cf6723bca0836dcda02e"
+      }
+    ],
+    "sourcery_full_review": "SKIPPED:306files exceeds300file API limit; scoped independent review completed"
+  },
+  "configuration_evidence": {
+    "maps_cloud_restrictions_owned_map_id_billing": "PASS:owner confirmed privately",
+    "frontend_production_maps_presence": "PASS",
+    "backend_production_smtp_presence": "PASS",
+    "backend_sensitive_smtp_correctness": "BLOCKED:private confirmation pending",
+    "frontend_sensitive_api_url_correctness": "BLOCKED:private confirmation pending",
+    "real_provider_functionality": "BLOCKED:unperformed"
+  }
+}

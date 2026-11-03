@@ -174,3 +174,8 @@ Retained-state reconciliation PASS; no surviving recovery-only writes detected. 
 The owner explicitly accepted the documented retained-state reconciliation and historical-evidence limitation, and signed off the incident for release preparation. This is NOT a claim of absolute proof of no historical data loss. Preserve all incident copies and snap-little-tree-ax4fn88h. The one approved recovery read-only endpoint remains suspended. No data repair is indicated or authorized.
 
 Incident sign-off removes the incident-owner-review preparation gate. Production execution remains separate: final exact-head CI, private settings confirmation, fresh backup/isolated restore readiness and a reviewed migration/deployment window are still required. No migration, deployment, data repair, plan upgrade or email is authorized by this sign-off.
+
+
+## Exact-source CI completion — 29 October 2026
+
+The frozen reviewed commit is634b41df258fa74e0e900643cc202896b3e146d3; hosted CI and browser checks now PASS. This supersedes earlier final-commit/browser-CI blockers and historical local patch artifacts as release-source identity. See [final attestation](2026-10-29-final-release-attestation.md) and [final exact-SHA manifest](2026-10-29-final-release-artifacts.json). Incident sign-off accepted with historical limitation. Maps owner confirmation received. Sensitive SMTP/API URL confirmation and fresh backup/isolated restore/operator/window/RPO/RTO remain blocked. No target Vercel deployment has been created; no production execution authorized.
