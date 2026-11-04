@@ -1,10 +1,12 @@
 import React,{useState} from 'react'
 import {X} from 'lucide-react'
 import {apiFetch,publicFetch} from '../lib/api'
+import {useDialog} from '../lib/useDialog'
 import PhoneVerification from './PhoneVerification'
 
 type Mode='request-reset'|'reset'|'verify'|'mobile'
 export default function AccountSecurity({close,initialEmail='',initialMode='request-reset',initialToken='',initialCode='',signedIn=false}:{close:()=>void;initialEmail?:string;initialMode?:Mode;initialToken?:string;initialCode?:string;signedIn?:boolean}){
+  const dialog=useDialog(close)
   const [mode,setMode]=useState<Mode>(initialMode)
   const [email,setEmail]=useState(initialEmail),[token,setToken]=useState(initialToken),[password,setPassword]=useState(''),[code,setCode]=useState(initialCode)
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('')
@@ -31,7 +33,7 @@ export default function AccountSecurity({close,initialEmail='',initialMode='requ
     }else if(await perform('/auth/verify-email',{email,code},'Email verified. Close this window and sign in again to refresh account details.'))setCode('')
   }
   function switchMode(next:Mode){setMode(next);setToken('');setPassword('');setCode('');setError('');setMessage('')}
-  return <div className="overlay"><div className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="account-security-title">
+  return <div className="overlay"><div ref={dialog} className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="account-security-title" tabIndex={-1}>
     <button className="modal-close" onClick={close} aria-label="Close account help"><X/></button>
     <div className="wizard-head"><small>ACCOUNT SECURITY</small><h2 id="account-security-title">Account recovery & verification</h2><p>Recover access, verify your email or update your trip contact.</p></div>
     <div className="auth-tabs"><button disabled={busy} onClick={()=>switchMode('request-reset')}>Recover password</button><button disabled={busy} onClick={()=>switchMode('verify')}>Verify email</button>{signedIn&&<button disabled={busy} onClick={()=>switchMode('mobile')}>Trip contact</button>}</div>

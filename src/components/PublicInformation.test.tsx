@@ -1,7 +1,8 @@
 import React from 'react'
 import {renderToStaticMarkup} from 'react-dom/server'
 import {expect, it} from 'vitest'
-import {PublicPolicy} from './PublicInformation'
+import {PublicPolicy,RefundTerms} from './PublicInformation'
+import type {MarketplaceConfig} from '../lib/demand-types'
 
 it('publishes a real privacy notice naming the company, PAN and the grievance contact', () => {
   const html = renderToStaticMarkup(<PublicPolicy kind="privacy" />)
@@ -18,4 +19,15 @@ it('keeps the refund page free of hard-coded checkout claims until the server an
   const html = renderToStaticMarkup(<PublicPolicy kind="refund" />)
   expect(html).toContain('Platform connection-fee rules')
   expect(html).toContain('Tax is pending server configuration')
+})
+it('does not tell customers the refund policy is unpublished',()=>{
+  expect(renderToStaticMarkup(<PublicPolicy kind="refund" />)).not.toContain('has not yet been published')
+})
+it('shows the server-recorded cancellation and failure terms once loaded',()=>{
+  const config={fee:{cancellation_terms:'1. Before reveal. Full refund.',provider_failure_terms:'1. Eligibility. Confirmed failure only.',replacement_terms:'1. Scope. One booking.'}} as unknown as MarketplaceConfig
+  const html=renderToStaticMarkup(<RefundTerms config={config} />)
+  expect(html).toContain('1. Before reveal. Full refund.')
+  expect(html).toContain('1. Eligibility. Confirmed failure only.')
+  expect(html).toContain('1. Scope. One booking.')
+  expect(renderToStaticMarkup(<RefundTerms config={null} />)).toContain('Loading the current cancellation terms')
 })

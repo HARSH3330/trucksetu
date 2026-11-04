@@ -106,3 +106,6 @@ body{line-height:1.5}
   :root .kyc-filter select{width:100%}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+:root .auth-form .signup-consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;font-weight:500;line-height:1.5}
+:root .auth-form .signup-consent input{width:20px;height:20px;padding:0;margin:2px 0 0;flex:none;accent-color:var(--green)}
+:root .auth-form .signup-consent a{color:var(--green);font-weight:700}

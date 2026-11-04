@@ -56,7 +56,14 @@ async def lifespan(_: FastAPI):
 
 
 logger = logging.getLogger("transivox.readiness")
-app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION, lifespan=lifespan)
+def api_docs_urls(production: bool) -> dict[str, str | None]:
+    # Interactive docs map every route; keep them out of production.
+    if production:
+        return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
+
+
+app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION, lifespan=lifespan, **api_docs_urls(settings.is_production))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,

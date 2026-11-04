@@ -4,7 +4,7 @@ import type {MarketplaceConfig} from './demand-types'
 export function taxSentence(config: MarketplaceConfig | null): string {
   const fee = config?.fee
   if (!fee?.tax_amount) return 'Tax is pending server configuration and confirmation.'
-  const rate = fee.tax_rate ? `${Number(fee.tax_rate) * 100}% — ` : ''
+  const rate = fee.tax_rate ? `${Number((Number(fee.tax_rate) * 100).toFixed(4))}% — ` : ''
   if (fee.tax_confirmed) return `Tax: ${rate}₹${fee.tax_amount} included; total ₹${fee.total}.`
   return `Proposed tax: ${rate}₹${fee.tax_amount}; total ₹${fee.total}. The applicable rate still requires confirmation.`
 }

@@ -34,6 +34,7 @@ class SignupInput(BaseModel):
     mobile: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
     password: str = Field(min_length=10, max_length=72)
     role: str = "customer"
+    privacy_notice_version: str | None = Field(default=None, min_length=1, max_length=80)
 
     @field_validator('mobile')
     @classmethod
@@ -110,6 +111,9 @@ async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depe
         raise HTTPException(409, "An account already exists for this email")
     user = User(full_name=payload.full_name.strip(), email=email, mobile=payload.mobile, password_hash=get_password_hash(payload.password))
     user.roles.append(UserRole(role=role)); db.add(user); await db.flush()
+    if payload.privacy_notice_version:
+        db.add(AuditLog(actor_id=user.id, action="legal.privacy_acknowledged", entity_type="user", entity_id=user.id,
+                        after={"version": payload.privacy_notice_version, "source": "registration"}))
     code = generate_otp()
     db.add(AccountVerification(user_id=user.id, channel="email", code_hash=hash_otp(code), expires_at=datetime.now(UTC) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)))
     result = await issue_session(user, request, db)

@@ -9,6 +9,10 @@ describe('fee copy follows server state', () => {
     expect(taxSentence(base())).toMatch(/still requires confirmation/)
     expect(taxSentence(base({}, {tax_confirmed: true}))).toBe('Tax: 18% — ₹15.10 included; total ₹99.00.')
   })
+  it('formats tax rates without floating-point noise', () => {
+    expect(taxSentence(base({}, {tax_confirmed: true, tax_rate: '0.28'}))).toBe('Tax: 28% — ₹15.10 included; total ₹99.00.')
+    expect(taxSentence(base({}, {tax_confirmed: true, tax_rate: '0.125'}))).toBe('Tax: 12.5% — ₹15.10 included; total ₹99.00.')
+  })
   it('handles missing configuration honestly', () => {
     expect(taxSentence(null)).toMatch(/pending server configuration/)
     expect(taxSentence(base({}, {tax_amount: null}))).toMatch(/pending server configuration/)
