@@ -4,7 +4,9 @@ export type Place={formattedAddress?:string;location?:LatLng;addressComponents?:
 export type SelectPlaceEvent=Event&{placePrediction:{toPlace:()=>Place}}
 export type MapInstance={setCenter:(p:MapPoint)=>void;setZoom:(z:number)=>void;addListener:(n:string,cb:(e:{latLng?:LatLng})=>void)=>{remove:()=>void}}
 export type MarkerInstance=HTMLElement&{position:MapPoint|LatLng|null;map:MapInstance|null}
-export type MapLibraries={maps:{Map:new(el:HTMLElement,o:object)=>MapInstance};places:{PlaceAutocompleteElement:new(o?:object)=>HTMLElement};marker:{AdvancedMarkerElement:new(o:object)=>MarkerInstance}}
+export type PlacePrediction={placeId:string;text:{text:string};mainText?:{text:string}|null;secondaryText?:{text:string}|null;toPlace:()=>Place}
+export type AutocompleteRequest={input:string;sessionToken?:unknown;includedRegionCodes?:string[];includedPrimaryTypes?:string[]}
+export type MapLibraries={maps:{Map:new(el:HTMLElement,o:object)=>MapInstance};places:{AutocompleteSuggestion:{fetchAutocompleteSuggestions:(request:AutocompleteRequest)=>Promise<{suggestions:{placePrediction:PlacePrediction|null}[]}>};AutocompleteSessionToken:new()=>unknown};marker:{AdvancedMarkerElement:new(o:object)=>MarkerInstance}}
 type MapsGlobal={maps:{importLibrary:(name:string)=>Promise<unknown>}}
 declare global{interface Window{google?:MapsGlobal;gm_authFailure?:()=>void;transivoxMapsReady?:()=>void}}
 let loading:Promise<MapLibraries>|null=null

@@ -109,3 +109,22 @@ body{line-height:1.5}
 :root .auth-form .signup-consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;font-weight:500;line-height:1.5}
 :root .auth-form .signup-consent input{width:20px;height:20px;padding:0;margin:2px 0 0;flex:none;accent-color:var(--green)}
 :root .auth-form .signup-consent a{color:var(--green);font-weight:700}
+:root .address-search{position:relative;display:grid;gap:6px;min-width:0}
+:root .address-suggestions{position:absolute;top:100%;left:0;right:0;z-index:30;margin:4px 0 0;padding:4px;list-style:none;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #173d3426;max-height:300px;overflow:auto}
+:root .address-suggestions [role=option]{display:grid;gap:2px;padding:10px 12px;min-height:44px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:500}
+:root .address-suggestions [role=option] small{color:var(--muted);font-size:12px;font-weight:400}
+:root .address-suggestions [role=option].active,:root .address-suggestions [role=option]:hover{background:#e8f4ef}
+:root .address-attribution{padding:6px 12px;font-size:11px;color:var(--muted);text-align:right}
+:root .address-status{color:var(--muted);font-size:12px;font-weight:500}
+:root .location-map{margin:12px 0;min-width:0}
+:root .location-map-canvas{height:300px;width:100%;border-radius:8px;overflow:hidden;background:#eaf0ed}
+@media (max-width:640px){:root .location-map-canvas{height:240px}}
+:root .demand-form .address-search,:root .connection-panel .address-search{gap:7px;margin:0 0 18px;font-weight:600}
+:root .address-search>label{display:block;margin:0}
+:root .demand-pin-choice{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;border:0;padding:0;margin:12px 0}
+:root .demand-pin-choice legend{float:left;margin-right:8px;font-weight:600}
+:root .demand-pin-actions{align-items:center}
+:root .demand-pin-actions>span{font-size:13px;color:var(--muted)}
+:root .demand-pin-actions .demand-nudge{flex:0 0 44px;min-width:44px;width:44px;height:44px;padding:0;font-size:18px}
+:root .demand-pin-review{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;border-top:1px solid var(--line)}
+:root .demand-pin-review>p{margin:0;flex-basis:100%}

@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react'
-import {apiFetch,type CurrentUser} from '../lib/api'
+import {ApiError,apiFetch,type CurrentUser} from '../lib/api'
 import LiveKYC from './LiveKYC'
 import './DemandMarketplace.css'
 
@@ -10,10 +10,15 @@ type Pending={document_type:string;filename:string;content_type:string;storage_k
 const label=(value:string)=>({aadhaar:'Aadhaar',pan:'PAN'}[value]||value)
 const errorText=(error:unknown)=>error instanceof Error?error.message:'Verification is unavailable. Your uploaded document has not been approved.'
 
-export default function VerificationWorkspace(){
- const [user,setUser]=useState<CurrentUser|null>(null),[error,setError]=useState('')
- const load=()=>{setError('');apiFetch<CurrentUser>('/auth/me').then(setUser).catch(e=>setError(errorText(e)))}
+export function VerificationSignedOut({onSignIn}:{onSignIn?:()=>void}){
+ return <main className="page"><h1>Customer verification</h1><p>Sign in to verify your account. Your PAN is reviewed privately and is never shown to providers.</p>{onSignIn&&<button onClick={onSignIn}>Sign in</button>}</main>
+}
+
+export default function VerificationWorkspace({onSignIn}:{onSignIn?:()=>void}={}){
+ const [user,setUser]=useState<CurrentUser|null>(null),[error,setError]=useState(''),[signedOut,setSignedOut]=useState(false)
+ const load=()=>{setError('');setSignedOut(false);apiFetch<CurrentUser>('/auth/me').then(setUser).catch(e=>{if(e instanceof ApiError&&e.status===401)setSignedOut(true);else setError(errorText(e))})}
  useEffect(load,[])
+ if(signedOut)return <VerificationSignedOut onSignIn={onSignIn}/>
  if(error)return <main className="page"><p role="alert">{error}</p><button onClick={load}>Retry verification</button></main>
  if(!user)return <main className="page"><p role="status">Loading verification…</p></main>
  if(user.roles.some(r=>['admin','superadmin'].includes(r)))return <><LiveKYC/><CustomerVerification admin/></>

@@ -1,4 +1,4 @@
-export const PRIVACY_VERSION = 'privacy-v1-20261104'
+export const PRIVACY_VERSION = 'privacy-v2-20261104'
 export const PRIVACY_CONTACT = 'harshagarwal244@gmail.com'
 
 export type PrivacySection = {heading: string; paragraphs?: string[]; items?: string[]}
@@ -23,7 +23,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     'Vercel: website and application hosting.',
     'Razorpay: payments.',
     'Brevo: transactional emails such as verification codes.',
-    'Google (Maps and Places): only if you choose to load map search; your map searches are shared with Google.'],
+    'Google (Maps, Places and Routes): when you type at least three characters into a pickup, drop, origin or destination field, that text is sent to Google to suggest places; the places you choose are shown on a Google map and may be used to calculate road distance.'],
    paragraphs: ['We do not sell your personal data.']},
   {heading: '6. Security', paragraphs: [
     'Documents are stored in a private, encrypted bucket with no public access, are scanned for malware, and are opened only through short-lived authorised links by authorised reviewers. No system is perfectly secure.']},

@@ -104,7 +104,7 @@ test('admin review queue remains reachable on mobile',async({page})=>{
   })
   await page.goto('/')
   await expect(page.getByRole('heading',{name:'Marketplace control centre'})).toBeVisible()
-  await expect(page.getByRole('button',{name:'Open queue',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'Open vehicle queue',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'Review now',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Verification review queue'})).toBeVisible()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)

@@ -95,7 +95,7 @@ test('mobile vehicle creation, protected uploads, scan gate, rejection/replaceme
     await card.getByRole('button',{name:'Approve',exact:true}).click()
     const decision=a.locator('.vehicle-decision')
     await decision.getByRole('textbox',{name:'Review reason',exact:true}).fill('All five harmless current files manually accepted')
-    await decision.getByRole('button',{name:'Confirm approved',exact:true}).click()
+    await decision.getByRole('button',{name:'Confirm: approve',exact:true}).click()
     await a.getByRole('button',{name:/^approved /}).click()
     await expect(a.getByText(registration,{exact:true})).toBeVisible()
     await p.reload()

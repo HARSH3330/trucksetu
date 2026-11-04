@@ -40,7 +40,7 @@ test('provider bid revision/withdrawal, captured assignment, trip gates and pers
   await fillBid('750')
   await p.getByRole('button',{name:'My bids',exact:true}).click()
   await p.getByRole('button',{name:'Withdraw bid',exact:true}).click()
-  await expect(p.locator('.demand-card').getByText(/withdrawn/)).toBeVisible()
+  await expect(p.locator('.demand-card').getByText(/withdrawn/i)).toBeVisible()
   await p.getByRole('button',{name:'Available demands',exact:true}).click();await fillBid('800')
   await p.setViewportSize({width:1440,height:950});await p.screenshot({path:testInfo.outputPath('provider-revised-bid-desktop.png'),fullPage:true});await p.setViewportSize({width:390,height:950})
   await c.goto('/#requirements')

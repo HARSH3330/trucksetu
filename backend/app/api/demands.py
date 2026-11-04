@@ -15,7 +15,7 @@ from app.core.database import acquire_idempotency_lock, get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.routing import AuthenticationFirstRoute
 from app.models import (
-    Booking, BookingAllocation, ConnectionFeeEvent, DemandDraft, DemandSelection, Quote, QuoteVersion, TransportRequest, Trip,
+    Booking, BookingAllocation, CargoItem, ConnectionFeeEvent, DemandDraft, DemandSelection, Quote, QuoteVersion, TransportRequest, Trip,
 )
 from app.schemas import DriverAssignment
 from app.services.demand_policy import public_text, read_policy, reject_contact, require_policy
@@ -226,8 +226,9 @@ async def compare_bids(identity: uuid.UUID, db=Depends(get_db), user=Depends(cus
 @router.get('/demand-bids/mine')
 async def my_bids(db=Depends(get_db),user=Depends(provider_role)):
     provider = await provider_for(db,user)
-    items = await db.scalars(select(Quote).join(TransportRequest).where(Quote.provider_id == provider.id,TransportRequest.marketplace_mode == 'customer_demand').options(selectinload(Quote.provider),selectinload(Quote.vehicle_category),selectinload(Quote.versions)).order_by(Quote.created_at.desc()).limit(100))
-    return [bid_view(x) for x in items]
+    # Name each bid's requirement with the same public fields shown in demand listings.
+    rows = (await db.execute(select(Quote,TransportRequest.public_id,TransportRequest.pickup_city,TransportRequest.destination_city,CargoItem.category).join(TransportRequest,TransportRequest.id == Quote.request_id).outerjoin(CargoItem,CargoItem.request_id == TransportRequest.id).where(Quote.provider_id == provider.id,TransportRequest.marketplace_mode == 'customer_demand').options(selectinload(Quote.provider),selectinload(Quote.vehicle_category),selectinload(Quote.versions)).order_by(Quote.created_at.desc()).limit(100))).all()
+    return [{**bid_view(quote),'requirement':{'reference':reference,'pickup_city':pickup,'destination_city':destination,'cargo_category':category}} for quote,reference,pickup,destination,category in rows]
 
 
 @router.post('/demand-bids/{identity}/withdraw')
