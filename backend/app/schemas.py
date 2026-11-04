@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.core.config import settings
 from app.core.time import INDIA, utc_datetime
@@ -281,6 +281,30 @@ class CarrierVehicleCreate(BaseModel):
             self.maximum_volume_m3 = computed
         elif self.maximum_volume_m3 > computed:
             raise ValueError("Maximum cargo volume cannot exceed internal body volume")
+        return self
+
+
+class CarrierVehicleUpdate(BaseModel):
+    """Provider-editable vehicle fields. Identity, ownership, status and document expiries are not editable."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    vehicle_category_id: uuid.UUID | None = None
+    body_type: str | None = Field(default=None, pattern="^(open|closed|container)$")
+    maximum_payload_tonnes: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=3)
+    internal_length_m: Decimal | None = Field(default=None, gt=0, le=30, max_digits=7, decimal_places=3)
+    internal_width_m: Decimal | None = Field(default=None, gt=0, le=10, max_digits=7, decimal_places=3)
+    internal_height_m: Decimal | None = Field(default=None, gt=0, le=10, max_digits=7, decimal_places=3)
+    maximum_volume_m3: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=3)
+    permit_territories: list[str] | None = Field(default=None, min_length=1, max_length=50)
+    service_areas: list[str] | None = Field(default=None, min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def require_a_change(self) -> "CarrierVehicleUpdate":
+        if not self.model_fields_set:
+            raise ValueError("Provide at least one field to update")
+        if any(getattr(self, name) is None for name in self.model_fields_set):
+            raise ValueError("Vehicle fields cannot be cleared")
         return self
 
 

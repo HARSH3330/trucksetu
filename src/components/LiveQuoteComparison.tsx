@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from 'react'
-import {ArrowRightIcon as ArrowRight, SealCheckIcon as BadgeCheck, CheckIcon as Check, StarIcon as Star} from '@phosphor-icons/react'
+import {ArrowRight, BadgeCheck, Check, Star} from 'lucide-react'
 import {ApiError, apiFetch, type BookingResult, type MarketplaceRequest, type Quote} from '../lib/api'
 import TermsConsent from './TermsConsent'
 import SharedQuoteAcceptance from './SharedQuoteAcceptance'

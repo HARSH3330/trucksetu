@@ -1,8 +1,8 @@
 import {parseAccountEmailLink,type AccountEmailLink} from './lib/account-email-link'
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {IconContext} from '@phosphor-icons/react';
-import {WarningIcon as AlertTriangle, ArrowRightIcon as ArrowRight, SealCheckIcon as BadgeCheck, BellIcon as Bell, CubeIcon as Box, CheckIcon as Check, CaretRightIcon as ChevronRight, UserCircleIcon as CircleUserRound, ClockIcon as Clock3, FileTextIcon as FileText, CurrencyInrIcon as IndianRupee, SquaresFourIcon as LayoutDashboard, MapPinIcon as MapPin, ListIcon as Menu, PackageIcon as PackageCheck, PlusIcon as Plus, PathIcon as Route, MagnifyingGlassIcon as Search, ShieldCheckIcon as ShieldCheck, StarIcon as Star, TruckIcon as Truck, CloudArrowUpIcon as UploadCloud, UsersIcon as UsersRound, WalletIcon as WalletCards, XIcon as X} from '@phosphor-icons/react';
+
+import {AlertTriangle, ArrowRight, BadgeCheck, Bell, Box, Check, ChevronRight, CircleUserRound, Clock3, FileText, IndianRupee, LayoutDashboard, MapPin, Menu, PackageCheck, Plus, Route, Search, ShieldCheck, Star, Truck, UploadCloud, UsersRound, WalletCards, X} from 'lucide-react'
 import './styles.css';
 import './pilot.css';
 import './pricing.css';
@@ -27,7 +27,6 @@ import PublicLoadsPreview from './components/PublicLoadsPreview';
 import AccountSecurity from './components/AccountSecurity';
 import {useDialog} from './lib/useDialog';
 import './production-ui.css';
-import './design-ui.css';
 import {useHashView,type View} from './lib/routes';
 import {PublicFaq,PublicFooter,PublicSupport,PublicPolicy} from './components/PublicInformation';
 import RouteIllustration from './components/RouteIllustration';
@@ -128,4 +127,4 @@ function RequestWizard({close,routeSeed,onSignIn,onSeedConsumed}:{close:()=>void
  {error&&<div className="form-error" role="alert">{error}{!sessionStorage.getItem('transivox_access_token')&&<button type="button" onClick={onSignIn}>Sign in to publish</button>}</div>}</div><div className="wizard-foot">{step>1?<button disabled={busy} className="secondary" onClick={()=>{setError('');setStep(step-1)}}>Back</button>:<span/>}<button disabled={busy} onClick={next}>{busy?'Publishing…':step<4?'Continue':'Publish requirement'} <ArrowRight/></button></div></div></div>
 }
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><IconContext.Provider value={{size:20,weight:'regular','aria-hidden':true,focusable:false}}><AppErrorBoundary><App/></AppErrorBoundary></IconContext.Provider></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(<React.StrictMode><AppErrorBoundary><App/></AppErrorBoundary></React.StrictMode>);

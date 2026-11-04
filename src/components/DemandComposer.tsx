@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState,type FormEvent} from 'react'
-import {ArrowRightIcon,CheckIcon,FloppyDiskIcon} from '@phosphor-icons/react'
+import {ArrowRight as ArrowRightIcon, Check as CheckIcon, Save as FloppyDiskIcon} from 'lucide-react'
 import {apiFetch,type CurrentUser} from '../lib/api'
 import TermsConsent from './TermsConsent'
 import DemandLocationMap from './DemandLocationMap'

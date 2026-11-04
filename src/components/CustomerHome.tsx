@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react'
-import {ArrowRightIcon} from '@phosphor-icons/react'
+import {ArrowRight as ArrowRightIcon} from 'lucide-react'
 import {publicFetch} from '../lib/api'
 import {money,type MarketplaceConfig} from '../lib/demand-types'
 import type {View} from '../lib/routes'

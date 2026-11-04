@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react'
-import {ArrowRightIcon as ArrowRight, SealCheckIcon as BadgeCheck, ClockIcon as Clock3, MapPinIcon as MapPin, PathIcon as Route, MagnifyingGlassIcon as Search, StarIcon as Star, TruckIcon as Truck} from '@phosphor-icons/react'
+import {ArrowRight, BadgeCheck, Clock3, MapPin, Route, Search, Star, Truck} from 'lucide-react'
 import {publicFetch, type AvailableRoute, type CurrentUser} from '../lib/api'
 import CapacityPublication from './CapacityPublication'
 import SharedCapacityRequest from './SharedCapacityRequest'

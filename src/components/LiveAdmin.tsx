@@ -2,7 +2,7 @@ import ConnectionFeeReview from './ConnectionFeeReview'
 import AdminRecords from './AdminRecords'
 import SharedMatchReview from './SharedMatchReview'
 import {useEffect, useState} from 'react'
-import {WarningIcon as AlertTriangle, SealCheckIcon as BadgeCheck, CurrencyInrIcon as IndianRupee, PackageIcon as PackageCheck, ShieldCheckIcon as ShieldCheck, TruckIcon as Truck, UsersIcon as UsersRound} from '@phosphor-icons/react'
+import {AlertTriangle, BadgeCheck, IndianRupee, PackageCheck, ShieldCheck, Truck, UsersRound} from 'lucide-react'
 import {ApiError, apiFetch} from '../lib/api'
 
 type Health={verified_providers:number;approved_vehicles:number;open_requests:number;active_quotes:number;active_bookings:number;open_disputes:number;pending_kyc:number;gmv:string;total_bookings:number;completed_bookings:number;completion_rate:number}
