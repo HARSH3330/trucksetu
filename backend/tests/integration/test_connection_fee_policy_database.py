@@ -165,3 +165,40 @@ def test_capture_after_prereveal_cancellation_creates_full_refund_obligation(mon
                     assert refund.json()['refund_status']=='requested' and refund.json()['refund_amount']=='1200.00'
             finally:app.dependency_overrides.pop(get_connection_gateway,None)
     run_local(exercise())
+
+
+def test_cancelled_connection_reopens_requirement_for_another_bid(monkeypatch):
+    from app.models import AvailableRoute
+    from test_shared_booking_database import seed
+    configure(monkeypatch)
+    async def second_provider(factory):
+        actors,route_id,_,_=await seed(factory)
+        async with factory() as db:
+            route=await db.get(AvailableRoute,route_id);route.status='cancelled'
+            owner=await db.get(User,actors[2].id);owner.mobile='+917'+str(uuid.uuid4().int)[0:9];owner.mobile_verified=True
+            vehicle_id=route.carrier_vehicle_id
+            await db.commit()
+        return {'Authorization':'Bearer '+create_access_token({'sub':str(actors[2].id),'sv':0})},vehicle_id
+    async def exercise():
+        async with migrated_schema() as (_,factory):
+            monkeypatch.setattr(database,'get_session_factory',lambda:factory)
+            headers,payload,bid,_=await actors_and_payload(factory)
+            other,other_vehicle=await second_provider(factory)
+            app.dependency_overrides[get_connection_gateway]=LocalGateway
+            try:
+                async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://localhost') as client:
+                    identity,pick,selected,order=await prepare_selection(client,headers,payload,bid)
+                    assert (await capture(client,order,amount=order['amount'])).status_code==200
+                    cancelled=await client.post('/api/v1/demand-selections/'+selected['id']+'/cancel',headers=headers[0],json={'reason':'Customer wants a different provider'})
+                    assert cancelled.status_code==200 and cancelled.json()['refund_status']=='requested'
+                    mine=(await client.get('/api/v1/demands/mine',headers=headers[0])).json()
+                    assert next(d for d in mine if d['id']==identity)['status']=='published', 'Requirement must reopen for other bids'
+                    again=await client.post(f'/api/v1/demands/{identity}/select',headers=headers[0],json={**pick,'idempotency_key':'select-'+uuid.uuid4().hex})
+                    assert again.status_code==409, 'The cancelled provider bid must not be selectable again'
+                    offered=await client.post(f'/api/v1/demands/{identity}/bids',headers=other,json={**bid,'vehicle_id':str(other_vehicle),'amount':'800.00'})
+                    assert offered.status_code==201,offered.text
+                    second={**pick,'quote_id':offered.json()['id'],'idempotency_key':'select-'+uuid.uuid4().hex}
+                    chosen=await client.post(f'/api/v1/demands/{identity}/select',headers=headers[0],json=second)
+                    assert chosen.status_code==201,chosen.text
+            finally:app.dependency_overrides.pop(get_connection_gateway,None)
+    run_local(exercise())

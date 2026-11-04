@@ -265,7 +265,12 @@ async def select_bid(identity: uuid.UUID,payload: SelectionInput,db=Depends(get_
         return selection_view(existing)
     if item.status != 'published' or item.revision != payload.expected_request_revision:
         raise HTTPException(409,'Requirement already selected or changed')
-    prior_checkout = await db.scalar(select(DemandSelection.id).where(DemandSelection.request_id == identity, (DemandSelection.gateway_order_id.is_not(None) | DemandSelection.order_state.in_(['creating','unknown']))).limit(1))
+    # An explicitly cancelled checkout no longer blocks a new choice: a late capture on it becomes a
+    # full refund obligation. Any other open gateway order, an order still being created, an unknown
+    # order or a disputed payment needs reconciliation before another connection fee is charged.
+    open_order = DemandSelection.gateway_order_id.is_not(None) & (DemandSelection.payment_status == 'pending') & DemandSelection.status.not_in(['cancelled','refund_requested'])
+    unsettled = DemandSelection.order_state.in_(['creating','unknown']) | (DemandSelection.payment_status == 'disputed') | open_order | (DemandSelection.gateway_order_id.is_not(None) & DemandSelection.status.in_(['pending','paid']))
+    prior_checkout = await db.scalar(select(DemandSelection.id).where(DemandSelection.request_id == identity, unsettled).limit(1))
     if prior_checkout:
         raise HTTPException(409,'A previous checkout needs payment reconciliation before another connection fee can be created')
     if not payload.accept_terms or payload.accepted_fee_policy_version != fee.version:

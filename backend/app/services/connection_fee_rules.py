@@ -25,7 +25,7 @@ async def record_full_refund(db,item,reason):
 async def cancel_connection(db,item,demand,actor,reason):
     from datetime import UTC,datetime
     from sqlalchemy import select
-    from app.models import Booking,BookingAllocation,Trip,ConnectionFeeCredit,ConnectionFeeRefundRequest
+    from app.models import Booking,BookingAllocation,Trip,ConnectionFeeCredit,ConnectionFeeRefundRequest,Quote
     from app.services.demand_marketplace import audit
     previous_refund=await db.scalar(select(ConnectionFeeRefundRequest).where(ConnectionFeeRefundRequest.selection_id==item.id))
     if previous_refund:
@@ -33,7 +33,12 @@ async def cancel_connection(db,item,demand,actor,reason):
     item.cancelled_at=item.cancelled_at or datetime.now(UTC)
     refund=await record_full_refund(db,item,reason) if refund_is_eligible(item) else None
     item.status='refund_requested' if refund else 'cancelled'
-    demand.status='cancelled'
+    # Reopen the requirement so the customer can choose another provider's bid.
+    if demand.status in {'selection_pending','allocated'}:
+        demand.status='published'
+    quote=await db.get(Quote,item.quote_id)
+    if quote and quote.status in {'selected','accepted'}:
+        quote.status='cancelled'
     booking=await db.get(Booking,item.booking_id);booking.status='cancelled'
     trips=list(await db.scalars(select(Trip).join(BookingAllocation).where(BookingAllocation.booking_id==item.booking_id)))
     for trip in trips:
@@ -42,7 +47,7 @@ async def cancel_connection(db,item,demand,actor,reason):
         credit=await db.scalar(select(ConnectionFeeCredit).where(ConnectionFeeCredit.id==item.credit_id).with_for_update())
         if credit.status=='reserved' and credit.reserved_selection_id==item.id:
             credit.status='available';credit.reserved_selection_id=None;item.credit_id=None
-    audit(db,actor,'connection.cancelled','demand_selection',item.id,{'refund_id':str(refund.id) if refund else None,'refund_amount':str(refund.amount) if refund else None,'contact_previously_revealed':item.contact_revealed_at is not None,'reason':reason})
+    audit(db,actor,'connection.cancelled','demand_selection',item.id,{'refund_id':str(refund.id) if refund else None,'refund_amount':str(refund.amount) if refund else None,'contact_previously_revealed':item.contact_revealed_at is not None,'reason':reason,'requirement_reopened':demand.status=='published'})
     return dict(status='cancelled',refund_id=str(refund.id) if refund else None,refund_amount=str(refund.amount) if refund else '0.00',refund_status=refund.status if refund else 'not_eligible_after_reveal' if item.contact_revealed_at else 'no_captured_payment')
 
 
