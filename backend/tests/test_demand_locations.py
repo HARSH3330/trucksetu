@@ -14,6 +14,6 @@ def test_discovery_hides_coordinates_and_owner_edit_restores_them():
     import uuid
     from datetime import datetime,UTC
     cargo=SimpleNamespace(**{k:None for k in ['category','description','weight_tonnes','length_m','width_m','height_m','packages','packaging_type','dimensions_are_per_package','loading_assistance','unloading_assistance','fragile','volume_m3']})
-    item=SimpleNamespace(id=uuid.uuid4(),public_id='synthetic',revision=1,status='published',pickup_city='Delhi',destination_city='Noida',pickup_date=datetime.now(UTC).date(),earliest_pickup_at=None,latest_pickup_at=None,delivery_deadline_at=None,flexible_schedule=False,budget_amount=Decimal('1'),cargo=cargo,pickup_address='Private pickup',destination_address='Private delivery',special_instructions=None,pickup_location={'lat':28.6,'lng':77.2},destination_location=None)
+    item=SimpleNamespace(id=uuid.uuid4(),public_id='synthetic',stops=[],revision=1,status='published',pickup_city='Delhi',destination_city='Noida',pickup_date=datetime.now(UTC).date(),earliest_pickup_at=None,latest_pickup_at=None,delivery_deadline_at=None,flexible_schedule=False,budget_amount=Decimal('1'),cargo=cargo,pickup_address='Private pickup',destination_address='Private delivery',special_instructions=None,pickup_location={'lat':28.6,'lng':77.2},destination_location=None)
     public=demand_view(item);assert 'pickup_location' not in public and 'destination_location' not in public
     assert demand_view(item,True)['pickup_location']==item.pickup_location

@@ -56,6 +56,15 @@ async def signup(payload:auth.SignupInput,request:Request,response:Response,db:A
     return cookie_result(result,response)
 
 
+@router.post('/google')
+async def google(payload:auth.GoogleSignInInput,request:Request,response:Response,db:AsyncSession=Depends(get_db)):
+    result=await auth.google_sign_in(payload,request,db)
+    if result.get('status')!='signed_in':
+        return result
+    await db.commit()
+    return cookie_result(result,response)
+
+
 @router.post('/refresh')
 async def refresh(request:Request,response:Response,token:str=Depends(require_refresh_cookie),db:AsyncSession=Depends(get_db)):
     result=await auth.refresh(auth.RefreshInput(refresh_token=token),request,db)

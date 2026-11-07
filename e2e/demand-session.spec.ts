@@ -47,7 +47,7 @@ test('real PostgreSQL session survives browser reopening, refreshes, enforces CS
     expect((await restored.request.post(`${api}/auth/session/refresh`,{headers:{Origin:'https://attacker.invalid','X-TransivoX-CSRF':'1'}})).status()).toBe(403)
     expect((await request.get(`${api}/auth/me`)).status()).toBe(401)
     const beforeLogout=(await reopened.cookies(api+'/auth/session/refresh')).find(item=>item.name==='transivox_refresh')!
-    await restored.getByRole('button',{name:'Sign out',exact:true}).click()
+    {const menu=restored.locator('header').getByRole('button',{name:'Open navigation'});if(await menu.isVisible())await menu.click();await restored.locator('header').getByRole('button',{name:'Sign out',exact:true}).click()}
     await expect(restored.getByText('Signed out.',{exact:true})).toBeVisible()
     expect((await reopened.cookies()).some(item=>item.name==='transivox_refresh')).toBe(false)
     expect((await request.post(`${api}/auth/session/refresh`,{headers:{Origin:origin,'X-TransivoX-CSRF':'1',Cookie:`transivox_refresh=${beforeLogout.value}`}})).status()).toBe(401)

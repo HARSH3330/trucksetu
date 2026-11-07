@@ -15,7 +15,7 @@ from app.core.database import acquire_idempotency_lock, get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.routing import AuthenticationFirstRoute
 from app.models import (
-    Booking, BookingAllocation, CargoItem, ConnectionFeeEvent, DemandDraft, DemandSelection, Quote, QuoteVersion, TransportRequest, Trip,
+    Booking, BookingAllocation, CargoItem, ConnectionFeeEvent, RequestStop, DemandDraft, DemandSelection, Quote, QuoteVersion, TransportRequest, Trip,
 )
 from app.schemas import DriverAssignment
 from app.services.demand_policy import public_text, read_policy, reject_contact, require_policy
@@ -104,7 +104,7 @@ async def publish_demand(payload: DemandInput, db=Depends(get_db), user=Depends(
     from app.services.customer_kyc import require_customer_kyc
     await require_customer_kyc(db, user)
     await require_terms(db, user.id)
-    reject_contact(payload.cargo.category, payload.cargo.description, payload.special_instructions)
+    reject_contact(payload.cargo.category, payload.cargo.description, payload.special_instructions, *[value for stop in payload.stops for value in (stop.instructions, stop.contact_name)])
     draft = None
     if payload.draft_id:
         draft = await db.scalar(select(DemandDraft).where(DemandDraft.id == payload.draft_id).with_for_update())
@@ -165,7 +165,7 @@ async def edit_demand(identity: uuid.UUID, payload: DemandInput, db=Depends(get_
     await expire_pending(db,item)
     if item.status != 'published' or payload.expected_revision != item.revision:
         raise HTTPException(409, 'Only the current open requirement can be edited; accepted agreements stay unchanged')
-    reject_contact(payload.cargo.category, payload.cargo.description, payload.special_instructions)
+    reject_contact(payload.cargo.category, payload.cargo.description, payload.special_instructions, *[value for stop in payload.stops for value in (stop.instructions, stop.contact_name)])
     # Revalidate using the existing creation contract, but keep the original identity.
     for key in ['pickup_address','pickup_city','destination_address','destination_city','pickup_date','pickup_time','flexible_schedule','earliest_pickup_at','latest_pickup_at','delivery_deadline_at','budget_amount','special_instructions']:
         setattr(item,key,getattr(payload,key))
@@ -173,6 +173,10 @@ async def edit_demand(identity: uuid.UUID, payload: DemandInput, db=Depends(get_
         setattr(item.cargo,key,value)
     item.pickup_location = payload.pickup_location.model_dump() if payload.pickup_location else None
     item.destination_location = payload.destination_location.model_dump() if payload.destination_location else None
+    # Replace stops in two steps so the unique (request, position) index never sees old and new rows together.
+    item.stops.clear()
+    await db.flush()
+    item.stops.extend(RequestStop(position=index, **stop.model_dump()) for index, stop in enumerate(payload.stops, start=1))
     item.revision += 1
     await db.execute(update(Quote).where(Quote.request_id == item.id,Quote.status == 'active').values(status='expired'))
     audit(db,user.id,'demand.edited_bids_expired','transport_request',item.id,{'revision':item.revision})

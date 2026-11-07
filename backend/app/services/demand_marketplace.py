@@ -131,7 +131,11 @@ def demand_view(item, private=False):
               'cargo':{key:getattr(cargo,key) for key in ['category','description','weight_tonnes','length_m','width_m','height_m','packages','packaging_type','dimensions_are_per_package','loading_assistance','unloading_assistance','fragile','volume_m3']}}
     for key in ['category','description','packaging_type']:
         result['cargo'][key] = public_text(result['cargo'][key])
+    stops = sorted(item.stops, key=lambda stop: stop.position)
+    # Providers see how many stops to price; addresses stay private like pickup and drop.
+    result['stop_count'] = len(stops)
     if private:
+        result['stops'] = [{'address':stop.address,'activity':stop.activity,'instructions':stop.instructions,'contact_name':stop.contact_name} for stop in stops]
         result.update(pickup_address=item.pickup_address, destination_address=item.destination_address, special_instructions=item.special_instructions, pickup_location=item.pickup_location, destination_location=item.destination_location)
     return result
 

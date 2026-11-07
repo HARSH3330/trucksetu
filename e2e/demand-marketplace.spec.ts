@@ -127,14 +127,14 @@ for(const width of [1440,768,390])test(`customer-led demand, bid, connection fee
   expect(orderCalls).toBe(before)
   await c.evaluate(()=>window.scrollTo(0,0))
   await c.screenshot({path:testInfo.outputPath('purchased-driver-contact.png'),fullPage:true})
-  await c.locator('header').getByRole('button',{name:'Sign out',exact:true}).click()
+  {const menu=c.locator('header').getByRole('button',{name:'Open navigation'});if(await menu.isVisible())await menu.click();await c.locator('header').getByRole('button',{name:'Sign out',exact:true}).click()}
   await expect(c.locator('header').getByRole('button',{name:'Sign in',exact:true})).toBeVisible()
   expect(await c.content()).not.toContain(data.provider_phone)
   expect(await c.content()).not.toContain(data.driver_phone)
   await signIn(c,data.other_customer_email,providerAccount.password,'My requirements')
   expect(await c.content()).not.toContain(data.provider_phone)
   expect((await c.request.get(contactUrl,{headers:{Authorization:'Bearer '+await accessToken(c)}})).status()).toBe(404)
-  await c.locator('header').getByRole('button',{name:'Sign out',exact:true}).click()
+  {const menu=c.locator('header').getByRole('button',{name:'Open navigation'});if(await menu.isVisible())await menu.click();await c.locator('header').getByRole('button',{name:'Sign out',exact:true}).click()}
   await expect(c.locator('header').getByRole('button',{name:'Sign in',exact:true})).toBeVisible()
   await signIn(c,data.customer_email,providerAccount.password,'My requirements')
   await c.goto('/#requirements',{waitUntil:'domcontentloaded'})

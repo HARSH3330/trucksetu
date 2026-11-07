@@ -161,7 +161,7 @@ test('logout clears protected screens across browser Back and reload',async({pag
   })
   await page.goto('/#bookings')
   await expect(page.getByText('No bookings yet',{exact:true})).toBeVisible()
-  await page.getByRole('button',{name:'Sign out',exact:true}).click()
+  {const menu=page.locator('header').getByRole('button',{name:'Open navigation'});if(await menu.isVisible())await menu.click();await page.locator('header').getByRole('button',{name:'Sign out',exact:true}).click()}
   await expect(page.getByRole('button',{name:'Sign in',exact:true}).first()).toBeVisible()
   expect(await page.evaluate(()=>sessionStorage.getItem('transivox_refresh_token'))).toBeNull()
   await page.goBack()

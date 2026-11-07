@@ -30,7 +30,8 @@ async function openVerification(page:Page,result:'accepted'|'denied'|'not-confir
   await page.route('https://api.msg91.com/**',route=>route.abort())
   await page.route('https://control.msg91.com/**',route=>route.abort())
   await page.goto('/')
-  await expect(page.getByRole('button',{name:'Sign out',exact:true})).toBeVisible()
+  // Signed-in check that holds at every width; Sign out sits in the phone menu.
+  await expect(page.locator('header .avatar')).toBeVisible()
   if(!await page.getByRole('button',{name:'Account help',exact:true}).isVisible())await page.getByRole('button',{name:'Open navigation',exact:true}).click()
   await page.getByRole('button',{name:'Account help',exact:true}).click()
   await page.getByRole('button',{name:'Trip contact',exact:true}).click()

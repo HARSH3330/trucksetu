@@ -1,4 +1,4 @@
-export const PRIVACY_VERSION = 'privacy-v2-20261104'
+export const PRIVACY_VERSION = 'privacy-v3-20261107'
 export const PRIVACY_CONTACT = 'harshagarwal244@gmail.com'
 
 export type PrivacySection = {heading: string; paragraphs?: string[]; items?: string[]}
@@ -8,7 +8,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     'TransivoX (www.transivox.in) is operated by TransivoX Private Limited (“we”, “us”). TransivoX is a marketplace that connects customers with independent transport providers.',
     `Contact and grievance: ${PRIVACY_CONTACT}.`]},
   {heading: '2. What we collect', items: [
-    'Account details: name, email address, mobile number (if you add one), password (stored only as a secure hash) and your role (customer, provider or driver).',
+    'Account details: name, email address, mobile number (if you add one), password (stored only as a secure hash), your role (customer, provider or driver) and, if you use Google sign-in, a Google account identifier.',
     'Transport requirements: routes, pickup and delivery details, cargo information, schedules and map pins if you choose to use map search.',
     'Verification documents: for customers, your PAN; for providers and drivers, identity, business and vehicle documents (for example registration, insurance, fitness, pollution and permit).',
     'Payments: payments are processed by Razorpay. We receive the payment status and reference, not your card or bank details.',
@@ -23,6 +23,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     'Vercel: website and application hosting.',
     'Razorpay: payments.',
     'Brevo: transactional emails such as verification codes.',
+    'Google sign-in: only if you choose Continue with Google; Google shares your name, email address and a Google account identifier with us.',
     'Google (Maps, Places and Routes): when you type at least three characters into a pickup, drop, origin or destination field, that text is sent to Google to suggest places; the places you choose are shown on a Google map and may be used to calculate road distance.'],
    paragraphs: ['We do not sell your personal data.']},
   {heading: '6. Security', paragraphs: [
