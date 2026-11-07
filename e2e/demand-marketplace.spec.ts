@@ -43,7 +43,7 @@ for(const width of [1440,768,390])test(`customer-led demand, bid, connection fee
   await c.evaluate(()=>window.scrollTo(0,0))
   await c.screenshot({path:testInfo.outputPath('customer-published.png'),fullPage:true})
 
-  await signIn(p,data.provider_email,providerAccount.password,'Demand & bid workspace')
+  await signIn(p,data.provider_email,providerAccount.password,'Find loads')
   await p.goto('/#loads',{waitUntil:'domcontentloaded'})
   const card=p.locator('.demand-card').filter({hasText:description})
   await expect(card).toBeVisible()
@@ -119,7 +119,7 @@ for(const width of [1440,768,390])test(`customer-led demand, bid, connection fee
   await expect(c.getByRole('link',{name:data.provider_phone,exact:true})).toBeVisible()
   expect(orderCalls).toBe(before)
 
-  await p.getByRole('button',{name:'Selected / bookings',exact:true}).click()
+  await p.getByRole('button',{name:'Won jobs',exact:true}).click()
   await p.getByRole('combobox',{name:'Verified driver',exact:true}).selectOption(data.driver_id)
   await p.getByRole('button',{name:'Confirm driver assignment',exact:true}).click()
   await c.getByRole('button',{name:'Reopen purchased contact',exact:true}).click()
@@ -178,7 +178,7 @@ test('public route publication is disabled while private fleet management remain
  const context=await browser.newContext({viewport:{width:390,height:844}})
  try{
   const page=await context.newPage()
-  await signIn(page,data.provider_email,providerAccount.password,'Demand & bid workspace')
+  await signIn(page,data.provider_email,providerAccount.password,'Find loads')
   await page.goto('/#capacity',{waitUntil:'domcontentloaded'})
   await expect(page.getByText('Public route publishing is unavailable in this customer-led marketplace.',{exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'Publish route',exact:true})).toHaveCount(0)

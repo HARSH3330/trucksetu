@@ -25,7 +25,7 @@ test('real PostgreSQL session survives browser reopening, refreshes, enforces CS
   let reopened:Awaited<ReturnType<typeof browser.newContext>>|undefined
   try{
     const page=await first.newPage();captureApiFailures(page)
-    await signIn(page,providerAccount.email,providerAccount.password,'Demand & bid workspace')
+    await signIn(page,providerAccount.email,providerAccount.password,'Find loads')
     const cookies=await first.cookies(api+'/auth/session/refresh')
     const cookie=cookies.find(item=>item.name==='transivox_refresh')
     expect(cookie?.httpOnly).toBe(true)
@@ -35,7 +35,7 @@ test('real PostgreSQL session survives browser reopening, refreshes, enforces CS
     reopened=await browser.newContext({storageState:persisted})
     const restored=await reopened.newPage();captureApiFailures(restored);await blockExternalFonts(restored)
     await restored.goto('/')
-    await expect(restored.getByRole('heading',{name:'Demand & bid workspace',exact:true})).toBeVisible()
+    await expect(restored.getByRole('heading',{name:'Find loads',exact:true})).toBeVisible()
     await restored.reload()
     await expect(restored.locator('header .avatar')).toBeVisible()
     expect(await restored.evaluate(()=>sessionStorage.getItem('transivox_refresh_token'))).toBeNull()
@@ -61,7 +61,7 @@ test('real session expiry and revocation deny restoration without mixing provide
   try{
     const p=await provider.newPage(),a=await admin.newPage()
     captureApiFailures(p);captureApiFailures(a)
-    await signIn(p,providerAccount.email,providerAccount.password,'Demand & bid workspace')
+    await signIn(p,providerAccount.email,providerAccount.password,'Find loads')
     await signIn(a,adminAccount.email,adminAccount.password)
     const identities=await Promise.all([p,a].map(async page=>{
       const response=await page.request.get(`${api}/auth/me`,{headers:{Authorization:`Bearer ${await accessToken(page)}`}})
@@ -72,7 +72,7 @@ test('real session expiry and revocation deny restoration without mixing provide
     await invalidate(p,'expire')
     await a.reload()
     await expect(a.locator('header .avatar')).toBeVisible()
-    await signIn(p,providerAccount.email,providerAccount.password,'Demand & bid workspace')
+    await signIn(p,providerAccount.email,providerAccount.password,'Find loads')
     await invalidate(p,'revoke')
   }finally{await provider.close();await admin.close()}
 })

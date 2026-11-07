@@ -128,3 +128,11 @@ body{line-height:1.5}
 :root .demand-pin-actions .demand-nudge{flex:0 0 44px;min-width:44px;width:44px;height:44px;padding:0;font-size:18px}
 :root .demand-pin-review{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;border-top:1px solid var(--line)}
 :root .demand-pin-review>p{margin:0;flex-basis:100%}
+:root .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+:root .role-help{color:var(--muted);font-size:13px;font-weight:500}
+:root .password-toggle{justify-self:start;border:0;background:none;color:var(--green);font-weight:700;font-size:13px;padding:6px 0;min-height:32px;margin-top:-6px}
+:root .password-checklist{list-style:none;margin:-4px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:13px;color:var(--muted)}
+:root .password-checklist li{display:flex;align-items:center;gap:6px}
+:root .password-checklist li.met{color:var(--green);font-weight:600}
+:root .password-checklist svg{width:14px;height:14px}
+:root .doc-progress{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-top:4px}

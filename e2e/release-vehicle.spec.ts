@@ -99,7 +99,7 @@ test('mobile vehicle creation, protected uploads, scan gate, rejection/replaceme
     await a.getByRole('button',{name:/^approved /}).click()
     await expect(a.getByText(registration,{exact:true})).toBeVisible()
     await p.reload()
-    await expect(fleetCard.getByText('approved · documents current',{exact:true})).toBeVisible()
+    await expect(fleetCard.getByText('Approved · can take loads',{exact:true})).toBeVisible()
     expect(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   }catch(error){originalFailure=true;throw error}
   finally{
