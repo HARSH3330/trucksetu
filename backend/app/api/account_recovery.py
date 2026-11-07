@@ -16,6 +16,7 @@ from app.core.rate_limit import enforce_rate_limit
 from app.core.routing import AuthenticationFirstRoute
 from app.core.security import generate_otp,get_password_hash,hash_otp,hash_token,token_hash_matches,verify_password
 from app.models import AccountVerification,AuditLog,RefreshSession,User
+from app.services.account_email import account_email_message
 from app.services.communications import ChannelProvider
 from app.services.dependencies import get_account_email_delivery
 from app.services.msg91_widget import InvalidWidgetVerification,canonical_mobile
@@ -69,10 +70,12 @@ async def request_code(email:str,channel:str,db:AsyncSession,sender:ChannelProvi
     user=await db.scalar(select(User).options(selectinload(User.roles)).where(User.email==email.lower()).with_for_update())
     if not eligible(user) or (channel=='email' and user.email_verified):
         return REQUESTED
+    latest=await db.scalar(select(AccountVerification).where(AccountVerification.user_id==user.id,AccountVerification.channel==channel).order_by(AccountVerification.created_at.desc()).limit(1))
+    if latest is not None and latest.created_at is not None and (datetime.now(UTC)-latest.created_at).total_seconds()<settings.ACCOUNT_EMAIL_COOLDOWN_SECONDS:
+        return REQUESTED
     code=generate_otp() if channel=='email' else secrets.token_urlsafe(32)
-    purpose='email verification code' if channel=='email' else 'password reset token'
     try:
-        receipt=await sender.send(user.email,f'TransivoX {purpose}: {code}\nExpires in {settings.OTP_EXPIRE_MINUTES} minutes. Do not share this with anyone. If you did not request this, ignore this email.')
+        receipt=await sender.send(user.email,account_email_message(user.email,channel,code))
         if not receipt:raise RuntimeError('No account delivery acknowledgement')
     except Exception:
         # Preserve the same public response for unknown/eligible/delivery-error

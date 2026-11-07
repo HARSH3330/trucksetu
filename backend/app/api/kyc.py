@@ -62,6 +62,17 @@ class ReviewInput(BaseModel):
     document_decisions: dict[str, Literal["accepted", "rejected"]] = Field(default_factory=dict)
 
 
+async def require_bound_clean_scan(storage: PrivateDocumentStorage, document: KYCDocument) -> None:
+    if not document.storage_version_id or document.storage_version_id == "null":
+        raise HTTPException(409, "Legacy document has no immutable version; request resubmission and replace it")
+    try:
+        await run_in_threadpool(storage.require_clean_scan, document.storage_key, document.storage_version_id)
+    except ValueError as exc:
+        raise HTTPException(409, "Document scan is pending or was not clean") from exc
+    except Exception as exc:
+        raise HTTPException(503, "Document scan could not be verified") from exc
+
+
 async def own_application(user: User, db: AsyncSession) -> tuple[ProviderProfile, KYCApplication | None]:
     provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
     if not provider: raise HTTPException(404, "Provider profile not found")
@@ -126,8 +137,13 @@ async def complete_upload(payload: CompleteUpload, user: Annotated[User, Depends
     if payload.document_type not in ALLOWED_BY_TYPE.get(provider.provider_type, set()) or not payload.storage_key.startswith(expected_prefix): raise HTTPException(422, "Invalid document reference")
     try:
         metadata = await run_in_threadpool(storage.confirm, payload.storage_key)
-        await run_in_threadpool(storage.require_clean_scan, payload.storage_key)
-        detected_type = await run_in_threadpool(storage.detected_content_type, payload.storage_key)
+        version_id = metadata.get("VersionId")
+        if not isinstance(version_id, str) or not version_id or version_id == "null" or len(version_id) > 255:
+            raise HTTPException(503, "Private KYC uploads require bucket versioning")
+        await run_in_threadpool(storage.require_clean_scan, payload.storage_key, version_id)
+        detected_type = await run_in_threadpool(storage.detected_content_type, payload.storage_key, version_id)
+    except HTTPException:
+        raise
     except ValueError as exc: raise HTTPException(409, str(exc)) from exc
     except Exception as exc: raise HTTPException(503, "Uploaded document or malware scan could not be verified") from exc
     size = int(metadata.get("ContentLength", 0)); content_type = str(metadata.get("ContentType", payload.content_type))
@@ -135,7 +151,7 @@ async def complete_upload(payload: CompleteUpload, user: Annotated[User, Depends
     if size <= 0 or size > 10 * 1024 * 1024: raise HTTPException(422, "Document must be between 1 byte and 10 MB")
     existing = await db.scalar(select(KYCDocument.id).where(KYCDocument.application_id == item.id, KYCDocument.document_type == payload.document_type, KYCDocument.status != "rejected"))
     if existing: raise HTTPException(409, "This document type is already uploaded; remove or reject it before replacing")
-    document = KYCDocument(application_id=item.id, document_type=payload.document_type, storage_key=payload.storage_key, original_filename=payload.original_filename, content_type=content_type, size_bytes=size, expires_on=payload.expires_on); db.add(document); await db.flush()
+    document = KYCDocument(application_id=item.id, document_type=payload.document_type, storage_key=payload.storage_key, storage_version_id=version_id, original_filename=payload.original_filename, content_type=content_type, size_bytes=size, expires_on=payload.expires_on); db.add(document); await db.flush()
     return {"id": str(document.id), "status": "uploaded"}
 
 
@@ -146,12 +162,9 @@ async def submit(application_id: uuid.UUID, user: Annotated[User, Depends(curren
     present = {d.document_type for d in item.documents if d.status != "rejected"}
     missing = REQUIRED.get(provider.provider_type, REQUIRED["driver"]) - present
     if missing: raise HTTPException(422, {"message": "Required documents are missing", "missing": sorted(missing)})
-    try:
-        for document in item.documents:
-            if document.status != "rejected":
-                await run_in_threadpool(storage.require_clean_scan, document.storage_key)
-    except ValueError as exc: raise HTTPException(409, str(exc)) from exc
-    except Exception as exc: raise HTTPException(503, "Document scan could not be verified") from exc
+    for document in item.documents:
+        if document.status != "rejected":
+            await require_bound_clean_scan(storage, document)
     item.status = "under_review"; item.submitted_at = datetime.now(UTC); provider.kyc_status = "under_review"
     return view(item, provider)
 
@@ -166,7 +179,9 @@ async def queue(filter_status: str = Query(default="under_review", alias="status
 @router.post("/admin/applications/{application_id}/review")
 async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotated[User, Depends(require_roles("admin", "superadmin"))], db: AsyncSession = Depends(get_db), storage: PrivateDocumentStorage = Depends(get_private_document_storage)) -> dict[str, object]:
     item = await db.scalar(select(KYCApplication).options(selectinload(KYCApplication.documents)).where(KYCApplication.id == application_id).with_for_update())
-    if not item or item.status not in {"under_review", "verified"}: raise HTTPException(409, "Application is not reviewable")
+    if not item or item.status not in {"under_review", "verified", "suspended"}: raise HTTPException(409, "Application is not reviewable")
+    if item.status == "suspended" and payload.decision != "resubmit_required":
+        raise HTTPException(409, "A suspended provider must resubmit for fresh review before verification")
     previous = item.status
     provider = await db.get(ProviderProfile, item.provider_id)
     if not provider: raise HTTPException(404, "Provider profile not found")
@@ -176,12 +191,11 @@ async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotat
         unacceptable = sorted(document_type for document_type in required if document_type not in documents or payload.document_decisions.get(document_type) != "accepted" or (documents[document_type].expires_on and documents[document_type].expires_on < date.today()))
         if unacceptable:
             raise HTTPException(422, {"message": "Required documents must be accepted and current", "documents": unacceptable})
-        try:
-            for document in item.documents:
-                if document.status != "rejected" and payload.document_decisions.get(document.document_type) == "accepted":
-                    await run_in_threadpool(storage.require_clean_scan, document.storage_key)
-        except ValueError as exc: raise HTTPException(409, str(exc)) from exc
-        except Exception as exc: raise HTTPException(503, "Document scan could not be verified") from exc
+    # Acceptance also matters during resubmit/rejection reviews, not only
+    # application approval. Never accept unbound or unscanned evidence.
+    for document in item.documents:
+        if document.status != "rejected" and payload.document_decisions.get(document.document_type) == "accepted":
+            await require_bound_clean_scan(storage, document)
     item.status = payload.decision; item.reviewed_at = datetime.now(UTC); item.reviewed_by = admin.id; item.decision_reason = payload.reason
     provider.kyc_status = payload.decision; provider.active = payload.decision != "suspended"
     for document in item.documents:
@@ -202,9 +216,9 @@ async def download(document_id: uuid.UUID, user: Annotated[User, Depends(current
     if not provider: raise HTTPException(404, "Provider profile not found")
     roles = {r.role for r in user.roles}
     if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}): raise HTTPException(403, "Document access denied")
+    await require_bound_clean_scan(storage, document)
     try:
-        await run_in_threadpool(storage.require_clean_scan, document.storage_key)
-        url = await run_in_threadpool(storage.download_url, document.storage_key)
+        url = await run_in_threadpool(storage.download_url, document.storage_key, document.storage_version_id)
     except ValueError as exc: raise HTTPException(409, str(exc)) from exc
     except RuntimeError as exc: raise HTTPException(503, str(exc)) from exc
     except Exception as exc: raise HTTPException(503, "Document scan could not be verified") from exc

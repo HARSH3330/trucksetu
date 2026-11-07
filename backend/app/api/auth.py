@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -6,9 +7,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
+from jwt import PyJWTError as JWTError
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -17,6 +19,10 @@ from app.core.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, create_refresh_token, generate_otp, get_password_hash, hash_otp, hash_token, token_hash_matches, verify_otp, verify_password, verify_token
 from app.models import AccountVerification, AuditLog, RefreshSession, User, UserRole
 from app.services.msg91_widget import canonical_mobile
+from app.services.account_email import account_email_message
+from app.services.communications import ChannelProvider
+from app.services.dependencies import get_optional_account_email_delivery
+from app.services.google_identity import verify_google_credential
 
 from app.core.routing import AuthenticationFirstRoute
 
@@ -31,6 +37,7 @@ class SignupInput(BaseModel):
     mobile: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
     password: str = Field(min_length=10, max_length=72)
     role: str = "customer"
+    privacy_notice_version: str | None = Field(default=None, min_length=1, max_length=80)
 
     @field_validator('mobile')
     @classmethod
@@ -97,7 +104,7 @@ async def issue_session(user: User, request: Request, db: AsyncSession, family_i
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depends(get_db), sender: Annotated[ChannelProvider | None, Depends(get_optional_account_email_delivery)] = None) -> dict[str, object]:
     await enforce_rate_limit(request, "signup", settings.SIGNUP_RATE_LIMIT, 3600, payload.email)
     role = payload.role.lower()
     if role not in PUBLIC_ROLES:
@@ -107,13 +114,78 @@ async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depe
         raise HTTPException(409, "An account already exists for this email")
     user = User(full_name=payload.full_name.strip(), email=email, mobile=payload.mobile, password_hash=get_password_hash(payload.password))
     user.roles.append(UserRole(role=role)); db.add(user); await db.flush()
+    if payload.privacy_notice_version:
+        db.add(AuditLog(actor_id=user.id, action="legal.privacy_acknowledged", entity_type="user", entity_id=user.id,
+                        after={"version": payload.privacy_notice_version, "source": "registration"}))
     code = generate_otp()
     db.add(AccountVerification(user_id=user.id, channel="email", code_hash=hash_otp(code), expires_at=datetime.now(UTC) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)))
     result = await issue_session(user, request, db)
+    # Persist the account, token and session before attempting external delivery.
+    await db.commit()
+    acknowledged=False
+    if sender is not None:
+        try:
+            acknowledged=bool(await sender.send(user.email,account_email_message(user.email,'email',code)))
+        except Exception:
+            pass  # Never log provider exceptions, message bodies or credentials.
+    db.add(AuditLog(actor_id=user.id,action='auth.account_email_accepted' if acknowledged else 'auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after={'channel':'email','source':'registration'}))
     result["verification_required"] = True
     if settings.is_development:
         result["development_verification_code"] = code
     return result
+
+
+class GoogleSignInInput(BaseModel):
+    credential: str = Field(min_length=20, max_length=4096)
+    role: str | None = Field(default=None, max_length=30)
+    privacy_notice_version: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+@router.get("/google/config")
+async def google_config() -> dict[str, object]:
+    # The OAuth client ID is public by design; the client secret is never sent.
+    return {"enabled": bool(settings.GOOGLE_CLIENT_ID), "client_id": settings.GOOGLE_CLIENT_ID or None}
+
+
+async def google_sign_in(payload: GoogleSignInInput, request: Request, db: AsyncSession) -> dict[str, object]:
+    """Sign in, link by Google-verified email, or create an account once a public role is chosen."""
+    await enforce_rate_limit(request, "google-signin", settings.LOGIN_RATE_LIMIT, 900)
+    identity = verify_google_credential(payload.credential)
+    subject = hashlib.sha256(identity.subject.encode()).hexdigest()[:16]
+    now = datetime.now(UTC)
+    user = await db.scalar(select(User).where(User.email == identity.email).with_for_update())
+    if user:
+        if {role.role for role in user.roles} & {"admin", "superadmin"}:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Administrators sign in with their email and password")
+        if user.status != "active" or (user.locked_until and user.locked_until > now):
+            raise HTTPException(status.HTTP_423_LOCKED, "Account is temporarily unavailable")
+        took_over_unverified = not user.email_verified
+        if took_over_unverified:
+            # Someone may have registered this address without proving it. Google proves the owner,
+            # so the unproven password and every earlier session stop working.
+            user.password_hash = get_password_hash(secrets.token_urlsafe(32))
+            user.auth_version = int(user.auth_version or 0) + 1
+            await db.execute(update(RefreshSession).where(RefreshSession.user_id == user.id, RefreshSession.revoked_at.is_(None)).values(revoked_at=now))
+        user.email_verified = True
+        user.last_login_at = now
+        db.add(AuditLog(actor_id=user.id, action="auth.google_signin", entity_type="user", entity_id=user.id, after={"google_subject": subject, "unverified_account_secured": took_over_unverified}))
+        return {"status": "signed_in", **await issue_session(user, request, db)}
+    role = (payload.role or "").lower()
+    if role not in PUBLIC_ROLES:
+        return {"status": "role_required", "email": identity.email, "name": identity.name}
+    if not payload.privacy_notice_version:
+        raise HTTPException(422, "Agree to the Terms and read the Privacy notice to create your account")
+    # A random unusable password: the person signs in with Google or sets one through account recovery.
+    user = User(full_name=identity.name, email=identity.email, password_hash=get_password_hash(secrets.token_urlsafe(32)), email_verified=True, last_login_at=now)
+    user.roles.append(UserRole(role=role)); db.add(user)
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        # Another request created this account a moment ago.
+        raise HTTPException(status.HTTP_409_CONFLICT, "This account was just created. Continue with Google again to sign in.") from exc
+    db.add(AuditLog(actor_id=user.id, action="legal.privacy_acknowledged", entity_type="user", entity_id=user.id, after={"version": payload.privacy_notice_version, "source": "google_registration"}))
+    db.add(AuditLog(actor_id=user.id, action="auth.google_signup", entity_type="user", entity_id=user.id, after={"google_subject": subject, "role": role}))
+    return {"status": "signed_in", **await issue_session(user, request, db)}
 
 
 @router.post("/bootstrap-admin", status_code=status.HTTP_201_CREATED)
@@ -249,6 +321,7 @@ async def refresh(payload: RefreshInput, request: Request, db: AsyncSession = De
     await enforce_rate_limit(request, "refresh", settings.REFRESH_RATE_LIMIT, 60)
     try: claims = verify_token(payload.refresh_token, "refresh")
     except JWTError as exc: raise HTTPException(401, "Invalid refresh token") from exc
+    await acquire_idempotency_lock(db, f"refresh-family:{claims.get('family')}")
     session = await db.scalar(select(RefreshSession).where(RefreshSession.jti == claims.get("jti")).with_for_update())
     now = datetime.now(UTC)
     claims_match = bool(session and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id)
@@ -306,9 +379,14 @@ async def me(user: Annotated[User, Depends(current_user)]) -> dict[str, object]:
 async def logout(payload: RefreshInput, db: AsyncSession = Depends(get_db)) -> None:
     try: claims = verify_token(payload.refresh_token, "refresh")
     except JWTError: return
+    await acquire_idempotency_lock(db, f"refresh-family:{claims.get('family')}")
     session = await db.scalar(select(RefreshSession).where(RefreshSession.jti == claims.get("jti")).with_for_update())
-    if session and not session.revoked_at and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id and token_hash_matches(payload.refresh_token, session.token_hash):
-        session.revoked_at = datetime.now(UTC)
+    if session and claims.get("sub") == str(session.user_id) and claims.get("family") == session.family_id and token_hash_matches(payload.refresh_token, session.token_hash):
+        # Revoke descendants too: a refresh may have rotated the submitted
+        # credential immediately before logout acquired this row lock.
+        await db.execute(update(RefreshSession).where(RefreshSession.user_id == session.user_id, RefreshSession.family_id == session.family_id, RefreshSession.revoked_at.is_(None)).values(revoked_at=datetime.now(UTC)))
+        db.add(AuditLog(actor_id=session.user_id, action='auth.logout', entity_type='user', entity_id=session.user_id, after={'family_sessions_revoked':True}))
+        await db.commit()
 
 
 @router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)

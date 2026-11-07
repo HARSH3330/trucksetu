@@ -15,3 +15,13 @@ describe('trip role boundary',()=>{
     expect(canOperateTrips([])).toBe(false)
   })
 })
+
+import * as tripRules from './trips'
+it('blocks operations while connection payment or cancellation blocks the booking',()=>{
+ const allowed=(tripRules as unknown as {canRunTripActions?:(status:string,available?:boolean)=>boolean}).canRunTripActions
+ expect(allowed).toBeTypeOf('function')
+ if(!allowed)return
+ for(const status of ['connection_fee_pending','cancelled','disputed'])expect(allowed(status)).toBe(false)
+ expect(allowed('booking_confirmed',false)).toBe(false)
+ expect(allowed('booking_confirmed',true)).toBe(true)
+})

@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import {apiErrorMessage, apiFetch, clearSession, saveSession} from './api'
+import {apiErrorMessage, apiFetch, clearSession, saveSession, logoutSession} from './api'
 
 class MemoryStorage {
   private values = new Map<string,string>()
@@ -31,6 +31,61 @@ describe('API error messages',()=>{
 })
 
 describe('authenticated API client',()=>{
+  it('revokes the refresh credential and clears client storage on logout',async()=>{
+    saveSession({access_token:'fictional-access',refresh_token:'fictional-refresh'})
+    const fetchMock=vi.fn().mockResolvedValue(new Response(null,{status:204}))
+    vi.stubGlobal('fetch',fetchMock)
+    await logoutSession()
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/auth\/logout$/)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({refresh_token:'fictional-refresh'})
+    expect(sessionStorage.getItem('transivox_access_token')).toBeNull()
+    expect(sessionStorage.getItem('transivox_refresh_token')).toBeNull()
+  })
+
+  it('clears local credentials even when server revocation is unavailable',async()=>{
+    saveSession({access_token:'fictional-access',refresh_token:'fictional-refresh'})
+    vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new TypeError('offline')))
+    await expect(logoutSession()).rejects.toMatchObject({status:0})
+    expect(sessionStorage.getItem('transivox_refresh_token')).toBeNull()
+  })
+
+  it('does not restore credentials when an in-flight refresh completes after logout',async()=>{
+    saveSession({access_token:'old',refresh_token:'old-refresh'})
+    let resolveRefresh!:(response:Response)=>void
+    let started!:(value:void)=>void
+    const start=new Promise<void>(resolve=>{started=resolve})
+    vi.stubGlobal('fetch',vi.fn((url:string)=>{
+      if(url.endsWith('/auth/refresh')){started();return new Promise<Response>(resolve=>{resolveRefresh=resolve})}
+      if(url.endsWith('/auth/logout'))return Promise.resolve(new Response(null,{status:204}))
+      return Promise.resolve(new Response('{}',{status:401}))
+    }))
+    const pending=apiFetch('/auth/me').catch(error=>error)
+    await start
+    // Logout clears UI credentials immediately, but its server mutation now
+    // waits for the cross-tab session lock held by this in-flight refresh.
+    const signingOut=logoutSession()
+    resolveRefresh(new Response(JSON.stringify({access_token:'rotated',refresh_token:'rotated-refresh'})))
+    await signingOut
+    expect(await pending).toMatchObject({status:401})
+    expect(sessionStorage.getItem('transivox_access_token')).toBeNull()
+  })
+
+  it('does not clear a newer login when an older refresh finishes',async()=>{
+    saveSession({access_token:'old',refresh_token:'old-refresh'})
+    let resolveRefresh!:(response:Response)=>void
+    let started!:(value:void)=>void
+    const start=new Promise<void>(resolve=>{started=resolve})
+    vi.stubGlobal('fetch',vi.fn((url:string)=>{
+      if(url.endsWith('/auth/refresh')){started();return new Promise<Response>(resolve=>{resolveRefresh=resolve})}
+      return Promise.resolve(new Response('{}',{status:401}))
+    }))
+    const pending=apiFetch('/auth/me').catch(error=>error)
+    await start
+    saveSession({access_token:'new-login',refresh_token:'new-login-refresh'})
+    resolveRefresh(new Response('{}',{status:401}))
+    await pending
+    expect(sessionStorage.getItem('transivox_access_token')).toBe('new-login')
+  })
   it('stores tokens only for the browser session',()=>{
     saveSession({access_token:'access',refresh_token:'refresh'})
     expect(sessionStorage.getItem('transivox_refresh_token')).toBe('refresh')

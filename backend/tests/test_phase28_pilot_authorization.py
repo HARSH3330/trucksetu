@@ -78,7 +78,7 @@ async def test_status_change_checks_provider_before_mutating_trip() -> None:
         {"provider_id": provider_id, "booking_id": booking_id},
     )()
     provider = type("ProviderProfile", (), {"user_id": uuid.uuid4()})()
-    booking = type("Booking", (), {"customer_id": uuid.uuid4()})()
+    booking = type("Booking", (), {"customer_id": uuid.uuid4(), "status":"booking_confirmed"})()
     db = TripDatabase(trip, allocation, provider, booking)
 
     with pytest.raises(HTTPException) as error:

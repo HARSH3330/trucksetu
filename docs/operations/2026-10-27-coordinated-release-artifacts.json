@@ -1,0 +1,76 @@
+{
+  "source_commit": "fa2595741d261cf15d2c0849b13e446d1eaffd20",
+  "deployment_ready": false,
+  "limitations": [
+    "Historical incident evidence gap requires owner review; retained-state reconciliation passed 2026-10-29",
+    "Vercel deployment outputs not staged or built",
+    "Server-side production secrets unavailable for correctness comparison",
+    "Local frontend/test/CI fixes remain uncommitted; hosted browser CI has not rerun",
+    "Old-code/new-schema rollback compatibility not verified"
+  ],
+  "frontend_build": {
+    "api_origin": "https://trucksetu-api-nine.vercel.app/api/v1",
+    "maps_public_values": "Read from frontend Production env, omitted here; nonempty/non-demo shape checked",
+    "legacy_provider_marketplace": false
+  },
+  "artifacts": [
+    {
+      "file": "candidate-source.zip",
+      "sha256": "9406c634cbf3719e952e30f3523979d8e12aa94559b3fcdacb9b8c3a9b45bf67",
+      "bytes": 952724
+    },
+    {
+      "file": "artifacts/backend-source-fa259574.zip",
+      "sha256": "9c3cd5438efdfecbf86a3b497d542a34f328b5a2a0fcfee482c4ca6c53e462f3",
+      "bytes": 333080
+    },
+    {
+      "file": "artifacts/frontend-fa259574.zip",
+      "sha256": "e75416596bc94ff792c07f0405c46cc4b05bdbc718929cb69162771799b34a33",
+      "bytes": 156801
+    },
+    {
+      "file": "artifacts/transivox_backend-1.0.0-py3-none-any.whl",
+      "sha256": "74501b3148257430cd9561be6957949c675bbc4e3587e7c9c689be4e50b8dca2",
+      "bytes": 150283
+    },
+    {
+      "file": "artifacts/candidate-fa259574-plus-local-fixes.zip",
+      "sha256": "369fceeababdf09e840e795ea34d80b4a629ed0ca105c9963bba399d06e87fd3",
+      "bytes": 940973
+    },
+    {
+      "file": "artifacts/frontend-fa259574-plus-local-fixes.zip",
+      "sha256": "6c28ee7000b8809b64d2c560196f8aa7995000a6aa3ceb49908c6027bcff303d",
+      "bytes": 156833
+    },
+    {
+      "file": "release-local-fixes.patch",
+      "sha256": "f070e9d32a4740cbcfd0cdbd5bb8921be1133f967e57e16d5cf9f69b81976440",
+      "bytes": 15749
+    }
+  ],
+  "release_candidate": {
+    "base_commit": "fa2595741d261cf15d2c0849b13e446d1eaffd20",
+    "final_commit": null,
+    "uncommitted_patch_sha256": "f070e9d32a4740cbcfd0cdbd5bb8921be1133f967e57e16d5cf9f69b81976440",
+    "patch_includes_frontend_runtime_fix": true,
+    "changed_paths": [
+      ".github/workflows/playwright.yml",
+      "e2e/fixtures/customerJourney.ts",
+      "e2e/release-demand-management.spec.ts",
+      "src/components/DemandWorkspace.tsx"
+    ]
+  },
+  "recovery_reconciliation": {
+    "date": "2026-10-29",
+    "retained_state": "PASS",
+    "historical_zero_write_guarantee": "BLOCKED: absent complete history",
+    "repair_indicated": false,
+    "read_only_endpoint": "ep-morning-sunset-axii59da",
+    "final_state": "idle",
+    "suspended_at": "2026-10-29T08:51:31Z",
+    "report": "2026-10-29-incident-reconciliation.md",
+    "evidence": "2026-10-29-incident-reconciliation-evidence.json"
+  }
+}

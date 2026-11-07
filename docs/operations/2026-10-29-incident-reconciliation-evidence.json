@@ -1,0 +1,314 @@
+{
+  "date": "2026-10-29",
+  "project_id": "morning-forest-29164100",
+  "incident_window_utc": {
+    "start": "2026-10-26T02:17:21Z",
+    "end": "2026-10-26T02:36:15Z"
+  },
+  "target_identity": {
+    "branch_id": "br-young-wind-axoimpov",
+    "name": "recovery-rehearsal-20261026-not-preview",
+    "snapshot": "snap-little-tree-ax4fn88h",
+    "default": false,
+    "primary": false
+  },
+  "endpoint_final": {
+    "new_endpoint_id": "ep-morning-sunset-axii59da",
+    "current_state": "idle",
+    "suspended_at": "2026-10-29T08:51:31Z",
+    "type": "read_only",
+    "branch_id": "br-young-wind-axoimpov",
+    "min_cu": 0.25,
+    "max_cu": 0.25,
+    "existing_endpoint_bindings_preserved": true,
+    "original_still_primary_default": true,
+    "new_endpoint_count": 1
+  },
+  "suspension_confirmed": true,
+  "transaction_controls": {
+    "isolation": "REPEATABLE READ",
+    "read_only": true,
+    "statement_timeout_ms": 15000,
+    "followup_timeout_ms": 5000,
+    "read_only_confirmed": {
+      "original": true,
+      "holding": true,
+      "recovery": true
+    },
+    "recovery_replica_confirmed": true
+  },
+  "revisions": {
+    "original": "20261014_22",
+    "holding": "20261014_22",
+    "recovery": "20261025_29"
+  },
+  "coverage": {
+    "common_application_tables": 49,
+    "row_cap_per_table": 1000,
+    "truncated_tables": [],
+    "all_tables_have_stable_primary_keys": true,
+    "uncovered_original_columns": [],
+    "extra_columns_in_populated_recovery_tables": []
+  },
+  "nonempty_tables": {
+    "original": [
+      {
+        "table": "account_verifications",
+        "count": 5,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "application_settings",
+        "count": 1,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "audit_logs",
+        "count": 3,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "refresh_sessions",
+        "count": 28,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "trip_price_estimates",
+        "count": 3,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "user_roles",
+        "count": 6,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "users",
+        "count": 6,
+        "incident_timestamp_rows": 0
+      }
+    ],
+    "holding": [
+      {
+        "table": "account_verifications",
+        "count": 5,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "application_settings",
+        "count": 1,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "audit_logs",
+        "count": 3,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "refresh_sessions",
+        "count": 26,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "trip_price_estimates",
+        "count": 3,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "user_roles",
+        "count": 6,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "users",
+        "count": 6,
+        "incident_timestamp_rows": 0
+      }
+    ],
+    "recovery": [
+      {
+        "table": "account_verifications",
+        "count": 5,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "application_settings",
+        "count": 1,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "audit_logs",
+        "count": 3,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "refresh_sessions",
+        "count": 26,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "trip_price_estimates",
+        "count": 3,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "user_roles",
+        "count": 6,
+        "incident_timestamp_rows": 0
+      },
+      {
+        "table": "users",
+        "count": 6,
+        "incident_timestamp_rows": 0
+      }
+    ]
+  },
+  "differences": {
+    "original_holding": [
+      {
+        "table": "refresh_sessions",
+        "left_count": 28,
+        "right_count": 26,
+        "stable_identity": true,
+        "left_only": 2,
+        "right_only": 0,
+        "changed": 0,
+        "changed_columns": {},
+        "left_only_created_in_window": 0,
+        "right_only_created_in_window": 0,
+        "left_only_incident_timestamp": 0,
+        "right_only_incident_timestamp": 0,
+        "duplicate_identity_groups_left": 0,
+        "duplicate_identity_groups_right": 0
+      },
+      {
+        "table": "users",
+        "left_count": 6,
+        "right_count": 6,
+        "stable_identity": true,
+        "left_only": 0,
+        "right_only": 0,
+        "changed": 1,
+        "changed_columns": {
+          "last_login_at": 1
+        },
+        "left_only_created_in_window": 0,
+        "right_only_created_in_window": 0,
+        "left_only_incident_timestamp": 0,
+        "right_only_incident_timestamp": 0,
+        "duplicate_identity_groups_left": 0,
+        "duplicate_identity_groups_right": 0
+      }
+    ],
+    "original_recovery": [
+      {
+        "table": "refresh_sessions",
+        "left_count": 28,
+        "right_count": 26,
+        "stable_identity": true,
+        "left_only": 2,
+        "right_only": 0,
+        "changed": 0,
+        "changed_columns": {},
+        "left_only_created_in_window": 0,
+        "right_only_created_in_window": 0,
+        "left_only_incident_timestamp": 0,
+        "right_only_incident_timestamp": 0,
+        "duplicate_identity_groups_left": 0,
+        "duplicate_identity_groups_right": 0
+      },
+      {
+        "table": "users",
+        "left_count": 6,
+        "right_count": 6,
+        "stable_identity": true,
+        "left_only": 0,
+        "right_only": 0,
+        "changed": 1,
+        "changed_columns": {
+          "last_login_at": 1
+        },
+        "left_only_created_in_window": 0,
+        "right_only_created_in_window": 0,
+        "left_only_incident_timestamp": 0,
+        "right_only_incident_timestamp": 0,
+        "duplicate_identity_groups_left": 0,
+        "duplicate_identity_groups_right": 0
+      }
+    ],
+    "holding_recovery": []
+  },
+  "original_difference_timing": [
+    [
+      {
+        "compared_original_only_sessions": "2",
+        "created_after_incident": "2",
+        "created_before_incident": "0",
+        "missing_creation_timestamp": "0"
+      }
+    ],
+    [
+      {
+        "compared_changed_users": "1",
+        "last_login_after_incident": "1",
+        "last_login_before_incident": "0"
+      }
+    ]
+  ],
+  "recovery_only_schema_tables": [
+    {
+      "table": "connection_fee_credits",
+      "count": 0,
+      "incident_timestamp_rows": 0
+    },
+    {
+      "table": "connection_fee_events",
+      "count": 0,
+      "incident_timestamp_rows": 0
+    },
+    {
+      "table": "connection_fee_refund_requests",
+      "count": 0,
+      "incident_timestamp_rows": 0
+    },
+    {
+      "table": "customer_kyc_applications",
+      "count": 0,
+      "incident_timestamp_rows": 0
+    },
+    {
+      "table": "customer_kyc_documents",
+      "count": 0,
+      "incident_timestamp_rows": 0
+    },
+    {
+      "table": "demand_drafts",
+      "count": 0,
+      "incident_timestamp_rows": 0
+    },
+    {
+      "table": "demand_selections",
+      "count": 0,
+      "incident_timestamp_rows": 0
+    }
+  ],
+  "findings": {
+    "retained_state_reconciliation": "PASS",
+    "surviving_recovery_only_records": 0,
+    "incident_related_data_loss_detected": false,
+    "incident_related_duplication_detected": false,
+    "incident_related_stranded_records_detected": false,
+    "historical_zero_write_claim": "BLOCKED: deleted/overwritten writes and absent request/audit/WAL history cannot be reconstructed by these comparisons",
+    "data_repair_indicated_by_this_comparison": false,
+    "production_release": "BLOCKED pending separate approval and remaining release gates"
+  },
+  "prohibited_actions_performed": {
+    "data_modification": false,
+    "endpoint_rebinding": false,
+    "incident_copy_deletion": false,
+    "plan_upgrade": false,
+    "production_migration": false,
+    "deployment": false,
+    "email": false
+  }
+}

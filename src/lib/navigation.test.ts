@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {defaultDestination} from './navigation'
+import {defaultDestination,menuFor,mobileMenuFor} from './navigation'
 
 describe('API user role navigation',()=>{
   it.each([
@@ -17,5 +17,28 @@ describe('API user role navigation',()=>{
     expect(defaultDestination(null)).toBe('home')
     expect(defaultDestination({id:'fictional',full_name:'Fictional user',roles:['unrecognized']})).toBe('home')
     expect(defaultDestination({id:'fictional',full_name:'Fictional user',roles:[]})).toBe('home')
+  })
+})
+
+const labels=(roles:string[]|null)=>menuFor(roles).map(([,label])=>label)
+
+describe('menus match the person using the site',()=>{
+  it('shows visitors and customers only customer pages, without a duplicate Bids link',()=>{
+    expect(labels(null)).toEqual(['Home','Post requirement','My requirements','Price estimate','Help'])
+    expect(labels(['customer'])).toEqual(['Home','Post requirement','My requirements','Bookings & trips','Price estimate','Help'])
+  })
+  it('shows fleet owners their own pages in plain words',()=>{
+    expect(labels(['fleet_owner'])).toEqual(['Find loads','My bids','Fleet & drivers','Bookings & trips','Verification','Help'])
+    expect(labels(['provider'])).toEqual(labels(['fleet_owner']))
+  })
+  it('keeps drivers and admins away from customer links',()=>{
+    expect(labels(['driver'])).toEqual(['My trips','Help'])
+    expect(labels(['admin'])).toEqual(['Control centre','Vehicle approvals','Verification','Help'])
+    expect(labels(['superadmin','customer'])).toEqual(labels(['admin']))
+  })
+  it('gives each role a short phone menu',()=>{
+    expect(mobileMenuFor(['customer']).map(([view])=>view)).toEqual(['home','ship','requirements','bookings'])
+    expect(mobileMenuFor(['driver']).map(([view])=>view)).toEqual(['trips','support'])
+    expect(mobileMenuFor(['admin']).map(([view])=>view)).toEqual(['admin','vehicle-review','kyc'])
   })
 })

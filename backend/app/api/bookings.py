@@ -15,13 +15,14 @@ from app.core.database import get_db
 from app.core.security import generate_otp, hash_otp, verify_otp
 from app.core.rate_limit import enforce_rate_limit
 from app.domain import TripStatus, available_allocation, ensure_trip_transition
-from app.models import AuditLog, AvailableRoute, Booking, BookingAllocation, CapacityReservation, CarrierVehicle, DriverProfile, ProviderProfile, Quote, SharedMatchEvaluation, TransportRequest, Trip, TripOtp, TripStatusHistory, User
+from app.models import AuditLog, Booking, BookingAllocation, CarrierVehicle, DriverProfile, ProviderProfile, Quote, TransportRequest, Trip, TripOtp, TripStatusHistory, User
 from app.services.communications import ChannelProvider
 from app.services.dependencies import get_trip_otp_delivery
 from app.schemas import BookingCreate, DriverAssignment, OtpVerify, TripStatusUpdate
 from app.api.auth import require_roles
 from app.api.vehicles import vehicle_is_document_eligible
-from app.services.capacity import release_reservation
+from app.services.driver_eligibility import require_verified_driver_identity
+from app.api.vehicle_documents import require_accepted_documents
 from app.api.terms import require_terms
 
 from app.core.routing import AuthenticationFirstRoute
@@ -46,6 +47,13 @@ async def _trip_parties(
     if allocation is None or provider is None or booking is None:
         # A trip without its booking parties is corrupt and must never be operable.
         raise HTTPException(status_code=409, detail="Trip allocation is incomplete")
+    if booking.status == 'connection_fee_pending':
+        raise HTTPException(409, 'Captured connection fee is required before trip operations')
+    if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand':
+        from app.models import DemandSelection
+        selection = await db.scalar(select(DemandSelection).where(DemandSelection.booking_id == booking.id))
+        if not selection or selection.status != 'paid' or selection.payment_status != 'captured' or booking.status in {'cancelled','disputed'}:
+            raise HTTPException(409,'An eligible captured connection fee is required before trip operations')
     return allocation, provider, booking
 
 
@@ -82,10 +90,16 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
     if not roles.intersection({"admin", "superadmin"}):
         provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
         if provider and roles.intersection({"provider", "fleet_owner"}):
-            query = query.join(BookingAllocation).where(BookingAllocation.provider_id == provider.id).distinct()
+            query = query.where(Booking.id.in_(select(BookingAllocation.booking_id).where(BookingAllocation.provider_id == provider.id)))
         else:
             query = query.where(Booking.customer_id == user.id)
     items = list(await db.scalars(query))
+    # Avoid DISTINCT over Booking JSON columns. One ownership subquery gives
+    # one booking per row; allocations remain filtered separately below.
+    from app.models import DemandSelection
+    demand_ids=[item.id for item in items if item.route_snapshot.get('marketplace_mode')=='customer_demand']
+    connections=list(await db.scalars(select(DemandSelection).where(DemandSelection.booking_id.in_(demand_ids)))) if demand_ids else []
+    connection_by_booking={selection.booking_id:selection for selection in connections}
     result: list[dict[str, object]] = []
     for item in items:
         visible_allocations = item.allocations
@@ -93,10 +107,16 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
             visible_allocations = [allocation for allocation in item.allocations if allocation.provider_id == provider.id]
         trips = [trip for allocation in visible_allocations for trip in allocation.trips]
         visible_total = sum((allocation.agreed_amount for allocation in visible_allocations), Decimal("0")) if provider else item.total_amount
+        connection=connection_by_booking.get(item.id)
+        ready=item.status not in {'connection_fee_pending','cancelled','disputed'}
+        if item.route_snapshot.get('marketplace_mode')=='customer_demand':
+            ready=bool(ready and connection and connection.status=='paid' and connection.payment_status=='captured')
         result.append({
+            "trip_operations_available":ready,
             "id": str(item.id), "public_id": item.public_id, "status": item.status,
             "booking_mode": item.booking_mode, "total_amount": str(visible_total), "currency": item.currency,
-            "pickup": item.route_snapshot.get("pickup"), "destination": item.route_snapshot.get("destination"),
+            "pickup": item.route_snapshot.get("pickup") or item.route_snapshot.get("pickup_city"), "destination": item.route_snapshot.get("destination") or item.route_snapshot.get("destination_city"),
+            "freight_payment_separate": item.route_snapshot.get("marketplace_mode") == "customer_demand",
             "trip_statuses": [trip.status for trip in trips],
             "trips": [{"id": str(trip.id), "status": trip.status,
                        "driver_id": str(trip.driver_id) if trip.driver_id else None,
@@ -115,6 +135,8 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
     request = await db.scalar(
         select(TransportRequest).where(TransportRequest.id == request_id).with_for_update().options(selectinload(TransportRequest.stops), selectinload(TransportRequest.cargo))
     )
+    if getattr(request, 'marketplace_mode', 'legacy') == 'customer_demand':
+        raise HTTPException(409, 'Use bid selection and the separate connection-fee lifecycle')
     if request is None or request.status != "published":
         raise HTTPException(status_code=409, detail="Request is not available for allocation")
     if request.customer_id != user.id:
@@ -128,6 +150,12 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
     if len(quote_ids) != len(set(quote_ids)):
         raise HTTPException(status_code=422, detail="A quotation can only be selected once")
     quotes = list(await db.scalars(select(Quote).where(Quote.id.in_(quote_ids)).with_for_update()))
+    # A historically valid quote is not authority to book after suspension or
+    # re-verification. Lock eligibility with the booking transaction.
+    for provider_id in sorted({quote.provider_id for quote in quotes}, key=str):
+        provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.id == provider_id).with_for_update())
+        if provider is None or not provider.active or provider.kyc_status != "verified":
+            raise HTTPException(409, "Provider verification changed; request a new quotation after verification")
     quote_map = {item.id: item for item in quotes}
     requested_total = sum(item.trucks for item in payload.allocations)
     try:
@@ -136,29 +164,12 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     total = Decimal("0")
     shared_quotes = [quote for quote in quotes if quote.service_mode == "SHARED_CAPACITY"]
-    reservation = None
     if shared_quotes:
-        if payload.capacity_reservation_id is None:
-            raise HTTPException(status_code=422, detail="A valid capacity hold is required for shared capacity")
-        reservation = await db.scalar(select(CapacityReservation).where(CapacityReservation.id == payload.capacity_reservation_id).with_for_update())
-        if reservation is None or reservation.customer_id != user.id or reservation.status != "reserved":
-            raise HTTPException(status_code=409, detail="The shared-capacity hold is invalid or has expired")
-        if reservation.expires_at <= datetime.now(UTC):
-            route = await db.scalar(select(AvailableRoute).where(AvailableRoute.id == reservation.available_route_id).with_for_update())
-            if route:
-                release_reservation(route, reservation, "expired")
-            await db.commit()
-            raise HTTPException(status_code=409, detail="The shared-capacity hold has expired")
-        match = await db.get(SharedMatchEvaluation, reservation.match_evaluation_id)
-        route = await db.get(AvailableRoute, reservation.available_route_id)
-        if match is None or route is None or match.request_id != request.id or match.available_route_id != route.id:
-            raise HTTPException(status_code=409, detail="The capacity hold does not belong to this transport request")
-        if any(quote.provider_id != route.provider_id for quote in shared_quotes):
-            raise HTTPException(status_code=409, detail="The capacity hold does not belong to the selected provider")
+        raise HTTPException(422, 'Shared quotations require explicit current-revision acceptance at /quotes/{id}/accept-shared')
     booking = Booking(
         public_id=_booking_id(), request_id=request.id, customer_id=user.id,
-        booking_mode=shared_quotes[0].service_mode if shared_quotes else "FULL_VEHICLE",
-        schedule_mode=request.schedule_mode, capacity_reservation_id=reservation.id if reservation else None,
+        booking_mode="FULL_VEHICLE",
+        schedule_mode=request.schedule_mode,
         total_amount=Decimal("0"), customer_snapshot={"customer_id": str(user.id), "terms_version": acceptance.version, "terms_acceptance_id": str(acceptance.id)},
         route_snapshot={"pickup": request.pickup_address, "destination": request.destination_address, "stops": [stop.address for stop in request.stops]},
         cargo_snapshot={"category": request.cargo.category, "description": request.cargo.description, "weight_tonnes": str(request.cargo.weight_tonnes)},
@@ -179,8 +190,6 @@ async def create_booking(request_id: uuid.UUID, payload: BookingCreate, db: Asyn
         quote.status = "accepted"
         total += agreed
     booking.total_amount = total
-    if reservation:
-        reservation.status = "confirmed"
     if new_total == request.vehicle_count:
         request.status = "allocated"
     db.add(booking)
@@ -200,8 +209,20 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
         raise HTTPException(status_code=403, detail="You cannot assign a driver to another provider's trip")
     if driver.provider_id != provider.id:
         raise HTTPException(status_code=422, detail="Driver does not belong to the allocated provider")
-    vehicle = await db.get(CarrierVehicle, payload.carrier_vehicle_id)
+    if not provider.active or provider.kyc_status != 'verified':
+        raise HTTPException(409, 'Provider re-verification is required before new assignments')
+    await require_verified_driver_identity(db, driver)
+    vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == payload.carrier_vehicle_id).with_for_update().execution_options(populate_existing=True))
     booking = await db.get(Booking, allocation.booking_id)
+    if booking and (booking.route_snapshot or {}).get('marketplace_mode') == 'customer_demand':
+        from app.models import DemandSelection
+        selected = await db.scalar(select(DemandSelection).where(DemandSelection.booking_id == booking.id))
+        if not selected or selected.status != 'paid' or selected.payment_status != 'captured' or selected.driver_id != payload.driver_id or selected.vehicle_id != payload.carrier_vehicle_id:
+            raise HTTPException(409, 'Confirm the verified assignment through the demand selection workflow')
+    if booking and getattr(booking,'booking_mode',None)=='SHARED_CAPACITY':
+        accepted=booking.route_snapshot or {}
+        if accepted.get('carrier_vehicle_id')!=str(payload.carrier_vehicle_id) or accepted.get('driver_id')!=str(payload.driver_id):
+            raise HTTPException(409,'Shared booking assignment must use its accepted route vehicle and driver; a changed route requires a new reviewed quotation')
     request = await db.get(TransportRequest, booking.request_id) if booking else None
     trip_end = request.delivery_deadline_at if request and request.delivery_deadline_at else datetime.now(UTC)
     if request and request.delivery_deadline_at and request.delivery_deadline_at <= datetime.now(UTC):
@@ -210,6 +231,7 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
         raise HTTPException(status_code=422, detail="Driver licence must remain valid through the trip")
     if vehicle is None or vehicle.provider_id != provider.id or not vehicle_is_document_eligible(vehicle, trip_end.date()):
         raise HTTPException(status_code=422, detail="Select an approved provider vehicle with documents valid through the trip")
+    await require_accepted_documents(db, vehicle.id, trip_end.date())
     quote = await db.get(Quote, allocation.quote_id)
     if quote and vehicle.vehicle_category_id != quote.vehicle_category_id:
         raise HTTPException(status_code=422, detail="Assigned vehicle category does not match the accepted quotation")

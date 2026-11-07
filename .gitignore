@@ -22,3 +22,28 @@ backups/
 /.tmp/
 /.e2e-storage/
 playwright-public-report/
+playwright-design-report/
+.taste-skill/
+.superpowers/
+*.egg-info/
+
+# Isolated customer-demand browser evidence
+/test-results-demand/
+/playwright-report-demand/
+
+# Browser server build must not share mutable production build output.
+/dist-e2e/
+
+# Focused local release journey evidence
+/test-results-journeys/
+/playwright-report-journeys/
+
+# Local browser/server configuration: never commit actual credentials.
+.env.local
+.env.*.local
+
+/test-results-maps/
+/playwright-report-maps/
+
+/test-results-maps-real/
+/playwright-report-maps-real/

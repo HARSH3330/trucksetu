@@ -25,3 +25,6 @@ it('requires current-password confirmation to change trip contact when signed in
   expect(html).toContain('Current password')
   expect(html).toContain('Save trip contact')
 })
+it('is a focusable modal dialog so keyboard users can reach and close it',()=>{
+  expect(renderToStaticMarkup(<AccountSecurity close={()=>{}}/>)).toMatch(/<div(?=[^>]*role="dialog")(?=[^>]*tabindex="-1")[^>]*>/)
+})

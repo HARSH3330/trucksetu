@@ -8,9 +8,10 @@ import uuid
 from fastapi import HTTPException, Request
 from fastapi.routing import APIRoute
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
+from jwt import PyJWTError as JWTError
 
 from app.core.security import verify_token
+from app.core.marketplace_flags import require_legacy_operation
 
 
 def _bearer_dependency(dependant):
@@ -28,7 +29,10 @@ class AuthenticationFirstRoute(APIRoute):
         original = super().get_route_handler()
         bearer = _bearer_dependency(self.dependant)
         if bearer is None:
-            return original
+            async def public(request: Request):
+                require_legacy_operation(request.url.path, request.method)
+                return await original(request)
+            return public
 
         async def authenticated(request: Request):
             token = await bearer(request)
@@ -37,5 +41,6 @@ class AuthenticationFirstRoute(APIRoute):
                 uuid.UUID(claims['sub'])
             except (JWTError, KeyError, ValueError, TypeError) as exc:
                 raise HTTPException(401, 'Invalid access token', headers={'WWW-Authenticate': 'Bearer'}) from exc
+            require_legacy_operation(request.url.path, request.method)
             return await original(request)
         return authenticated
