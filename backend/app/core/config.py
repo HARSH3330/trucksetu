@@ -169,6 +169,15 @@ class Settings(BaseSettings):
     # Configure temporarily, create the first admin, then remove and redeploy.
     ADMIN_BOOTSTRAP_TOKEN: str = ""
 
+    @model_validator(mode="before")
+    @classmethod
+    def strip_on_off_values(cls, data: object) -> object:
+        # A tab or space pasted into a dashboard must not stop the API from starting.
+        if isinstance(data, dict):
+            flags = {name for name, field in cls.model_fields.items() if field.annotation in (bool, "bool")}
+            return {key: value.strip() if key in flags and isinstance(value, str) else value for key, value in data.items()}
+        return data
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_origins(cls, v: str | List[str]) -> List[str]:
