@@ -58,7 +58,8 @@ def test_continue_with_google_creates_links_and_refuses_safely(monkeypatch):
                     assert (await client.post(URL, json={"credential": credential(newcomer), "role": role, "privacy_notice_version": "v"})).json()["status"] == "role_required"
                 assert (await client.post(URL, json={"credential": credential(newcomer), "role": "provider"})).status_code == 422
 
-                created = await client.post(URL, json={"credential": credential(newcomer), "role": "provider", "privacy_notice_version": "privacy-test"})
+                assert (await client.post(URL, json={"credential": credential(newcomer), "role": "provider", "privacy_notice_version": "privacy-test"})).status_code == 422, "Truck owners must give a phone number"
+                created = await client.post(URL, json={"credential": credential(newcomer), "role": "provider", "privacy_notice_version": "privacy-test", "mobile": "+919876500011"})
                 assert created.status_code == 200, created.text
                 assert created.json()["status"] == "signed_in" and "refresh_token" not in created.json() and client.cookies.get("transivox_refresh")
                 client.cookies.clear()
@@ -88,6 +89,7 @@ def test_continue_with_google_creates_links_and_refuses_safely(monkeypatch):
             async with factory() as db:
                 made = await db.scalar(select(User).where(User.email == newcomer))
                 assert made.email_verified and [r.role for r in made.roles] == ["provider"]
+                assert made.mobile == "+919876500011" and not made.mobile_verified
                 actions = set(await db.scalars(select(AuditLog.action).where(AuditLog.entity_id.in_([made.id, existing_id]))))
                 assert {"auth.google_signup", "auth.google_signin", "legal.privacy_acknowledged"} <= actions
     run_local(exercise())

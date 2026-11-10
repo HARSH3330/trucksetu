@@ -3,7 +3,7 @@ import {renderToStaticMarkup} from 'react-dom/server'
 import {expect,it} from 'vitest'
 import {GoogleRoleStep} from './GoogleSignIn'
 
-const step=(agreed:boolean)=>renderToStaticMarkup(<GoogleRoleStep email="fictional@example.com" role="customer" agreed={agreed} busy={false} onRole={()=>{}} onAgree={()=>{}} onCreate={()=>{}} onCancel={()=>{}}/>)
+const step=(agreed:boolean)=>renderToStaticMarkup(<GoogleRoleStep email="fictional@example.com" role="customer" mobile="" agreed={agreed} busy={false} onRole={()=>{}} onMobile={()=>{}} onAgree={()=>{}} onCreate={()=>{}} onCancel={()=>{}}/>)
 
 it('asks a new Google user to choose a role and agree before creating the account',()=>{
   const html=step(false)

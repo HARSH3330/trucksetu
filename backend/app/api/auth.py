@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError as JWTError
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +29,13 @@ from app.core.routing import AuthenticationFirstRoute
 router = APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1/auth", tags=["authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 PUBLIC_ROLES = {"customer", "provider", "fleet_owner", "driver"}
+# Owner decision 2026-11-10: bids and driver assignments need a phone number, so ask for it up front.
+PHONE_REQUIRED_ROLES = {"provider", "fleet_owner", "driver"}
+
+
+def require_work_phone(role: str | None, mobile: str | None) -> None:
+    if (role or "").lower() in PHONE_REQUIRED_ROLES and not mobile:
+        raise ValueError("A phone number is required for truck owners, fleet owners and drivers")
 
 
 class SignupInput(BaseModel):
@@ -50,6 +57,11 @@ class SignupInput(BaseModel):
         if not any(c.islower() for c in value) or not any(c.isupper() for c in value) or not any(c.isdigit() for c in value):
             raise ValueError("Password must include uppercase, lowercase, and numeric characters")
         return value
+
+    @model_validator(mode="after")
+    def phone_for_work_roles(self) -> "SignupInput":
+        require_work_phone(self.role, self.mobile)
+        return self
 
 
 class LoginInput(BaseModel):
@@ -139,6 +151,17 @@ class GoogleSignInInput(BaseModel):
     credential: str = Field(min_length=20, max_length=4096)
     role: str | None = Field(default=None, max_length=30)
     privacy_notice_version: str | None = Field(default=None, min_length=1, max_length=80)
+    mobile: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
+
+    @field_validator('mobile')
+    @classmethod
+    def normalize_mobile(cls,value:str|None)->str|None:
+        return canonical_mobile(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def phone_for_work_roles(self) -> "GoogleSignInInput":
+        require_work_phone(self.role, self.mobile)
+        return self
 
 
 @router.get("/google/config")
@@ -176,7 +199,7 @@ async def google_sign_in(payload: GoogleSignInInput, request: Request, db: Async
     if not payload.privacy_notice_version:
         raise HTTPException(422, "Agree to the Terms and read the Privacy notice to create your account")
     # A random unusable password: the person signs in with Google or sets one through account recovery.
-    user = User(full_name=identity.name, email=identity.email, password_hash=get_password_hash(secrets.token_urlsafe(32)), email_verified=True, last_login_at=now)
+    user = User(full_name=identity.name, email=identity.email, mobile=payload.mobile, password_hash=get_password_hash(secrets.token_urlsafe(32)), email_verified=True, last_login_at=now)
     user.roles.append(UserRole(role=role)); db.add(user)
     try:
         await db.flush()

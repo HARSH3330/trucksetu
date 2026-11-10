@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react'
 import {publicFetch,saveSession,sessionFetch,type CurrentUser} from '../lib/api'
 import {PRIVACY_VERSION} from '../lib/privacy-notice'
 import SignupConsent from './SignupConsent'
-import {ROLE_CHOICES} from './SignupHelp'
+import {PhoneField,ROLE_CHOICES} from './SignupHelp'
 
 type GoogleApi={accounts:{id:{initialize:(o:object)=>void;renderButton:(el:HTMLElement,o:object)=>void}}}
 type Session={access_token:string;user:CurrentUser}
@@ -21,11 +21,12 @@ function loadGoogle():Promise<GoogleApi>{
 }
 
 /** Shown when a Google account is new to TransivoX: pick a role and agree before the account is created. */
-export function GoogleRoleStep({email,role,agreed,busy,onRole,onAgree,onCreate,onCancel}:{email:string;role:string;agreed:boolean;busy:boolean;onRole:(role:string)=>void;onAgree:(value:boolean)=>void;onCreate:()=>void;onCancel:()=>void}){
+export function GoogleRoleStep({email,role,mobile,agreed,busy,onRole,onMobile,onAgree,onCreate,onCancel}:{email:string;role:string;mobile:string;agreed:boolean;busy:boolean;onRole:(role:string)=>void;onMobile:(value:string)=>void;onAgree:(value:boolean)=>void;onCreate:()=>void;onCancel:()=>void}){
   return <form className="google-role-step" onSubmit={event=>{event.preventDefault();onCreate()}}>
     <h3>Finish creating your account</h3>
     <p>Signing up as <b>{email}</b> with Google.</p>
     <label>I’m joining as<select value={role} onChange={event=>onRole(event.target.value)}>{ROLE_CHOICES.map(choice=><option key={choice.value} value={choice.value}>{choice.label}</option>)}</select><small className="role-help">{ROLE_CHOICES.find(choice=>choice.value===role)?.help}</small></label>
+    <PhoneField role={role} value={mobile} onChange={onMobile}/>
     <SignupConsent checked={agreed} onChange={onAgree}/>
     <button className="auth-submit" disabled={busy||!agreed}>{busy?'Creating account…':'Create account'}</button>
     <button type="button" className="secondary" disabled={busy} onClick={onCancel}>Use another way</button>
@@ -35,7 +36,7 @@ export function GoogleRoleStep({email,role,agreed,busy,onRole,onAgree,onCreate,o
 export default function GoogleSignIn({signedIn}:{signedIn:(user:CurrentUser)=>void}){
   const holder=useRef<HTMLDivElement>(null)
   const [available,setAvailable]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false)
-  const [pending,setPending]=useState<{credential:string;email:string}|null>(null),[role,setRole]=useState('customer'),[agreed,setAgreed]=useState(false)
+  const [pending,setPending]=useState<{credential:string;email:string}|null>(null),[role,setRole]=useState('customer'),[mobile,setMobile]=useState(''),[agreed,setAgreed]=useState(false)
   const latest=useRef(signedIn);latest.current=signedIn
 
   async function send(body:object){
@@ -58,8 +59,8 @@ export default function GoogleSignIn({signedIn}:{signedIn:(user:CurrentUser)=>vo
     }).catch(()=>{if(alive)setAvailable(false)})
     return()=>{alive=false}},[])
 
-  if(pending)return <GoogleRoleStep email={pending.email} role={role} agreed={agreed} busy={busy} onRole={setRole} onAgree={setAgreed}
-    onCreate={()=>void send({credential:pending.credential,role,privacy_notice_version:PRIVACY_VERSION})} onCancel={()=>{setPending(null);setAgreed(false)}}/>
+  if(pending)return <GoogleRoleStep email={pending.email} role={role} mobile={mobile} agreed={agreed} busy={busy} onRole={setRole} onMobile={setMobile} onAgree={setAgreed}
+    onCreate={()=>void send({credential:pending.credential,role,mobile:mobile.trim()||null,privacy_notice_version:PRIVACY_VERSION})} onCancel={()=>{setPending(null);setAgreed(false)}}/>
   return <div className="google-signin" hidden={!available&&!error}>
     <div ref={holder} className="google-button" aria-label="Continue with Google"/>
     {error&&<p className="form-error" role="alert">{error}</p>}
