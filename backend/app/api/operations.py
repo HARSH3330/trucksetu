@@ -46,6 +46,17 @@ async def list_bookings(q:str=Query(default='',max_length=100),page:int=Query(de
     return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'reference':item.public_id,'customer_name':name,'status':item.status,'total_amount':str(item.total_amount),'created_at':item.created_at.isoformat()} for item,name in items]}
 
 
+@router.get('/admin/requirements')
+async def list_requirements(q:str=Query(default='',max_length=100),page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+    # Customer requirements only; addresses, cargo notes and contacts stay out of the general list.
+    filters=[TransportRequest.marketplace_mode=='customer_demand']
+    if q:filters.append(or_(TransportRequest.public_id.icontains(q,autoescape=True),TransportRequest.pickup_city.icontains(q,autoescape=True),TransportRequest.destination_city.icontains(q,autoescape=True)))
+    total=int(await db.scalar(select(func.count(TransportRequest.id)).where(*filters)) or 0)
+    bids=select(func.count(Quote.id)).where(Quote.request_id==TransportRequest.id).correlate(TransportRequest).scalar_subquery()
+    rows=(await db.execute(select(TransportRequest,User.full_name,User.email,bids).join(User,User.id==TransportRequest.customer_id).where(*filters).order_by(TransportRequest.created_at.desc(),TransportRequest.id).offset((page-1)*page_size).limit(page_size))).all()
+    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'reference':item.public_id,'route':f'{item.pickup_city} → {item.destination_city}','status':item.status,'pickup_date':item.pickup_date.isoformat(),'customer_name':name,'bid_count':int(count or 0),'is_test':email.endswith('@transivox.invalid'),'created_at':item.created_at.isoformat()} for item,name,email,count in rows]}
+
+
 @router.post('/admin/users/{user_id}/status')
 async def change_account_status(user_id:uuid.UUID,payload:AccountStatus,db:AsyncSession=Depends(get_db),admin:User=Depends(require_roles('admin','superadmin')))->dict[str,str]:
     target=await db.scalar(select(User).options(selectinload(User.roles)).where(User.id==user_id).with_for_update())
