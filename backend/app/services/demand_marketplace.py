@@ -111,8 +111,9 @@ async def eligible_driver(db, identity, provider_id, pickup, delivery, own_booki
         raise HTTPException(409, 'A verified provider driver with a current licence is required')
     await require_verified_driver_identity(db, driver)
     account = await db.get(User, driver.user_id) if driver.user_id else None
-    if not account or account.status != 'active' or not account.mobile_verified or not account.mobile:
-        raise HTTPException(409, 'Driver needs an active linked account with a verified phone number')
+    # Same rule as provider contacts: a phone number plus a verified email or phone.
+    if not account or account.status != 'active' or not account.mobile or not (account.mobile_verified or account.email_verified):
+        raise HTTPException(409, 'Driver needs an active linked account with a phone number and a verified email or phone')
     busy = select(Trip.id).join(BookingAllocation, BookingAllocation.id == Trip.allocation_id).join(Quote, Quote.id == BookingAllocation.quote_id).where(Trip.driver_id == identity, Trip.status.not_in(['completed','delivered','cancelled']), Quote.estimated_pickup < delivery, Quote.estimated_delivery > pickup)
     if own_booking:
         busy = busy.where(BookingAllocation.booking_id != own_booking)

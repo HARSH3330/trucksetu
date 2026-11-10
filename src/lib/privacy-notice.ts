@@ -1,4 +1,4 @@
-export const PRIVACY_VERSION = 'privacy-v3-20261107'
+export const PRIVACY_VERSION = 'privacy-v4-20261110'
 export const PRIVACY_CONTACT = 'harshagarwal244@gmail.com'
 
 export type PrivacySection = {heading: string; paragraphs?: string[]; items?: string[]}
@@ -16,7 +16,8 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
   {heading: '3. Your PAN', paragraphs: [
     'We ask customers for their PAN only to verify the customer account and reduce misuse before a transport requirement is published. Your document is not shown to providers, is not published with your requirement and is viewed only by authorised reviewers.']},
   {heading: '4. Why we use your data', paragraphs: [
-    'To create and secure your account; to verify customers and providers; to publish requirements and show bids; to process the platform connection fee and refunds; to send account and booking emails; to prevent fraud and misuse; to resolve disputes; and to meet legal obligations. We rely on your consent, which you can withdraw (see section 8).']},
+    'To create and secure your account; to verify customers and providers; to publish requirements and show bids; to process the platform connection fee and refunds; to send account and booking emails; to prevent fraud and misuse; to resolve disputes; and to meet legal obligations. We rely on your consent, which you can withdraw (see section 8).',
+    'If you are a provider or driver and a customer pays the connection fee for your bid, we share your name, phone number and email address with that customer only, and tell them whether your phone was verified by SMS.']},
   {heading: '5. Who processes your data for us', items: [
     'Amazon Web Services (Mumbai): private encrypted storage of verification documents and malware scanning.',
     'Neon (database, United States region): our database, which holds account and booking records. Some data is therefore stored outside India.',

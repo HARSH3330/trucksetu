@@ -200,6 +200,7 @@ def test_checkout_contact_and_repeat_charge_guards(monkeypatch,scenario):
                                 item=await db.get(DemandSelection,uuid.UUID(selected['id']))
                                 user=await db.get(User,item.contact_user_id)
                                 user.mobile_verified=False
+                                user.email_verified=False  # either channel alone still counts as verified
                                 await db.commit()
                         _,_,_,rejection=await prepare_selection(client,headers,payload,bid,before_checkout=revoke,checkout_status=409)
                         assert 'promised verified contact' in rejection['detail']

@@ -460,13 +460,13 @@ async def read_contact(identity,response,db,user,*,reveal):
     if not item.contact_revealed_at:
         item.contact_revealed_at=datetime.now(UTC)
         audit(db,user.id,'connection.contact_revealed','demand_selection',item.id,{'basis':'backend_verified_captured_payment'})
-    result = {'state':'unlocked','contact_kind':proof.kind,'contact_name':public_text(proof.name),'phone':proof.phone,
+    result = {'state':'unlocked','contact_kind':proof.kind,'contact_name':public_text(proof.name),'phone':proof.phone,'phone_verified':proof.phone_verified,'email':proof.email or None,
               'notice':'Purchased for this booking. Revisit without paying again. Previously viewed contact cannot be made unseen.'}
     trip = await db.scalar(select(Trip).join(BookingAllocation).where(BookingAllocation.booking_id == item.booking_id))
     if trip and trip.driver_id:
         try:
             driver_proof = await verified_contact(db,(await db.get(Quote,item.quote_id)).provider_id,'driver',trip.driver_id)
-            result.update(driver_name=public_text(driver_proof.name),driver_phone=driver_proof.phone)
+            result.update(driver_name=public_text(driver_proof.name),driver_phone=driver_proof.phone,driver_phone_verified=driver_proof.phone_verified)
         except HTTPException:
             pass
     audit(db,user.id,'connection.contact_accessed','demand_selection',item.id,{'contact_kind':proof.kind,'contact_user_id':str(proof.user_id),'basis':'verified_matching_captured_fee'})

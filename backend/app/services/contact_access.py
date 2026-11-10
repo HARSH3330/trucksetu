@@ -15,6 +15,8 @@ class ContactProof:
     user_id: object
     phone: str
     name: str
+    email: str = ''
+    phone_verified: bool = False
 
     @property
     def phone_hash(self):
@@ -35,9 +37,15 @@ async def verified_contact(db, provider_id, kind, driver_id=None, through=None):
     elif kind != 'provider':
         raise HTTPException(409,'Choose a verified provider or assigned-driver contact')
     account = await db.scalar(select(User).where(User.id == account_id).with_for_update()) if account_id else None
-    if not account or account.status != 'active' or not account.mobile_verified or not account.mobile:
-        raise HTTPException(409,'A verified phone number for the promised contact is required before checkout')
-    return ContactProof(kind,account.id,account.mobile,name)
+    if not account or account.status != 'active':
+        raise HTTPException(409,'The promised contact account is unavailable')
+    if not account.mobile:
+        raise HTTPException(409,'Add a phone number to the promised contact account before bidding')
+    # Owner decision 2026-11-10: a verified email is enough until SMS verification is live;
+    # the customer is told whether the phone itself was verified.
+    if not (account.mobile_verified or account.email_verified):
+        raise HTTPException(409,'Verify your email or phone on the promised contact account before bidding')
+    return ContactProof(kind,account.id,account.mobile,name,account.email if account.email_verified else '',bool(account.mobile_verified))
 
 
 async def selected_contact(db,selection):
