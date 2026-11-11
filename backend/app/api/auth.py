@@ -135,12 +135,15 @@ async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depe
     # Persist the account, token and session before attempting external delivery.
     await db.commit()
     acknowledged=False
+    error='NotConfigured' if sender is None else 'NoAcknowledgement'
     if sender is not None:
         try:
             acknowledged=bool(await sender.send(user.email,account_email_message(user.email,'email',code)))
-        except Exception:
-            pass  # Never log provider exceptions, message bodies or credentials.
-    db.add(AuditLog(actor_id=user.id,action='auth.account_email_accepted' if acknowledged else 'auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after={'channel':'email','source':'registration'}))
+        except Exception as exc:
+            # Record the exception class only; never provider text, message bodies or credentials.
+            error=type(exc).__name__
+    detail={'channel':'email','source':'registration'} if acknowledged else {'channel':'email','source':'registration','error':error}
+    db.add(AuditLog(actor_id=user.id,action='auth.account_email_accepted' if acknowledged else 'auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after=detail))
     result["verification_required"] = True
     if settings.is_development:
         result["development_verification_code"] = code

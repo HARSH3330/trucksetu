@@ -77,10 +77,10 @@ async def request_code(email:str,channel:str,db:AsyncSession,sender:ChannelProvi
     try:
         receipt=await sender.send(user.email,account_email_message(user.email,channel,code))
         if not receipt:raise RuntimeError('No account delivery acknowledgement')
-    except Exception:
+    except Exception as exc:
         # Preserve the same public response for unknown/eligible/delivery-error
-        # accounts. No raw provider diagnostics, email body or token is logged.
-        db.add(AuditLog(actor_id=user.id,action='auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after={'channel':channel}))
+        # accounts. Only the exception class is recorded: no provider text, email body or token.
+        db.add(AuditLog(actor_id=user.id,action='auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after={'channel':channel,'error':type(exc).__name__}))
         await db.commit()
         return REQUESTED
     now=datetime.now(UTC)

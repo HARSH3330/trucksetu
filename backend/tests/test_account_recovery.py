@@ -90,6 +90,18 @@ def test_delivery_failure_does_not_disclose_account_existence(recovery):
     assert client.post('/api/v1/auth/password-reset/request',json={'email':'unknown-fictional@example.com'}).json()==failed.json()
 
 
+def test_delivery_failure_audit_names_error_type_without_provider_text(recovery):
+    import smtplib
+    from app.models import AuditLog
+    client,user,_,_,sender,db=recovery
+    sender.send.side_effect=smtplib.SMTPAuthenticationError(535,b'private fake provider diagnostic')
+    assert client.post('/api/v1/auth/verification/resend',json={'email':user.email}).status_code==202
+    audit=next(call.args[0] for call in db.add.call_args_list if isinstance(call.args[0],AuditLog))
+    assert audit.action=='auth.account_email_unacknowledged'
+    assert audit.after['error']=='SMTPAuthenticationError'
+    assert 'private fake provider diagnostic' not in str(audit.after)
+
+
 def test_customer_can_set_trip_contact_only_with_current_password(recovery):
     client,user,_,_,_,_=recovery
     user.password_hash=get_password_hash('CurrentFictional123!')
