@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react'
+import {BadgeCheck,FileText} from 'lucide-react'
 import {ApiError,apiFetch,type CurrentUser} from '../lib/api'
 import LiveKYC from './LiveKYC'
 import './DemandMarketplace.css'
@@ -21,8 +22,17 @@ export default function VerificationWorkspace({onSignIn}:{onSignIn?:()=>void}={}
  if(signedOut)return <VerificationSignedOut onSignIn={onSignIn}/>
  if(error)return <main className="page"><p role="alert">{error}</p><button onClick={load}>Retry verification</button></main>
  if(!user)return <main className="page"><p role="status">Loading verification…</p></main>
- if(user.roles.some(r=>['admin','superadmin'].includes(r)))return <><LiveKYC/><CustomerVerification admin/></>
+ if(user.roles.some(r=>['admin','superadmin'].includes(r)))return <AdminVerification/>
  return user.roles.includes('customer')?<CustomerVerification/>:<LiveKYC/>
+}
+
+/** One page for both review queues; customer PAN reviews come first because they are the most frequent. */
+export function AdminVerification(){
+ return <main className="page admin-verification">
+  <div className="page-title"><span className="kicker">MANUAL ADMIN VERIFICATION</span><h1>Verification review queue</h1><p>Open each scan-clean document, record a decision and give a reason. Customers need their PAN accepted; truck owners and drivers need their full document set.</p></div>
+  <CustomerVerification admin/>
+  <LiveKYC embedded/>
+ </main>
 }
 
 export function CustomerVerification({admin=false}:{admin?:boolean}){
@@ -61,38 +71,53 @@ export function CustomerVerification({admin=false}:{admin?:boolean}){
  const canStart=!item||renewal||['rejected','suspended'].includes(item.status)
  const active=admin?queue.find(q=>q.id===item?.id)||null:item
  const allAccepted=Boolean(active&&active.required_documents.every(kind=>active.documents.some(d=>d.type===kind&&d.status!=='rejected'&&decisions[d.id]==='accepted')))
+ const select=(q:Application)=>{setItem(q);setDecisions({});setReason('');setDecision(q.status==='verified'?'suspended':'verified')}
+ if(admin)return <section className="panel customer-verification customer-review" aria-busy={loading||busy}>
+  <h2>Customer document review</h2>
+  <p className="customer-review-intro">Customers upload a PAN that must pass the malware scan. Open it, accept it, then verify the application. A clean scan alone does not verify identity.</p>
+  {message&&<p role="status" className="privacy-banner">{message}</p>}
+  {loading?<p role="status">Loading customer verification…</p>:error?<div role="alert"><p>{error}</p><button onClick={()=>void load()}>Retry customer verification</button></div>:<>
+   <div className="customer-review-bar">
+    <label>Customer application status<select value={filter} onChange={e=>{setFilter(e.target.value);setItem(null);setDecisions({});setReason('')}}>{['under_review','verified','rejected','resubmit_required','suspended'].map(v=><option value={v} key={v}>{v.replaceAll('_',' ')}</option>)}</select></label>
+    <button className="secondary" disabled={busy} onClick={()=>void load()}>Refresh customer verification</button>
+   </div>
+   <div className="kyc-admin-grid">
+    <aside className="kyc-queue">{queue.map(q=><button key={q.id} className={item?.id===q.id?'active':''} aria-pressed={item?.id===q.id} onClick={()=>select(q)}><span aria-hidden="true">{q.documents.length}</span><div><b>Application {q.id.slice(0,8)}</b><small>{q.status.replaceAll('_',' ')} · {q.documents.map(d=>label(d.type)).join(', ')||'No documents'}</small></div></button>)}
+     {!queue.length&&<div className="empty-state">No customer applications in this queue.</div>}</aside>
+    {active?<div className="kyc-review customer-review-panel">
+     <div className="panel-head"><div><span className="badge">{active.status.replaceAll('_',' ')}</span><h3>Application {active.id.slice(0,8)}</h3>{active.decision_reason&&<p>Review reason: {active.decision_reason}</p>}</div></div>
+     <div className="document-list">{active.documents.map(d=><article key={d.id}><span><FileText/></span><div><b>{label(d.type)}</b><small>{d.status}</small></div>
+      <button type="button" disabled={busy} onClick={()=>void open(d.id)}>Open {label(d.type)} securely</button>
+      {active.status==='under_review'&&d.status!=='rejected'&&<select aria-label={`Decision for ${label(d.type)}`} value={decisions[d.id]||''} onChange={e=>setDecisions({...decisions,[d.id]:e.target.value})}><option value="">Review document first</option><option value="accepted">Accept</option><option value="rejected">Reject</option></select>}
+     </article>)}</div>
+     {['under_review','verified'].includes(active.status)&&<div className="customer-review-form">
+      <label>Customer review decision<select value={decision} onChange={e=>setDecision(e.target.value)}>{active.status==='under_review'?<><option value="verified">Verify</option><option value="resubmit_required">Request resubmission</option><option value="rejected">Reject</option></>:<option value="suspended">Suspend</option>}</select></label>
+      <label>Customer review reason<textarea value={reason} minLength={10} maxLength={2000} placeholder="At least 10 characters, e.g. PAN checked and matches the account" onChange={e=>setReason(e.target.value)}/></label>
+      {decision==='verified'&&!allAccepted&&<p className="customer-review-hint">Set every document to Accept before verifying.</p>}
+      <button disabled={busy||reason.trim().length<10||(decision==='verified'&&!allAccepted)} onClick={()=>void action(async()=>{await apiFetch(`/customer-kyc/admin/applications/${active.id}/review`,{method:'POST',body:JSON.stringify({decision,reason,document_decisions:Object.fromEntries(Object.entries(decisions).filter(([,v])=>v))})});setItem(null);await load();setMessage('Customer review recorded.')})}><BadgeCheck/>Record customer review</button>
+     </div>}
+    </div>:queue.length>0&&<div className="empty-state">Select an application to review its PAN.</div>}
+   </div>
+  </>}
+ </section>
  return <section className="page demand-page customer-verification" aria-busy={loading||busy}>
-  {admin?<h2>Customer document review</h2>:<h1>Customer verification</h1>}
+  <h1>Customer verification</h1>
   <p>Private documents must pass malware scanning, then an authorised reviewer checks each required document. A clean scan does not verify your identity.</p>
   {message&&<p role="status">{message}</p>}
   {loading?<p role="status">Loading customer verification…</p>:error?<div role="alert"><p>{error}</p><button onClick={()=>void load()}>Retry customer verification</button></div>:<>
-   {admin?<>
-    <label>Customer application status<select value={filter} onChange={e=>{setFilter(e.target.value);setItem(null);setDecisions({});setReason('')}}>{['under_review','verified','rejected','resubmit_required','suspended'].map(v=><option value={v} key={v}>{v.replaceAll('_',' ')}</option>)}</select></label>
-    <div className="demand-actions">{queue.map(q=><button key={q.id} aria-pressed={item?.id===q.id} onClick={()=>{setItem(q);setDecisions({});setReason('');setDecision(q.status==='verified'?'suspended':'verified')}}>Application {q.id.slice(0,8)} · {q.status.replaceAll('_',' ')}</button>)}</div>
-    {!queue.length&&<p>No customer applications in this queue.</p>}
-   </>:<>
-    {canStart&&policy&&<fieldset className="customer-consent"><legend>Customer document consent</legend>
-     <p>Required documents: {policy.required_documents.map(label).join(', ')}.</p>
-     <p className="consent-text">{policy.consent_text}</p><p>Policy version: {policy.version}. <a href="#privacy">Read the privacy policy</a>.</p>
-     <label className="demand-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>I have read this customer document consent and agree to the stated review.</label>
-     <button disabled={busy||!consent} onClick={()=>void action(start)}>{item?'Start a fresh customer review':'Start customer verification'}</button>
-    </fieldset>}
-    {item&&!renewal&&['registered','resubmit_required'].includes(item.status)&&<>
-     {item.required_documents.map(kind=><label key={kind}>{label(kind)}<input aria-label={`Upload ${label(kind)}`} type="file" accept="application/pdf,image/png,image/jpeg" disabled={busy||Boolean(pending)||item.documents.some(d=>d.type===kind&&d.status!=='rejected')} onChange={e=>{const file=e.target.files?.[0];if(file)void upload(kind,file);e.target.value=''}}/></label>)}
-     {pending&&<div><p>The private upload is waiting for a verified clean scan. It has not been submitted for approval.</p><button disabled={busy} onClick={()=>void action(()=>finalize(pending))}>Check scan and register document</button></div>}
-     <button disabled={busy||Boolean(pending)||!item.required_documents.every(kind=>item.documents.some(d=>d.type===kind&&d.status!=='rejected'))} onClick={()=>void action(async()=>{setItem(await apiFetch<Application>('/customer-kyc/submit',{method:'POST'}));setMessage('Submitted for manual review. Publication remains blocked until approval.')})}>Submit customer documents for review</button>
-    </>}
+   {canStart&&policy&&<fieldset className="customer-consent"><legend>Customer document consent</legend>
+    <p>Required documents: {policy.required_documents.map(label).join(', ')}.</p>
+    <p className="consent-text">{policy.consent_text}</p><p>Policy version: {policy.version}. <a href="#privacy">Read the privacy policy</a>.</p>
+    <label className="demand-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>I have read this customer document consent and agree to the stated review.</label>
+    <button disabled={busy||!consent} onClick={()=>void action(start)}>{item?'Start a fresh customer review':'Start customer verification'}</button>
+   </fieldset>}
+   {item&&!renewal&&['registered','resubmit_required'].includes(item.status)&&<>
+    {item.required_documents.map(kind=><label key={kind}>{label(kind)}<input aria-label={`Upload ${label(kind)}`} type="file" accept="application/pdf,image/png,image/jpeg" disabled={busy||Boolean(pending)||item.documents.some(d=>d.type===kind&&d.status!=='rejected')} onChange={e=>{const file=e.target.files?.[0];if(file)void upload(kind,file);e.target.value=''}}/></label>)}
+    {pending&&<div><p>The private upload is waiting for a verified clean scan. It has not been submitted for approval.</p><button disabled={busy} onClick={()=>void action(()=>finalize(pending))}>Check scan and register document</button></div>}
+    <button disabled={busy||Boolean(pending)||!item.required_documents.every(kind=>item.documents.some(d=>d.type===kind&&d.status!=='rejected'))} onClick={()=>void action(async()=>{setItem(await apiFetch<Application>('/customer-kyc/submit',{method:'POST'}));setMessage('Submitted for manual review. Publication remains blocked until approval.')})}>Submit customer documents for review</button>
    </>}
    {active&&<><h2>Application: {active.status.replaceAll('_',' ')}</h2>{active.decision_reason&&<p>Review reason: {active.decision_reason}</p>}
-    <ul>{active.documents.map(d=><li key={d.id}><b>{label(d.type)}</b> · {d.status} <button disabled={busy} onClick={()=>void open(d.id)}>Open {label(d.type)} securely</button>
-     {admin&&active.status==='under_review'&&d.status!=='rejected'&&<label>Decision for {label(d.type)}<select value={decisions[d.id]||''} onChange={e=>setDecisions({...decisions,[d.id]:e.target.value})}><option value="">Review document first</option><option value="accepted">Accept</option><option value="rejected">Reject</option></select></label>}
-    </li>)}</ul>
-    {admin&&['under_review','verified'].includes(active.status)&&<>
-     <label>Customer review decision<select value={decision} onChange={e=>setDecision(e.target.value)}>{active.status==='under_review'?<><option value="verified">Verify</option><option value="resubmit_required">Request resubmission</option><option value="rejected">Reject</option></>:<option value="suspended">Suspend</option>}</select></label>
-     <label>Customer review reason<textarea value={reason} minLength={10} maxLength={2000} onChange={e=>setReason(e.target.value)}/></label>
-     {decision==='verified'&&!allAccepted&&<p>Accept every required document after reviewing it before verifying this application.</p>}
-     <button disabled={busy||reason.trim().length<10||(decision==='verified'&&!allAccepted)} onClick={()=>void action(async()=>{await apiFetch(`/customer-kyc/admin/applications/${active.id}/review`,{method:'POST',body:JSON.stringify({decision,reason,document_decisions:Object.fromEntries(Object.entries(decisions).filter(([,v])=>v))})});setItem(null);await load();setMessage('Customer review recorded.')})}>Record customer review</button>
-    </>}
+    <ul>{active.documents.map(d=><li key={d.id}><b>{label(d.type)}</b> · {d.status} <button disabled={busy} onClick={()=>void open(d.id)}>Open {label(d.type)} securely</button></li>)}</ul>
    </>}
    <button className="secondary" disabled={busy} onClick={()=>void load()}>Refresh customer verification</button>
   </>}
