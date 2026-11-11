@@ -9,7 +9,7 @@ import './DemandMarketplace.css'
 
 /** Fee facts come from the server's live settings, never from fixed text. */
 export function HomeFeeNotice({config}:{config:MarketplaceConfig|null}){
- return <p>{taxSentence(config)} Before contact reveal, cancellation qualifies for a full refund including tax. After reveal, ordinary cancellation has no refund. Administrator-confirmed provider failure can issue one single-use platform-fee credit. Tax on a waived fee, credit expiry, transferability and invalid-contact rules remain unresolved. {checkoutSentence(config)}</p>
+ return <p>{taxSentence(config)} Cancel before you see the transporter’s number for a full refund including tax. After the number is shown, ordinary cancellation is not refunded. If we confirm the transporter failed to do the job, you get a one-time credit for the platform connection fee on your next booking. {checkoutSentence(config)}</p>
 }
 
 const HOW_STEPS=[

@@ -20,6 +20,9 @@ it('keeps the refund page free of hard-coded checkout claims until the server an
   expect(html).toContain('Platform connection-fee rules')
   expect(html).toContain('Tax is pending server configuration')
 })
+it('keeps internal open-question notes off the refund page',()=>{
+  expect(renderToStaticMarkup(<PublicPolicy kind="refund" />)).not.toMatch(/pending confirmation|transferability|Administrator-confirmed/)
+})
 it('does not tell customers the refund policy is unpublished',()=>{
   expect(renderToStaticMarkup(<PublicPolicy kind="refund" />)).not.toContain('has not yet been published')
 })
