@@ -185,7 +185,7 @@ test('public navigation has distinct URLs that survive reload and browser Back',
 })
 
 test('signed-out support and policies are public and do not expose private cases',async({page})=>{
-  await page.route('**/legal/terms',route=>route.fulfill({json:{version:'fictional-test-version',content:'TEST TERMS NOT LEGAL ADVICE',status:'draft_pending_legal_review'}}))
+  await page.route('**/legal/terms',route=>route.fulfill({json:{version:'fictional-test-version',content:'TEST TERMS NOT LEGAL ADVICE',status:'final'}}))
   await page.goto('/#support')
   await expect(page.getByRole('heading',{name:'Safety & support',exact:true})).toBeVisible()
   await expect(page.getByRole('heading',{name:'What verification means'})).toBeVisible()

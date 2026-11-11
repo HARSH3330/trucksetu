@@ -14,8 +14,8 @@ from app.api.auth import current_user
 from app.core.database import get_db
 from app.models import AuditLog, TermsAcceptance, User
 
-TERMS_VERSION = "2026-10-08-draft-v1"
-TERMS_CONTENT = (Path(__file__).parents[1] / "legal" / "terms-v1.txt").read_text(encoding="utf-8")
+TERMS_VERSION = "2026-11-11-v2"
+TERMS_CONTENT = (Path(__file__).parents[1] / "legal" / "terms-v2.txt").read_text(encoding="utf-8")
 TERMS_HASH = hashlib.sha256(TERMS_CONTENT.encode()).hexdigest()
 from app.core.routing import AuthenticationFirstRoute
 
@@ -39,7 +39,7 @@ async def require_terms(db: AsyncSession, user_id: uuid.UUID) -> TermsAcceptance
 
 @router.get("/terms")
 async def terms() -> dict[str, str]:
-    return {"version": TERMS_VERSION, "content": TERMS_CONTENT, "status": "draft_pending_legal_review"}
+    return {"version": TERMS_VERSION, "content": TERMS_CONTENT, "status": "final"}
 
 
 @router.get("/terms/acceptance")

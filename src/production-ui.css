@@ -64,7 +64,7 @@ body{line-height:1.5}
 .public-information{max-width:900px}
 .public-information section{border-top:1px solid var(--line);margin-top:24px;padding-top:16px}
 .public-information a{color:var(--green);display:inline-block;padding:10px 0}
-.policy-content{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.65}
+.policy-content{overflow-wrap:anywhere;line-height:1.65}.policy-content h2{font-size:1.25em;margin:0 0 .6em}.policy-content h3{font-size:1.05em;margin:1.6em 0 .4em}.policy-content p,.policy-content ul{margin:0 0 .8em}.policy-content ul{padding-left:1.4em}
 .filters-overlay{justify-items:end}
 .filters-dialog{height:calc(100dvh - 36px);max-width:400px;animation:filter-open 240ms ease-out}
 @keyframes filter-open{from{transform:translateX(24px);opacity:.6}to{transform:translateX(0);opacity:1}}
