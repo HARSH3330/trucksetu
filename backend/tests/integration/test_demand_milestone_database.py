@@ -81,7 +81,11 @@ def test_current_account_and_provider_verification_are_server_enforced(monkeypat
     async def exercise():
         async with migrated_schema() as (_,factory):
             monkeypatch.setattr(database,'get_session_factory',lambda:factory)
-            headers,payload,_,_=await actors_and_payload(factory)
+            headers,payload,bid,_=await actors_and_payload(factory)
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://localhost') as client:
+                published=await client.post('/api/v1/demands',headers=headers[0],json=payload)
+                assert published.status_code==201,published.text
+                identity=published.json()['id']
             async with factory() as db:
                 customer=await db.scalar(select(User).where(User.email.like('customer-0-%')))
                 customer.email_verified=False
@@ -91,7 +95,13 @@ def test_current_account_and_provider_verification_are_server_enforced(monkeypat
                 await db.commit()
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://localhost') as client:
                 assert (await client.post('/api/v1/demands',headers=headers[0],json=payload)).status_code==403
-                assert (await client.get('/api/v1/demands',headers=headers[2])).status_code==403
+                # Every active truck-owner account can read open requirements; only verified providers may bid.
+                listed=await client.get('/api/v1/demands',headers=headers[2])
+                assert listed.status_code==200 and identity in {row['id'] for row in listed.json()}
+                assert 'PRIVATE' not in listed.text
+                assert (await client.get(f'/api/v1/demands/{identity}',headers=headers[2])).status_code==200
+                assert (await client.post(f'/api/v1/demands/{identity}/bids',headers=headers[2],json=bid)).status_code==403
+                assert (await client.get('/api/v1/demand-bids/mine',headers=headers[2])).status_code==403
                 assert (await client.get('/api/v1/admin/connection-fees',headers=headers[2])).status_code==403
                 assert (await client.get('/api/v1/admin/connection-fees',headers=headers[4])).status_code==200
     run_local(exercise())

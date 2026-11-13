@@ -132,8 +132,9 @@ async def own_demands(db=Depends(get_db), user=Depends(customer)):
 
 @router.get('/demands')
 async def discover_demands(pickup: str = Query('', max_length=100), destination: str = Query('', max_length=100), goods: str = Query('', max_length=100), page: int = Query(1,ge=1,le=10000), db=Depends(get_db), user=Depends(provider_role)):
+    # Every active truck-owner account may read open requirements (public fields only);
+    # submit_bid still requires a verified provider profile.
     require_policy()
-    await provider_for(db, user)
     await expire_due(db)
     query = select(TransportRequest).where(TransportRequest.marketplace_mode == 'customer_demand', TransportRequest.status == 'published', TransportRequest.customer_id != user.id, TransportRequest.delivery_deadline_at > datetime.now(UTC)).options(selectinload(TransportRequest.cargo),selectinload(TransportRequest.stops))
     if pickup:
@@ -150,8 +151,6 @@ async def discover_demands(pickup: str = Query('', max_length=100), destination:
 @router.get('/demands/{identity}')
 async def demand_detail(identity: uuid.UUID, db=Depends(get_db), user=Depends(participant)):
     item = await demand_for(db, identity)
-    if item.customer_id != user.id:
-        await provider_for(db, user)
     return demand_view(item, item.customer_id == user.id)
 
 
