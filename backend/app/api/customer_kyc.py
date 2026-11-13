@@ -145,8 +145,9 @@ async def submit(db=Depends(get_db),user=Depends(customer),storage=Depends(get_p
 
 @router.get('/admin/applications')
 async def queue(status: str=Query(default='under_review',max_length=30),offset:int=Query(default=0,ge=0),limit:int=Query(default=30,ge=1,le=100),db=Depends(get_db),user=Depends(admin)):
-    items=list(await db.scalars(select(CustomerKYCApplication).where(CustomerKYCApplication.status==status).order_by(CustomerKYCApplication.created_at).offset(offset).limit(limit)))
-    return [await view(db,item) for item in items]
+    rows=(await db.execute(select(CustomerKYCApplication,User.full_name,User.email).join(User,User.id==CustomerKYCApplication.user_id).where(CustomerKYCApplication.status==status).order_by(CustomerKYCApplication.created_at).offset(offset).limit(limit))).all()
+    # Reviewers need to know whose application it is; the customer's own view omits these fields.
+    return [{**await view(db,item),'account_name':name,'account_email':email} for item,name,email in rows]
 
 
 @router.post('/admin/applications/{identity}/review')

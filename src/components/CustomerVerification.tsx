@@ -5,7 +5,9 @@ import LiveKYC from './LiveKYC'
 import './DemandMarketplace.css'
 
 type Doc={id:string;type:string;status:string}
-type Application={id:string;status:string;policy_version:string;consent_sha256:string|null;required_documents:string[];decision_reason:string|null;documents:Doc[]}
+type Application={id:string;status:string;policy_version:string;consent_sha256:string|null;required_documents:string[];decision_reason:string|null;documents:Doc[];account_name?:string;account_email?:string}
+/** Admin queue rows carry the account holder; a customer's own view does not. */
+export const applicationTitle=(item:{id:string;account_name?:string})=>`${item.account_name?item.account_name+' · ':''}Application ${item.id.slice(0,8)}`
 type Policy={version:string;required_documents:string[];consent_text:string;consent_sha256:string}
 type Pending={document_type:string;filename:string;content_type:string;storage_key:string}
 const label=(value:string)=>({aadhaar:'Aadhaar',pan:'PAN'}[value]||value)
@@ -82,10 +84,10 @@ export function CustomerVerification({admin=false}:{admin?:boolean}){
     <button className="secondary" disabled={busy} onClick={()=>void load()}>Refresh customer verification</button>
    </div>
    <div className="kyc-admin-grid">
-    <aside className="kyc-queue">{queue.map(q=><button key={q.id} className={item?.id===q.id?'active':''} aria-pressed={item?.id===q.id} onClick={()=>select(q)}><span aria-hidden="true">{q.documents.length}</span><div><b>Application {q.id.slice(0,8)}</b><small>{q.status.replaceAll('_',' ')} · {q.documents.map(d=>label(d.type)).join(', ')||'No documents'}</small></div></button>)}
+    <aside className="kyc-queue">{queue.map(q=><button key={q.id} className={item?.id===q.id?'active':''} aria-pressed={item?.id===q.id} onClick={()=>select(q)}><span aria-hidden="true">{q.documents.length}</span><div><b>{applicationTitle(q)}</b><small>{q.account_email&&<>{q.account_email} · </>}{q.status.replaceAll('_',' ')} ·{q.documents.map(d=>label(d.type)).join(', ')||'No documents'}</small></div></button>)}
      {!queue.length&&<div className="empty-state">No customer applications in this queue.</div>}</aside>
     {active?<div className="kyc-review customer-review-panel">
-     <div className="panel-head"><div><span className="badge">{active.status.replaceAll('_',' ')}</span><h3>Application {active.id.slice(0,8)}</h3>{active.decision_reason&&<p>Review reason: {active.decision_reason}</p>}</div></div>
+     <div className="panel-head"><div><span className="badge">{active.status.replaceAll('_',' ')}</span><h3>{applicationTitle(active)}</h3>{active.account_email&&<p>{active.account_email}</p>}{active.decision_reason&&<p>Review reason: {active.decision_reason}</p>}</div></div>
      <div className="document-list">{active.documents.map(d=><article key={d.id}><span><FileText/></span><div><b>{label(d.type)}</b><small>{d.status}</small></div>
       <button type="button" disabled={busy} onClick={()=>void open(d.id)}>Open {label(d.type)} securely</button>
       {active.status==='under_review'&&d.status!=='rejected'&&<select aria-label={`Decision for ${label(d.type)}`} value={decisions[d.id]||''} onChange={e=>setDecisions({...decisions,[d.id]:e.target.value})}><option value="">Review document first</option><option value="accepted">Accept</option><option value="rejected">Reject</option></select>}

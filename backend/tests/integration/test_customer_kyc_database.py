@@ -58,6 +58,10 @@ def test_customer_scan_review_download_and_publication_lifecycle(monkeypatch,tmp
                         assert (await client.get(base+'/documents/'+document['id']+'/download',headers=headers[0])).status_code==200
                     assert (await client.post(base+'/submit',headers=headers[0])).status_code==200
                     assert (await client.post('/api/v1/demands',headers=headers[0],json=payload)).status_code==403
+                    # Reviewers see who the application belongs to, not only its identifier.
+                    queued=next(row for row in (await client.get(base+'/admin/applications',headers=admin_headers)).json() if row['id']==identity)
+                    assert queued['account_name']=='Fictional local actor' and queued['account_email'].startswith('customer-0-')
+                    assert 'account_name' not in (await client.get(base+'/me',headers=headers[0])).json()
                     decision={'decision':'verified','reason':'Fictional documents manually reviewed for local test.','document_decisions':{d['id']:'accepted' for d,_ in registered}}
                     endpoint=base+'/admin/applications/'+identity+'/review'
                     assert (await client.post(endpoint,headers=headers[0],json=decision)).status_code==403
