@@ -1,7 +1,13 @@
 import React from 'react'
 import {renderToStaticMarkup} from 'react-dom/server'
 import {expect,it} from 'vitest'
-import AccountSecurity from './AccountSecurity'
+import AccountSecurity,{emailVerifiedMessage} from './AccountSecurity'
+
+it('does not ask a signed-in person to sign in again after verifying email',()=>{
+  expect(emailVerifiedMessage(true)).toBe('Email verified. Your account is updated; you can close this window.')
+  expect(emailVerifiedMessage(true)).not.toMatch(/sign in again/i)
+  expect(emailVerifiedMessage(false)).toBe('Email verified. Sign in to continue.')
+})
 
 it('does not show password or token fields before requesting recovery',()=>{
   const html=renderToStaticMarkup(<AccountSecurity close={()=>{}}/>)

@@ -154,3 +154,8 @@ def test_resend_cooldown_does_not_send_or_disclose_account(recovery):
     db.scalar.side_effect=None;db.scalar.return_value=None
     unknown=client.post('/api/v1/auth/verification/resend',json={'email':'another-fictional@example.com'})
     assert unknown.status_code==202 and known.json()==unknown.json()
+
+
+def test_trip_contact_accepts_spaced_phone_numbers():
+    from app.api.account_recovery import MobileInput
+    assert MobileInput(mobile='+91 99999 99999', password='x').mobile == '+919999999999'

@@ -28,7 +28,7 @@ export default function TermsConsent({onAccepted,onCancel}:{onAccepted:()=>void;
   }}>
     <button ref={closeButton} className="modal-close" disabled={busy} onClick={onCancel} aria-label="Close Terms">×</button>
     <h2 id="terms-title">Terms & Conditions</h2>
-    <p>Review and accept before your first booking. We will ask again when the Terms change.</p>
+    <p>Review and accept before you publish a requirement or book. We will ask again only when the Terms change.</p>
     {terms?<><small>Version {terms.version}</small><div tabIndex={0} aria-label="Full Terms and Conditions" style={{maxHeight:'45vh',overflow:'auto',padding:'16px',border:'1px solid #dce6e2',borderRadius:8,margin:'16px 0',fontSize:13}}><PolicyText content={terms.content}/></div>
     <label className="check"><input type="checkbox" checked={checked} disabled={busy} onChange={event=>setChecked(event.target.checked)}/>I have read and accept the Terms & Conditions shown above.</label></>:!error&&<p role="status">Loading Terms…</p>}
     {error&&<p className="form-error" role="alert">{error}</p>}

@@ -5,6 +5,8 @@ import {useDialog} from '../lib/useDialog'
 import PhoneVerification from './PhoneVerification'
 
 type Mode='request-reset'|'reset'|'verify'|'mobile'
+/** The app reloads the signed-in account when this dialog closes, so nobody needs to sign in again. */
+export const emailVerifiedMessage=(signedIn:boolean)=>signedIn?'Email verified. Your account is updated; you can close this window.':'Email verified. Sign in to continue.'
 export default function AccountSecurity({close,initialEmail='',initialMode='request-reset',initialToken='',initialCode='',signedIn=false}:{close:()=>void;initialEmail?:string;initialMode?:Mode;initialToken?:string;initialCode?:string;signedIn?:boolean}){
   const dialog=useDialog(close)
   const [mode,setMode]=useState<Mode>(initialMode)
@@ -30,7 +32,7 @@ export default function AccountSecurity({close,initialEmail='',initialMode='requ
       if(await perform('/auth/password-reset/request',{email},'If your account is eligible and delivery is available, check your inbox. Delivery is not confirmed.'))setMode('reset')
     }else if(mode==='reset'){
       if(await perform('/auth/password-reset/confirm',{email,token,password},'Password updated. Previous sessions are invalidated. Sign in again.')){setToken('');setPassword('')}
-    }else if(await perform('/auth/verify-email',{email,code},'Email verified. Close this window and sign in again to refresh account details.'))setCode('')
+    }else if(await perform('/auth/verify-email',{email,code},emailVerifiedMessage(signedIn)))setCode('')
   }
   function switchMode(next:Mode){setMode(next);setToken('');setPassword('');setCode('');setError('');setMessage('')}
   return <div className="overlay"><div ref={dialog} className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="account-security-title" tabIndex={-1}>

@@ -19,7 +19,7 @@ from app.models import AccountVerification,AuditLog,RefreshSession,User
 from app.services.account_email import account_email_message
 from app.services.communications import ChannelProvider
 from app.services.dependencies import get_account_email_delivery
-from app.services.msg91_widget import InvalidWidgetVerification,canonical_mobile
+from app.services.msg91_widget import InvalidWidgetVerification,canonical_mobile,typed_mobile
 
 router=APIRouter(route_class=AuthenticationFirstRoute,prefix='/api/v1/auth',tags=['account recovery'])
 REQUESTED={'status':'requested','message':'If the account is eligible and email delivery is available, check your inbox. Delivery is not confirmed.'}
@@ -39,12 +39,14 @@ class PasswordResetInput(EmailInput):
 
 
 class MobileInput(BaseModel):
-    mobile:str=Field(max_length=20,pattern=r'^\+?[1-9]\d{7,14}$')
+    mobile:str
     password:str=Field(min_length=1,max_length=72)
-    @field_validator('mobile')
+    @field_validator('mobile',mode='before')
     @classmethod
-    def normalize_mobile(cls,value:str)->str:
-        return canonical_mobile(value)
+    def normalize_mobile(cls,value:object)->str:
+        cleaned=typed_mobile(value)
+        if cleaned is None:raise ValueError('Enter a valid mobile number, for example +91 98765 43210')
+        return cleaned
 
 
 @router.patch('/mobile')

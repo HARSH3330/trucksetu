@@ -17,8 +17,8 @@ from app.core.config import settings
 from app.core.database import acquire_idempotency_lock, get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, create_refresh_token, generate_otp, get_password_hash, hash_otp, hash_token, token_hash_matches, verify_otp, verify_password, verify_token
-from app.models import AccountVerification, AuditLog, RefreshSession, User, UserRole
-from app.services.msg91_widget import canonical_mobile
+from app.models import AccountVerification, AuditLog, RefreshSession, TermsAcceptance, User, UserRole
+from app.services.msg91_widget import typed_mobile
 from app.services.account_email import account_email_message
 from app.services.communications import ChannelProvider
 from app.services.dependencies import get_optional_account_email_delivery
@@ -41,15 +41,16 @@ def require_work_phone(role: str | None, mobile: str | None) -> None:
 class SignupInput(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
-    mobile: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
+    mobile: str | None = None
     password: str = Field(min_length=10, max_length=72)
     role: str = "customer"
     privacy_notice_version: str | None = Field(default=None, min_length=1, max_length=80)
+    terms_version: str | None = Field(default=None, min_length=1, max_length=80)
 
-    @field_validator('mobile')
+    @field_validator('mobile',mode='before')
     @classmethod
-    def normalize_mobile(cls,value:str|None)->str|None:
-        return canonical_mobile(value) if value is not None else None
+    def normalize_mobile(cls,value:object)->str|None:
+        return typed_mobile(value)
 
     @field_validator("password")
     @classmethod
@@ -129,6 +130,13 @@ async def signup(payload: SignupInput, request: Request, db: AsyncSession = Depe
     if payload.privacy_notice_version:
         db.add(AuditLog(actor_id=user.id, action="legal.privacy_acknowledged", entity_type="user", entity_id=user.id,
                         after={"version": payload.privacy_notice_version, "source": "registration"}))
+    from app.api.terms import TERMS_HASH, TERMS_VERSION  # local import: terms depends on this module
+    if payload.terms_version == TERMS_VERSION:
+        # The signup tick is explicit acceptance of the Terms shown; an outdated version is simply asked again later.
+        acceptance = TermsAcceptance(id=uuid.uuid4(), user_id=user.id, version=TERMS_VERSION, content_sha256=TERMS_HASH)
+        db.add(acceptance)
+        db.add(AuditLog(actor_id=user.id, action="legal.terms_accepted", entity_type="terms_acceptance", entity_id=acceptance.id,
+                        after={"version": TERMS_VERSION, "content_sha256": TERMS_HASH, "source": "registration"}))
     code = generate_otp()
     db.add(AccountVerification(user_id=user.id, channel="email", code_hash=hash_otp(code), expires_at=datetime.now(UTC) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)))
     result = await issue_session(user, request, db)
@@ -154,12 +162,12 @@ class GoogleSignInInput(BaseModel):
     credential: str = Field(min_length=20, max_length=4096)
     role: str | None = Field(default=None, max_length=30)
     privacy_notice_version: str | None = Field(default=None, min_length=1, max_length=80)
-    mobile: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
+    mobile: str | None = None
 
-    @field_validator('mobile')
+    @field_validator('mobile',mode='before')
     @classmethod
-    def normalize_mobile(cls,value:str|None)->str|None:
-        return canonical_mobile(value) if value is not None else None
+    def normalize_mobile(cls,value:object)->str|None:
+        return typed_mobile(value)
 
     @model_validator(mode="after")
     def phone_for_work_roles(self) -> "GoogleSignInInput":

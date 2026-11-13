@@ -8,7 +8,7 @@ export type PurchasedContact={state:'locked'|'eligible'|'unavailable'|'unlocked'
 export type Draft={id:string;version:number;payload:Record<string,string|boolean>;updated_at:string}
 export const money=(amount:string,currency='INR')=>new Intl.NumberFormat('en-IN',{style:'currency',currency,maximumFractionDigits:2}).format(Number(amount))
 export const dateTime=(value:string)=>new Date(value).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})
-export const stateLabel=(value:string)=>({published:'Open for bids',selection_pending:'Connection fee pending',allocated:'Booked',active:'Bid submitted',selected:'Selected — connection fee pending',accepted:'Selected — connection fee paid',paid:'Connection fee paid',review_required:'Operations review required',connection_fee_pending:'Connection fee pending',cancelled:'Cancelled',withdrawn:'Withdrawn',expired:'Expired',superseded:'Replaced by a newer bid',completed:'Completed'}[value]||value.replaceAll('_',' '))
+export const stateLabel=(value:string)=>({published:'Open for bids',pending:'Awaiting connection fee',selection_pending:'Connection fee pending',allocated:'Booked',active:'Bid submitted',selected:'Selected — connection fee pending',accepted:'Selected — connection fee paid',paid:'Connection fee paid',review_required:'Operations review required',connection_fee_pending:'Connection fee pending',cancelled:'Cancelled',withdrawn:'Withdrawn',expired:'Expired',superseded:'Replaced by a newer bid',completed:'Completed'}[value]||value.replaceAll('_',' '))
 
 export function connectionRefundMessage(status:string,amount:string,currency='INR'){
  const full=money(amount,currency)

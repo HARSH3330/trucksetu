@@ -13,6 +13,15 @@ class WidgetVerificationUnavailable(RuntimeError):
     pass
 
 
+def typed_mobile(value:object)->str|None:
+    """Accepts a person's typed number ("+91 98765 43210", "98765-43210") and returns it in canonical +CC form."""
+    if value is None or (isinstance(value,str) and not value.strip()):return None
+    cleaned=re.sub(r'[\s().-]','',value) if isinstance(value,str) and len(value)<=25 else ''
+    if not re.fullmatch(r'\+?[1-9][0-9]{7,14}',cleaned):
+        raise ValueError('Enter a valid mobile number, for example +91 98765 43210')
+    return canonical_mobile(cleaned)
+
+
 def canonical_mobile(value:str)->str:
     if not isinstance(value,str) or not re.fullmatch(r'\+?[1-9][0-9]{7,14}',value):
         raise InvalidWidgetVerification('Invalid mobile identifier')
