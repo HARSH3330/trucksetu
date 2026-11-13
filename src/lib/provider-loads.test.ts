@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {loadProviderWorkspace} from './provider-loads'
+import {contactGateMessage,driverChoice,loadProviderWorkspace} from './provider-loads'
 
 const demand={id:'d1'}
 function fake(responses:Record<string,unknown|Error>){
@@ -37,5 +37,20 @@ describe('provider workspace loading',()=>{
   it('still fails when the requirements themselves cannot be loaded',async()=>{
     const {fetch}=fake({'/demands?':new Error('Workspace down')})
     await expect(loadProviderWorkspace(fetch,new URLSearchParams())).rejects.toThrow('Workspace down')
+  })
+})
+
+describe('fleet-owner readiness',()=>{
+  it('says before bidding when the account needs a phone or a verified email or phone',()=>{
+    expect(contactGateMessage({mobile:null,email_verified:true,mobile_verified:false})).toBe('Add a phone number to your account before you bid. Customers get this number after they pay.')
+    expect(contactGateMessage({mobile:'+919800000000',email_verified:false,mobile_verified:false})).toBe('Verify your email or phone before you bid.')
+    expect(contactGateMessage({mobile:'+919800000000',email_verified:true,mobile_verified:false})).toBeNull()
+  })
+  it('explains why a driver cannot be assigned yet',()=>{
+    const ready={id:'d',full_name:'A',active:true,kyc_status:'verified',contact_ready:true}
+    expect(driverChoice(ready)).toEqual({eligible:true,reason:''})
+    expect(driverChoice({...ready,contact_ready:false})).toEqual({eligible:false,reason:'needs a verified email or phone'})
+    expect(driverChoice({...ready,kyc_status:'under_review'})).toEqual({eligible:false,reason:'verification not approved'})
+    expect(driverChoice({...ready,active:false})).toEqual({eligible:false,reason:'inactive'})
   })
 })

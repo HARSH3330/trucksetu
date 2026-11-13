@@ -100,6 +100,8 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
     demand_ids=[item.id for item in items if item.route_snapshot.get('marketplace_mode')=='customer_demand']
     connections=list(await db.scalars(select(DemandSelection).where(DemandSelection.booking_id.in_(demand_ids)))) if demand_ids else []
     connection_by_booking={selection.booking_id:selection for selection in connections}
+    from app.services.booking_stops import stop_counts
+    stops=await stop_counts(db,items)
     result: list[dict[str, object]] = []
     for item in items:
         visible_allocations = item.allocations
@@ -113,6 +115,7 @@ async def my_bookings(db: AsyncSession = Depends(get_db), user: User = Depends(r
             ready=bool(ready and connection and connection.status=='paid' and connection.payment_status=='captured')
         result.append({
             "trip_operations_available":ready,
+            "stop_count": stops.get(item.id, 0),
             "id": str(item.id), "public_id": item.public_id, "status": item.status,
             "booking_mode": item.booking_mode, "total_amount": str(visible_total), "currency": item.currency,
             "pickup": item.route_snapshot.get("pickup") or item.route_snapshot.get("pickup_city"), "destination": item.route_snapshot.get("destination") or item.route_snapshot.get("destination_city"),

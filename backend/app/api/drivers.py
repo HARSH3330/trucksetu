@@ -96,10 +96,12 @@ async def list_provider_drivers(
     roles = {role.role for role in user.roles}
     if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}):
         raise HTTPException(403, "You can view drivers only for your provider account")
-    items = list(await db.scalars(select(DriverProfile).where(DriverProfile.provider_id == provider.id).order_by(DriverProfile.full_name)))
+    rows = (await db.execute(select(DriverProfile, User).outerjoin(User, User.id == DriverProfile.user_id).where(DriverProfile.provider_id == provider.id).order_by(DriverProfile.full_name))).all()
+    # contact_ready mirrors the assignment rule: an active account with a phone and a verified email or phone.
     return [{"id": str(item.id), "full_name": item.full_name, "masked_mobile": item.masked_mobile,
              "licence_expires_on": item.licence_expires_on.isoformat() if item.licence_expires_on else None,
-             "kyc_status": item.kyc_status, "active": item.active} for item in items]
+             "kyc_status": item.kyc_status, "active": item.active,
+             "contact_ready": bool(account and account.status == "active" and account.mobile and (account.mobile_verified or account.email_verified))} for item, account in rows]
 
 
 @router.post("/providers/{provider_id}/drivers", status_code=status.HTTP_201_CREATED)
@@ -163,7 +165,7 @@ async def link_driver(
 async def my_driver_trips(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_roles("driver")),
-) -> list[dict[str, str | None]]:
+) -> list[dict[str, str | int | None]]:
     driver = await db.scalar(select(DriverProfile).where(DriverProfile.user_id == user.id))
     if driver is None or not driver.active or driver.kyc_status != 'verified':
         return []
@@ -175,9 +177,13 @@ async def my_driver_trips(
         .order_by(Trip.last_updated_at.desc())
         .limit(100)
     )
+    rows = rows.all()
+    from app.services.booking_stops import stop_counts
+    stops = await stop_counts(db, [booking for _, booking in rows])
     return [
         {
             "trip_id": str(trip.id),
+            "stop_count": stops.get(booking.id, 0),
             "driver_id": str(trip.driver_id),
             "carrier_vehicle_id": str(trip.carrier_vehicle_id) if trip.carrier_vehicle_id else None,
             "last_updated_at": trip.last_updated_at.isoformat() if trip.last_updated_at else None,
@@ -188,5 +194,5 @@ async def my_driver_trips(
             "pickup": booking.route_snapshot.get("pickup") or booking.route_snapshot.get("pickup_city"),
             "destination": booking.route_snapshot.get("destination") or booking.route_snapshot.get("destination_city"),
         }
-        for trip, booking in rows.all()
+        for trip, booking in rows
     ]

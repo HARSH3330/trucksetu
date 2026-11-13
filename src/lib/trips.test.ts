@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {tripReadPath, canOperateTrips} from './trips'
+import {tripReadPath, canOperateTrips, tripActions} from './trips'
 
 describe('trip role boundary',()=>{
   it('reads assigned trips for drivers instead of general bookings',()=>{
@@ -24,4 +24,11 @@ it('blocks operations while connection payment or cancellation blocks the bookin
  for(const status of ['connection_fee_pending','cancelled','disputed'])expect(allowed(status)).toBe(false)
  expect(allowed('booking_confirmed',false)).toBe(false)
  expect(allowed('booking_confirmed',true)).toBe(true)
+})
+
+it('offers a stop update only when the load has stops',()=>{
+  expect(tripActions('in_transit',0)).toEqual(['arrived_at_destination','on_hold'])
+  expect(tripActions('in_transit',2)).toEqual(['at_stop','arrived_at_destination','on_hold'])
+  expect(tripActions('loaded',undefined)).toEqual(['in_transit'])
+  expect(tripActions('completed',0)).toEqual([])
 })

@@ -132,6 +132,7 @@ async def list_vehicles(
         missing = sorted(REQUIRED_VEHICLE_FILES - accepted[vehicle.id])
         item['document_review_state'] = 'needs_documents' if missing else 'approved' if vehicle.status == 'approved' else 'pending_review'
         item['missing_accepted_documents'] = missing
+        item['awaiting_review_documents'] = sorted({d.document_type for d in documents if d.vehicle_id == vehicle.id and d.status == 'uploaded'} & set(missing))
         item['document_eligible_today'] = bool(item['document_eligible_today']) and not missing
         result.append(item)
     return result
