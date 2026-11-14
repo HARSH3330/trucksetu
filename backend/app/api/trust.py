@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.services.demand_policy import public_text
 from app.domain import cancellation_snapshot, ensure_review_allowed
 from app.models import ApplicationSetting, AvailableRoute, Booking, BookingAllocation, Cancellation, CapacityReservation, Dispute, DisputeMessage, Payment, ProviderProfile, Review, SafetyReport, Trip, User
 from app.schemas import CancellationCreate, DisputeCreate, DisputeMessageCreate, ReviewCreate, SafetyReportCreate
@@ -33,6 +34,8 @@ async def _require_participant(db: AsyncSession, booking: Booking, user: User) -
 
 
 async def _cancellation_amounts(db: AsyncSession, booking: Booking) -> tuple[Decimal, dict[str, Decimal]]:
+    if (booking.route_snapshot or {}).get('marketplace_mode') == 'customer_demand':
+        raise HTTPException(409,'Use requirement cancellation; connection-fee refund rules are separate')
     setting=await db.get(ApplicationSetting,"cancellation_fee_percent_by_status")
     policy=setting.value if setting else {"advance_pending":"0","booking_confirmed":"10","disputed":"0"}
     percent=Decimal(str(policy.get(booking.status,"100")))
@@ -54,7 +57,7 @@ async def trust_activity(db:AsyncSession=Depends(get_db),user:User=Depends(curre
     for booking in bookings:
         provider_rows=list((await db.execute(select(ProviderProfile.user_id,ProviderProfile.display_name).join(BookingAllocation,BookingAllocation.provider_id==ProviderProfile.id).where(BookingAllocation.booking_id==booking.id).distinct())).all())
         if booking.customer_id==user.id:
-            targets=[{"id":str(target_id),"name":name,"role":"provider"} for target_id,name in provider_rows]
+            targets=[{"id":str(target_id),"name":public_text(name),"role":"provider"} for target_id,name in provider_rows]
         else:
             customer=await db.get(User,booking.customer_id)
             targets=[{"id":str(booking.customer_id),"name":customer.full_name if customer else "Customer","role":"customer"}]

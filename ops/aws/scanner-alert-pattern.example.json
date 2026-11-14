@@ -1,0 +1,9 @@
+{
+  "source": ["aws.guardduty"],
+  "region": ["ap-south-1"],
+  "detail-type": ["GuardDuty Malware Protection Object Scan Result"],
+  "detail": {
+    "s3ObjectDetails": {"bucketName": ["transivox-kyc-harsh3330"]},
+    "scanResultDetails": {"scanResultStatus": [{"anything-but": "NO_THREATS_FOUND"}]}
+  }
+}

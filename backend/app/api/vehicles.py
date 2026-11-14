@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from datetime import UTC, date, datetime
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -10,8 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import current_user, require_roles
 from app.core.database import get_db
-from app.models import AuditLog, CarrierVehicle, ProviderProfile, User, VehicleCategory
-from app.schemas import CarrierVehicleCreate, VehicleReview
+from app.models import AuditLog, AvailableRoute, CarrierVehicle, ProviderProfile, Trip, User, VehicleCategory, VehicleDocument
+from app.services.vehicle_review_rollout import REQUIRED_VEHICLE_FILES, accepted_kinds
+from app.schemas import CarrierVehicleCreate, CarrierVehicleUpdate, VehicleReview
 
 from app.core.routing import AuthenticationFirstRoute
 from app.api.vehicle_documents import clean, require_accepted_documents
@@ -60,6 +62,9 @@ def _read(vehicle: CarrierVehicle, category_name: str | None = None, provider_na
         "body_type": vehicle.body_type,
         "maximum_payload_tonnes": str(vehicle.maximum_payload_tonnes),
         "maximum_volume_m3": str(vehicle.maximum_volume_m3),
+        "internal_length_m": str(vehicle.internal_length_m),
+        "internal_width_m": str(vehicle.internal_width_m),
+        "internal_height_m": str(vehicle.internal_height_m),
         "permit_territories": vehicle.permit_territories,
         "service_areas": vehicle.service_areas,
         "status": vehicle.status,
@@ -118,7 +123,67 @@ async def list_vehicles(
         if provider_id is None:
             return []
         query = query.where(CarrierVehicle.provider_id == provider_id)
-    return [_read(vehicle, category_name, provider_name) for vehicle, category_name, provider_name in (await db.execute(query)).all()]
+    rows = (await db.execute(query)).all()
+    documents = list(await db.scalars(select(VehicleDocument).where(VehicleDocument.vehicle_id.in_([vehicle.id for vehicle, _, _ in rows])))) if rows else []
+    accepted = accepted_kinds(documents)
+    result = []
+    for vehicle, category_name, provider_name in rows:
+        item = _read(vehicle, category_name, provider_name)
+        missing = sorted(REQUIRED_VEHICLE_FILES - accepted[vehicle.id])
+        item['document_review_state'] = 'needs_documents' if missing else 'approved' if vehicle.status == 'approved' else 'pending_review'
+        item['missing_accepted_documents'] = missing
+        item['awaiting_review_documents'] = sorted({d.document_type for d in documents if d.vehicle_id == vehicle.id and d.status == 'uploaded'} & set(missing))
+        item['document_eligible_today'] = bool(item['document_eligible_today']) and not missing
+        result.append(item)
+    return result
+
+
+@router.patch("/carrier-vehicles/{vehicle_id}")
+async def update_vehicle(
+    vehicle_id: uuid.UUID,
+    payload: CarrierVehicleUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles("provider", "fleet_owner")),
+) -> dict[str, object]:
+    item = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == vehicle_id).with_for_update())
+    provider = await db.get(ProviderProfile, item.provider_id) if item else None
+    if item is None or provider is None or provider.user_id != user.id:
+        raise HTTPException(404, "Vehicle not found")
+    if item.status == "suspended":
+        raise HTTPException(409, "A suspended vehicle cannot be edited. Contact support.")
+    changes = {name: value for name, value in payload.model_dump(exclude_unset=True).items() if getattr(item, name) != value}
+    if not changes:
+        return _read(item)
+    active_trip = select(Trip.id).where(Trip.carrier_vehicle_id == item.id, Trip.status.not_in(["completed", "delivered", "cancelled"]))
+    if await db.scalar(active_trip.limit(1)):
+        raise HTTPException(409, "Vehicle has an active trip and cannot be changed until it ends")
+    active_route = select(AvailableRoute.id).where(AvailableRoute.carrier_vehicle_id == item.id, AvailableRoute.status == "active")
+    if await db.scalar(active_route.limit(1)):
+        raise HTTPException(409, "Vehicle has a published shared route. Close the route before changing the vehicle")
+    category = await db.get(VehicleCategory, changes.get("vehicle_category_id", item.vehicle_category_id))
+    if category is None or not category.active:
+        raise HTTPException(422, "Vehicle category is unavailable")
+    if changes.get("maximum_payload_tonnes", item.maximum_payload_tonnes) > category.max_capacity_tonnes:
+        raise HTTPException(422, "Payload exceeds the configured safe category limit")
+    dimensions = [changes.get(name, getattr(item, name)) for name in ("internal_length_m", "internal_width_m", "internal_height_m")]
+    body_volume = (dimensions[0] * dimensions[1] * dimensions[2]).quantize(Decimal("0.001"))
+    if "maximum_volume_m3" in changes:
+        if changes["maximum_volume_m3"] > body_volume:
+            raise HTTPException(422, "Maximum cargo volume cannot exceed internal body volume")
+    elif item.maximum_volume_m3 > body_volume:
+        changes["maximum_volume_m3"] = body_volume
+    previous = item.status
+    for name, value in changes.items():
+        setattr(item, name, value)
+    # Any change to a reviewed vehicle needs a fresh manual review before new assignments.
+    item.status = "pending"
+    item.reviewed_by = None
+    item.reviewed_at = None
+    item.review_reason = None
+    db.add(AuditLog(actor_id=user.id, action="vehicle.updated", entity_type="carrier_vehicle", entity_id=item.id,
+                    before={"status": previous}, after={"status": item.status, "changed_fields": sorted(changes)}))
+    await db.commit()
+    return _read(item)
 
 
 @router.post("/admin/carrier-vehicles/{vehicle_id}/review")

@@ -1,5 +1,11 @@
 # TransivoX functionality audit — 2026-10-14
 
+## Release candidate continuation — local changes, not deployed
+
+See `2026-10-14-release-candidate-checklist.md` for the single current owner/status/evidence/action ledger and exact integration/setup commands. This continuation implemented provider-KYC version pinning and owner-approved legacy re-verification (migration 23), visible logout with session-family serialization/client race handling, new-operation provider/driver eligibility gates, admin manual refund recording/pagination/retry validation, escaped stored-value printable invoice records, provider shared-capacity publication and provider/driver re-review controls. No commit, push, deployment, production data change or live provider operation occurred.
+
+Fresh local evidence: 250 backend non-integration checks, 42 frontend tests, 31 synthetic-boundary Chromium tests, build/lint/domain types and single-head/offline migration checks passed. PostgreSQL suite collected 12 cases but execution remains blocked by absent guarded `E2E_DATABASE_URL`; collection is not a pass. No real S3/GuardDuty/MSG91/SMTP/Razorpay integration was verified. Customer shared-capacity evaluation/reservation/booking is incomplete and awaits the explicitly requested hold-versus-final-quote financial rule; no shared-capacity deferral was approved. Printable records are not a legally approved statutory invoice or server-generated PDF. Public launch remains NO-GO.
+
 ## Post-audit fix verification — 2026-10-14
 
 The two reproduced sign-in defects documented below are now fixed. Homepage route values are consumed once after draft persistence, so authentication remounts restore edited values. Protected views are keyed by the API-returned user ID and reload after sign-in rather than retaining anonymous state. Both regression tests were freshly observed failing before the fixes, then passed unchanged.

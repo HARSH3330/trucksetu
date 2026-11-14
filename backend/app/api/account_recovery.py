@@ -16,9 +16,10 @@ from app.core.rate_limit import enforce_rate_limit
 from app.core.routing import AuthenticationFirstRoute
 from app.core.security import generate_otp,get_password_hash,hash_otp,hash_token,token_hash_matches,verify_password
 from app.models import AccountVerification,AuditLog,RefreshSession,User
+from app.services.account_email import account_email_message
 from app.services.communications import ChannelProvider
 from app.services.dependencies import get_account_email_delivery
-from app.services.msg91_widget import InvalidWidgetVerification,canonical_mobile
+from app.services.msg91_widget import InvalidWidgetVerification,canonical_mobile,typed_mobile
 
 router=APIRouter(route_class=AuthenticationFirstRoute,prefix='/api/v1/auth',tags=['account recovery'])
 REQUESTED={'status':'requested','message':'If the account is eligible and email delivery is available, check your inbox. Delivery is not confirmed.'}
@@ -38,12 +39,14 @@ class PasswordResetInput(EmailInput):
 
 
 class MobileInput(BaseModel):
-    mobile:str=Field(max_length=20,pattern=r'^\+?[1-9]\d{7,14}$')
+    mobile:str
     password:str=Field(min_length=1,max_length=72)
-    @field_validator('mobile')
+    @field_validator('mobile',mode='before')
     @classmethod
-    def normalize_mobile(cls,value:str)->str:
-        return canonical_mobile(value)
+    def normalize_mobile(cls,value:object)->str:
+        cleaned=typed_mobile(value)
+        if cleaned is None:raise ValueError('Enter a valid mobile number, for example +91 98765 43210')
+        return cleaned
 
 
 @router.patch('/mobile')
@@ -69,15 +72,17 @@ async def request_code(email:str,channel:str,db:AsyncSession,sender:ChannelProvi
     user=await db.scalar(select(User).options(selectinload(User.roles)).where(User.email==email.lower()).with_for_update())
     if not eligible(user) or (channel=='email' and user.email_verified):
         return REQUESTED
+    latest=await db.scalar(select(AccountVerification).where(AccountVerification.user_id==user.id,AccountVerification.channel==channel).order_by(AccountVerification.created_at.desc()).limit(1))
+    if latest is not None and latest.created_at is not None and (datetime.now(UTC)-latest.created_at).total_seconds()<settings.ACCOUNT_EMAIL_COOLDOWN_SECONDS:
+        return REQUESTED
     code=generate_otp() if channel=='email' else secrets.token_urlsafe(32)
-    purpose='email verification code' if channel=='email' else 'password reset token'
     try:
-        receipt=await sender.send(user.email,f'TransivoX {purpose}: {code}\nExpires in {settings.OTP_EXPIRE_MINUTES} minutes. Do not share this with anyone. If you did not request this, ignore this email.')
+        receipt=await sender.send(user.email,account_email_message(user.email,channel,code))
         if not receipt:raise RuntimeError('No account delivery acknowledgement')
-    except Exception:
+    except Exception as exc:
         # Preserve the same public response for unknown/eligible/delivery-error
-        # accounts. No raw provider diagnostics, email body or token is logged.
-        db.add(AuditLog(actor_id=user.id,action='auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after={'channel':channel}))
+        # accounts. Only the exception class is recorded: no provider text, email body or token.
+        db.add(AuditLog(actor_id=user.id,action='auth.account_email_unacknowledged',entity_type='user',entity_id=user.id,after={'channel':channel,'error':type(exc).__name__}))
         await db.commit()
         return REQUESTED
     now=datetime.now(UTC)

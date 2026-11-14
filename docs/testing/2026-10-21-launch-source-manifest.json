@@ -1,0 +1,27 @@
+{
+  "base_commit": "66c63d17897837afc88f457dab0c0e7b8942ac2a",
+  "branch": "codex/launch-preparation-no-otp-maps",
+  "scope": "Changed/untracked executable source and infrastructure templates; docs and generated artifacts excluded",
+  "combined_sha256": "7991604990131366135b7b591845343e9849c106bbeebe166988d601cce7b0b0",
+  "files": [
+    {"path":"backend/app/api/payments.py","sha256":"ae836786c8702a71eba40e1180feed277dcc00e6e53d3899539afbb7099e6099"},
+    {"path":"backend/app/core/middleware.py","sha256":"447256cfafc3651f8ffafea41f421e80190fbdeac8ba90af093bbb0087a79f56"},
+    {"path":"backend/tests/test_account_recovery.py","sha256":"3e57d25bf6949488c852f47db83c6f5a8830d56d08c7cff6739ace5a2088cbe8"},
+    {"path":"backend/tests/test_release_payment_callbacks.py","sha256":"b1005a7925a2752e54d0889d986f9e4453de369a038ad8feae6bc77a8fac691f"},
+    {"path":"backend/tests/test_release_sensitive_logging.py","sha256":"39177b312d45dda5c1dc7f85b8fbdc4cfb8d992244c6907c04050116eb5dffad"},
+    {"path":"backend/tests/test_smtp_acceptance.py","sha256":"a20c24ce30cd940e02e0e44dc5ba320c4ca5ad9827ee3d4e98d08d9485e308a9"},
+    {"path":"backend/tests/test_vehicle_documents.py","sha256":"469a455394dc64a5fb76409761c5818d591fcce026ca26b858ba2e50f4551e8e"},
+    {"path":"e2e/fixtures/shared_database.py","sha256":"d3167040eee2943b227d39a9aa6b54e180131136de19a3de43bdcbf2670561a8"},
+    {"path":"e2e/public-session.spec.ts","sha256":"755dfb03418c1fa3ca2633e5e8691fdcee5d6c7b05161df972d504e2f01848c8"},
+    {"path":"e2e/release-shared.spec.ts","sha256":"5707f84462f85ab69a5351414940f68faa48c527ce706e79b6e1a3c327507475"},
+    {"path":"e2e/release-vehicle.spec.ts","sha256":"5bf6637619f35b2fd5ab4f0ff978259eca8653b40db74c639daa0075aad880a9"},
+    {"path":"ops/aws/application-document-policy.example.json","sha256":"39dc55d3bd33be5e5ffc35c5beadeb978d824e547bc3755c5db5ffa862ef8937"},
+    {"path":"ops/aws/document-cors.example.json","sha256":"3f6ae60781437d0bad4a7ee3ee8ccbf8522a8eda6dcc4f5cc124f6706128b347"},
+    {"path":"ops/aws/scanner-alert-pattern.example.json","sha256":"2bc150254bd87f0afefa87231cb015c696b99414d93527545422c889f1b904c3"},
+    {"path":"ops/aws/scanner-plan.example.json","sha256":"45dc33119a2d7deca8991deaeadcfba45d3e2b16f45e6c9f9a1ed7f022255e93"},
+    {"path":"ops/aws/scanner-role-policy.example.json","sha256":"c566c077ff968c3c723600f502f0fcb45a12793d6f670432530ff6d7089b8b98"},
+    {"path":"ops/aws/scanner-role-trust.example.json","sha256":"291fc4933758d0112ad6ec15d978ab72e123147ef144f5797583e084932b7d59"},
+    {"path":"package-lock.json","sha256":"dc32833be68cefeccde47a8cd4031c4bf594e8941b6773fc8053933010705197"},
+    {"path":"package.json","sha256":"43ac65a6c874e3f101106d6d2acb912f31bf493bb795c29ea1e4ef3cdab51aff"}
+  ]
+}

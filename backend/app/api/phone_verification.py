@@ -31,7 +31,12 @@ async def verify_widget(payload:WidgetProof,request:Request,user:User=Depends(cu
     if record is None or record.status!='active':raise HTTPException(401,'Account is unavailable')
     try:matches=canonical_mobile(record.mobile)==verified_mobile
     except InvalidWidgetVerification:matches=False
-    if not matches:raise HTTPException(400,'Verify the mobile number currently saved on your account')
+    if not matches:
+        # Record only the shape of the provider's identifier so mismatches can be diagnosed without storing it.
+        saved=(record.mobile or '').lstrip('+')
+        db.add(AuditLog(actor_id=record.id,action='auth.mobile_verification_mismatch',entity_type='user',entity_id=record.id,after={'method':'msg91_widget','verified_digits':len(verified_mobile)-1,'same_last_ten':bool(saved) and verified_mobile[-10:]==saved[-10:]},request_id=getattr(request.state,'request_id',None)))
+        await db.commit()
+        raise HTTPException(400,'Verify the mobile number currently saved on your account')
     digest=hash_token(payload.verification_token)
     await acquire_idempotency_lock(db,'phone-widget-mobile:'+verified_mobile)
     await acquire_idempotency_lock(db,'phone-widget-proof:'+digest)

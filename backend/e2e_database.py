@@ -4,12 +4,21 @@ import asyncio
 import os
 import selectors
 import sys
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 
 import psycopg
 
 
 LOCAL_TEST_HOSTS = {"127.0.0.1", "localhost", "::1", "postgres"}
+
+
+def validate_connection_options(parsed) -> None:
+    # libpq parameters can override the authority/database after validation.
+    # Allow only non-target options; never allow service files or multi-host
+    # query parameters to redirect a reset/backfill to another database.
+    allowed = {'sslmode', 'sslrootcert', 'connect_timeout', 'application_name'}
+    if any(key not in allowed for key, _ in parse_qsl(parsed.query, keep_blank_values=True)):
+        raise RuntimeError('Unapproved database connection option')
 
 
 def safe_database_url() -> str:
@@ -27,6 +36,7 @@ def safe_database_url() -> str:
 
     if parsed.scheme not in {"postgresql", "postgres"}:
         raise RuntimeError("E2E database must use PostgreSQL")
+    validate_connection_options(parsed)
 
     if unquote(parsed.path.lstrip("/")) != "transivox_e2e":
         raise RuntimeError(

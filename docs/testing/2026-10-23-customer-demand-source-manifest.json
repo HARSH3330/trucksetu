@@ -1,0 +1,250 @@
+{
+  "recorded_date_ist": "2026-10-23",
+  "branch": "codex/launch-preparation-no-otp-maps",
+  "base_head": "ba3057784e36f1c984e90f54b0695586a8c97650",
+  "state": "uncommitted local candidate; no push or deployment",
+  "scope": "Changed source/config/test files relative to base HEAD; docs/generated/ignored operational files excluded",
+  "combined_sha256": "92de6d1387ac93a578293dfba9acb84925704cf4ce899597bc3bc220daaa4967",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "8ad3a294887b2a2183ac9410475e94f34d0633a4e3fc210019a8d37c88433a75",
+      "bytes": 3740
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "6b1486a9e0ed8cb2e508d718ce6a5992c226978e39a059bf6a917047ad3fdbd5",
+      "bytes": 490
+    },
+    {
+      "path": "backend/.env.example",
+      "sha256": "dc79a230926319841843c8bbc69e75266c06189009e44aa43cd28c8c2a56c6f7",
+      "bytes": 4661
+    },
+    {
+      "path": "backend/app/api/bookings.py",
+      "sha256": "118bea61e6087d2adf0e72d18c4ef61855b723c573be1f146f3eda7177cfdeea",
+      "bytes": 22381
+    },
+    {
+      "path": "backend/app/api/capacity.py",
+      "sha256": "05644fd754878953beef4e36c18da8c66f134a706fde19fa75253a37a8fe5497",
+      "bytes": 17673
+    },
+    {
+      "path": "backend/app/api/communications.py",
+      "sha256": "fb2edd30e72aacbb3231c2da951d25c76dcd0715ad40adbc33c8dfd0f7c0b760",
+      "bytes": 7457
+    },
+    {
+      "path": "backend/app/api/demands.py",
+      "sha256": "f3931d79798ca4efed19ec33eab7ca2e35f66f98d7d5b9c1b9f0e6c931324042",
+      "bytes": 30742
+    },
+    {
+      "path": "backend/app/api/payments.py",
+      "sha256": "9a138ff2426825df5a2431dc9012606f635cfc69beabd4a524b4f90a133e1622",
+      "bytes": 25795
+    },
+    {
+      "path": "backend/app/api/quotes.py",
+      "sha256": "69666e296a73133d0712f9379068a7f2997e01fc3fa54fe48ed339d4b25c7e03",
+      "bytes": 11237
+    },
+    {
+      "path": "backend/app/api/requests.py",
+      "sha256": "7fbfb0aff011af92009ebc6cb766c5d0f78a3fac4f17cc8d44e294dc987700d5",
+      "bytes": 7481
+    },
+    {
+      "path": "backend/app/api/trust.py",
+      "sha256": "30472d83d4c6549d7c792f45a63615e714e490ca4dbdf35e8504f7f96466bb1d",
+      "bytes": 12681
+    },
+    {
+      "path": "backend/app/core/config.py",
+      "sha256": "535b943172d5845a71ccd9f2247f2684ac928d3cc5128ad5318570cbbdbf6f71",
+      "bytes": 9986
+    },
+    {
+      "path": "backend/app/core/marketplace_flags.py",
+      "sha256": "36301c9aa1e2851961746a1bb6e59ed9a45b87480bc64578832abc94c1838dfe",
+      "bytes": 673
+    },
+    {
+      "path": "backend/app/core/routing.py",
+      "sha256": "39b0f05b369ac61f4e8fe488faabf3f2836df0d57c6a3167ab2b49c450f8ba9d",
+      "bytes": 1775
+    },
+    {
+      "path": "backend/app/main.py",
+      "sha256": "953e2414cac19b7ce0eaf915fef8be6614b7da5d5e17fd5f61cdf7a56c632cd6",
+      "bytes": 10428
+    },
+    {
+      "path": "backend/app/models.py",
+      "sha256": "af87086ab9073dfc418dc590853a737c242f40fc3ad31b2a1a9a33553a7f2dec",
+      "bytes": 59005
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "sha256": "c3ca8c619bf33c844dad5b41bc24b8f1f913765d232497284540592db6f481ab",
+      "bytes": 22484
+    },
+    {
+      "path": "backend/app/services/contact_access.py",
+      "sha256": "2a78f58aefb994f685b4b5f1c89b628a2d498b1013048631eb9ee5f66ec0e0a7",
+      "bytes": 2400
+    },
+    {
+      "path": "backend/app/services/demand_marketplace.py",
+      "sha256": "df32d9025f103c7e45cb6c8b029308e03ef1b473646a8ad4675aef5fe8d13657",
+      "bytes": 16488
+    },
+    {
+      "path": "backend/app/services/demand_policy.py",
+      "sha256": "9a20b5efd2917ce36bc9c8302323a5fb2cc3f6a3a467d42a788773b6ce7c8e94",
+      "bytes": 3735
+    },
+    {
+      "path": "backend/app/services/demand_schemas.py",
+      "sha256": "cc07c6ddaa56fa04742c255f3ad5d92080b2967cad13cd2c0506b656436d0f36",
+      "bytes": 2865
+    },
+    {
+      "path": "backend/e2e_support.py",
+      "sha256": "b0d42a84df470af75b57225c751af2d40edc40bde44fb23fde4ec100272013fa",
+      "bytes": 10010
+    },
+    {
+      "path": "backend/migrations/versions/20261021_25_customer_demand_marketplace.py",
+      "sha256": "6821cc9ec398a9a9945b4b591d3276e67ef0b8594605c456b0fb609cf904a7d8",
+      "bytes": 4709
+    },
+    {
+      "path": "backend/tests/integration/test_demand_marketplace_database.py",
+      "sha256": "a417f564768ef740d033bf90f951213afeba05e9d55a0f6851df81ac1e4f416b",
+      "bytes": 19392
+    },
+    {
+      "path": "backend/tests/integration/test_request_creation_database.py",
+      "sha256": "13d2a9c4e870108736ecfb6e1cf1587b76b80a5df9441f7b375f4762c8efba3c",
+      "bytes": 2324
+    },
+    {
+      "path": "backend/tests/test_demand_marketplace.py",
+      "sha256": "204294e0e4476b38e72d82f95b9ddc92e34c3d8299be6f29e18c64b1cd3e4ec7",
+      "bytes": 5272
+    },
+    {
+      "path": "backend/tests/test_phase20_migrations.py",
+      "sha256": "0d69836276bb8ecfd4737c4f19541d55b8c5843256cf3ccead17849a2db6b1bd",
+      "bytes": 2082
+    },
+    {
+      "path": "backend/tests/test_phase28_pilot_authorization.py",
+      "sha256": "b555eb6d28173f0b08a4c6cc100a075e54c029fb80230e4d0a15e6bf6069e486",
+      "bytes": 3166
+    },
+    {
+      "path": "backend/tests/test_shared_quote_revision.py",
+      "sha256": "af7abc7fa3d6b42ab159db4a171eaf6bd5e2f47ba125161d248cc0582011d34f",
+      "bytes": 1885
+    },
+    {
+      "path": "backend/tests/test_trip_otp_delivery.py",
+      "sha256": "aaadfe0871ffcb0c436b9f473d6b3e3e4609e70c59babfe5c59dff49e0ba8860",
+      "bytes": 6704
+    },
+    {
+      "path": "backend/tests/test_vehicle_assignment_lock.py",
+      "sha256": "5e1fdf8e3b097e92f54608d0a8dca77cbd039da41b3c843e50cfedaa895d4629",
+      "bytes": 4443
+    },
+    {
+      "path": "e2e/demand-marketplace.spec.ts",
+      "sha256": "e649a223eb11183ec423dc10dabf068376d9200c4e887d47e444ab3cc946d401",
+      "bytes": 12055
+    },
+    {
+      "path": "e2e/fixtures/api.ts",
+      "sha256": "bd7eaab1ee298dd77c4ff8777c8acefb4d629cd2ea7870ab1ab16c330f12e30a",
+      "bytes": 3213
+    },
+    {
+      "path": "e2e/fixtures/demand_database.py",
+      "sha256": "26353ae4657c520a5d9dc029b1f1a9fa6d75042d5be067b899d69262f8bdac88",
+      "bytes": 2395
+    },
+    {
+      "path": "e2e/release-shared.spec.ts",
+      "sha256": "8a7ccc3c113570d2dc037ff0c99338982e600f7056a7b785ae9240039f77a13f",
+      "bytes": 11895
+    },
+    {
+      "path": "e2e/release-vehicle.spec.ts",
+      "sha256": "096552f53db565319d8304e6db34364edbee8807e7f510a425c11dfaef854ad2",
+      "bytes": 8116
+    },
+    {
+      "path": "playwright.demand.config.ts",
+      "sha256": "58bca681518ea330f2a0b1b0f6a1890919dce35dd083859ee88f05f97e10fcfb",
+      "bytes": 1496
+    },
+    {
+      "path": "src/components/ConnectionFeeReview.tsx",
+      "sha256": "b832a8b34d64c5af88e9f7f46f862d376005452aa4009c3ca42a2416b500fcfa",
+      "bytes": 2359
+    },
+    {
+      "path": "src/components/CustomerHome.tsx",
+      "sha256": "4619b8a4b30e34a384abd5a5921dfb493996342f4f3ab1950ec8cb343176cecc",
+      "bytes": 3208
+    },
+    {
+      "path": "src/components/DemandComposer.tsx",
+      "sha256": "fd7dcc93921ba79df89409b6d5d61f472d873a59aec37c29ee560bc88b1e6ef9",
+      "bytes": 12879
+    },
+    {
+      "path": "src/components/DemandMarketplace.css",
+      "sha256": "9220aa8370056aea6fa0d0217459c52a0f7349fb1dce1a6947a03014067d6f56",
+      "bytes": 7242
+    },
+    {
+      "path": "src/components/DemandWorkspace.tsx",
+      "sha256": "0a453868946ca2d54d7332eaa6ba013095fa784c5400edf27e3a946d7d269296",
+      "bytes": 24564
+    },
+    {
+      "path": "src/components/LiveAdmin.tsx",
+      "sha256": "0779d4ae9ccf937a0ebd78509272e99d9a27787c98cfc73a80abb02d276bd3d2",
+      "bytes": 4775
+    },
+    {
+      "path": "src/lib/connectionCheckout.ts",
+      "sha256": "19ee6c6e8d919ac1970e7c081d4839dd29a741cfcd91d8542e6a9ce3de2cb290",
+      "bytes": 1420
+    },
+    {
+      "path": "src/lib/demand-types.ts",
+      "sha256": "28ac9275e17d9a35b3fbf6916678f26137a423ac2f111749709a6407d816dc21",
+      "bytes": 2844
+    },
+    {
+      "path": "src/lib/routes.ts",
+      "sha256": "c2646ec6f8df48054b3876bc48e7ce852b72115fc9076d670c667128fc826a81",
+      "bytes": 1174
+    },
+    {
+      "path": "src/main.tsx",
+      "sha256": "80c7c5e02fcd9b3c742addd3b0e83728292c9f55bffa32900809313320d71b7a",
+      "bytes": 74133
+    },
+    {
+      "path": "vite.config.ts",
+      "sha256": "da10ce5ce523eae2c228393581d3dda53d24481186a5b7f95377395e8b8c4f7c",
+      "bytes": 321
+    }
+  ]
+}

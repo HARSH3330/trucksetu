@@ -1,0 +1,16 @@
+.admin-page>*+*{margin-top:20px}
+.admin-links{flex-wrap:wrap}
+.admin-attention h2{font-size:18px;margin:0 0 10px}
+.attention-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.attention-card{display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:start;padding:16px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.attention-card>svg{width:22px;height:22px;color:var(--green)}
+.attention-card div{display:grid;gap:4px}
+.attention-card small{color:var(--muted)}
+.attention-card button{grid-column:1/-1;justify-self:start;min-height:44px}
+.attention-card.warn{border-color:#e7b54a;background:#fffaf0}.attention-card.warn>svg{color:#9a6700}
+.attention-card.bad{border-color:#e3a3a3;background:#fff6f6}.attention-card.bad>svg{color:#b42318}
+.attention-card.ok{background:#f3faf7}
+.admin-stats{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+@media(max-width:640px){:root .admin-stats{grid-template-columns:1fr 1fr;gap:8px}:root .admin-stats .stat{padding:12px}:root .admin-stats .stat strong{font-size:20px}}
+.admin-funnel summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+.admin-funnel .funnel-chart{margin-top:12px}

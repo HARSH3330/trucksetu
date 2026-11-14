@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useState} from 'react'
 
-const views=['home','ship','loads','quotes','capacity','bookings','trust','support','terms','privacy','refund','communications','dashboard','admin','kyc','fleet','payments','invoices','trips','vehicle-review','pricing'] as const
+const views=['home','ship','requirements','loads','quotes','capacity','bookings','trust','support','terms','privacy','refund','communications','dashboard','admin','kyc','fleet','payments','invoices','trips','vehicle-review','pricing'] as const
 export type View=typeof views[number]
 export function viewFromHash(hash:string):View{
   const value=hash.replace(/^#\/?/,'').split('?')[0]

@@ -37,3 +37,19 @@ async def test_rejected_document_cannot_satisfy_approval_or_be_revived():
     assert rejected.status == 'rejected'
     assert item.status == 'under_review'
     storage.require_clean_scan.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_suspended_provider_can_enter_resubmission_but_not_direct_approval():
+    item = KYCApplication(id=uuid.uuid4(), provider_id=uuid.uuid4(), legal_name='Fictional test', status='suspended', documents=[])
+    provider = ProviderProfile(provider_type='owner', display_name='Fictional test', active=False, kyc_status='suspended')
+    db = SimpleNamespace(scalar=AsyncMock(return_value=item), get=AsyncMock(return_value=provider), add=Mock())
+    actor = SimpleNamespace(id=uuid.uuid4())
+    storage = SimpleNamespace(require_clean_scan=Mock())
+    with pytest.raises(HTTPException) as error:
+        await review(item.id, ReviewInput(decision='verified', reason='Harmless fixture reason'), actor, db, storage)
+    assert error.value.status_code == 409 and provider.active is False
+    result = await review(item.id, ReviewInput(decision='resubmit_required', reason='Re-upload for a fresh manual review'), actor, db, storage)
+    assert result['status'] == 'resubmit_required'
+    assert provider.kyc_status == 'resubmit_required' and provider.active is True
+    db.add.assert_called_once()

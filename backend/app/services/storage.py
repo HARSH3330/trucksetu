@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from pathlib import PurePath
@@ -47,6 +48,25 @@ class PrivateDocumentStorage:
         return next((tag["Value"] for tag in response.get("TagSet", []) if tag.get("Key") == MALWARE_SCAN_TAG), None)
 
     def require_clean_scan(self, key: str, version_id: str | None = None) -> None:
+        if not version_id or version_id == 'null':
+            raise ValueError('An immutable document version is required')
+        if settings.KYC_SCAN_PROVIDER == 'clamav':
+            from app.services.scan_contract import ScanIdentity, result_key, validate_result
+            if not settings.KYC_SCAN_RESULTS_BUCKET or settings.KYC_SCAN_RESULTS_BUCKET == self.bucket:
+                raise ValueError('Separate trusted scan-result storage is required')
+            identity = ScanIdentity(self.bucket, key, version_id)
+            response = self.client.get_object(Bucket=settings.KYC_SCAN_RESULTS_BUCKET, Key=result_key(identity))
+            body = response['Body']
+            try:
+                content = body.read(16385)
+            finally:
+                body.close()
+            if len(content) > 16384:
+                raise ValueError('Invalid scan evidence size')
+            validate_result(json.loads(content), identity, max_definition_age_hours=settings.KYC_SCAN_MAX_DEFINITION_AGE_HOURS)
+            return
+        if settings.KYC_SCAN_PROVIDER != 'guardduty':
+            raise ValueError('Scanner is unavailable; test simulation requires an explicit test dependency')
         status = self.malware_scan_status(key,version_id)
         if status != "NO_THREATS_FOUND":
             raise ValueError("Document scan is pending or was not clean")

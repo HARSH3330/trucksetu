@@ -1,7 +1,13 @@
 import React from 'react'
 import {renderToStaticMarkup} from 'react-dom/server'
 import {expect,it} from 'vitest'
-import AccountSecurity from './AccountSecurity'
+import AccountSecurity,{emailVerifiedMessage} from './AccountSecurity'
+
+it('does not ask a signed-in person to sign in again after verifying email',()=>{
+  expect(emailVerifiedMessage(true)).toBe('Email verified. Your account is updated; you can close this window.')
+  expect(emailVerifiedMessage(true)).not.toMatch(/sign in again/i)
+  expect(emailVerifiedMessage(false)).toBe('Email verified. Sign in to continue.')
+})
 
 it('does not show password or token fields before requesting recovery',()=>{
   const html=renderToStaticMarkup(<AccountSecurity close={()=>{}}/>)
@@ -19,9 +25,23 @@ it('provides both resend and email-code verification controls',()=>{
   expect(html).toContain('Verify email code')
 })
 
+it('offers SMS verification next to email verification for a signed-in person, since either one unlocks publishing',()=>{
+  const html=renderToStaticMarkup(<AccountSecurity close={()=>{}} signedIn initialMode="verify"/>)
+  expect(html).toContain('Verify email or phone')
+  expect(html).toContain('Or verify your phone by SMS')
+  expect(html).toContain('aria-label="Phone ownership verification"')
+})
+it('does not offer SMS verification to a signed-out person',()=>{
+  const html=renderToStaticMarkup(<AccountSecurity close={()=>{}} initialMode="verify"/>)
+  expect(html).not.toContain('Phone ownership verification')
+})
+
 it('requires current-password confirmation to change trip contact when signed in',()=>{
   const html=renderToStaticMarkup(<AccountSecurity close={()=>{}} signedIn initialMode="mobile"/>)
   expect(html).toContain('Mobile for trip OTP')
   expect(html).toContain('Current password')
   expect(html).toContain('Save trip contact')
+})
+it('is a focusable modal dialog so keyboard users can reach and close it',()=>{
+  expect(renderToStaticMarkup(<AccountSecurity close={()=>{}}/>)).toMatch(/<div(?=[^>]*role="dialog")(?=[^>]*tabindex="-1")[^>]*>/)
 })

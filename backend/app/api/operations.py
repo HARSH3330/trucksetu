@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models import AnalyticsEvent, AuditLog, Booking, BookingAllocation, CarrierVehicle, Dispute, KYCApplication, ProviderProfile, Quote, TransportRequest, Trip
-from app.models import User
+from app.models import CustomerKYCApplication, DemandSelection, User, UserRole
 from app.models import DriverProfile, RefreshSession
 from app.schemas import AnalyticsEventCreate
 from app.api.auth import require_roles
@@ -28,14 +28,50 @@ class AccountStatus(BaseModel):
     reason: str=Field(min_length=10,max_length=2000)
 
 
+class ContactVerification(BaseModel):
+    channel: Literal['email','mobile']
+    verified: bool
+    reason: str=Field(min_length=10,max_length=2000)
+
+
+def masked_mobile(value:str|None)->str|None:
+    return '••••'+value[-4:] if value else None
+
+
 @router.get('/admin/users')
 async def list_users(q:str=Query(default='',max_length=120),account_status:Literal['active','suspended']|None=None,page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
     filters=[]
     if q:filters.append(or_(User.full_name.icontains(q,autoescape=True),User.email.icontains(q,autoescape=True)))
     if account_status:filters.append(User.status==account_status)
     total=int(await db.scalar(select(func.count(User.id)).where(*filters)) or 0)
-    items=await db.scalars(select(User).options(selectinload(User.roles)).where(*filters).order_by(User.created_at.desc(),User.id).offset((page-1)*page_size).limit(page_size))
-    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'name':item.full_name,'email':item.email,'roles':sorted(role.role for role in item.roles),'status':item.status,'email_verified':item.email_verified,'created_at':item.created_at.isoformat()} for item in items]}
+    customer_kyc=select(CustomerKYCApplication.status).where(CustomerKYCApplication.user_id==User.id).order_by(CustomerKYCApplication.created_at.desc()).limit(1).correlate(User).scalar_subquery()
+    provider_kyc=select(ProviderProfile.kyc_status).where(ProviderProfile.user_id==User.id).limit(1).correlate(User).scalar_subquery()
+    rows=(await db.execute(select(User,customer_kyc,provider_kyc).options(selectinload(User.roles)).where(*filters).order_by(User.created_at.desc(),User.id).offset((page-1)*page_size).limit(page_size))).all()
+    # Phone numbers stay masked in the general list.
+    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'name':item.full_name,'email':item.email,'roles':sorted(role.role for role in item.roles),'status':item.status,'email_verified':item.email_verified,
+            'mobile':masked_mobile(item.mobile),'mobile_verified':bool(item.mobile_verified),'customer_kyc_status':customer,'provider_kyc_status':provider,'created_at':item.created_at.isoformat()} for item,customer,provider in rows]}
+
+
+@router.post('/admin/users/{user_id}/contact-verification')
+async def change_contact_verification(user_id:uuid.UUID,payload:ContactVerification,db:AsyncSession=Depends(get_db),owner:User=Depends(require_roles('superadmin')))->dict[str,object]:
+    """Superadmin-only override of email/phone verification. Independent of KYC, always audited."""
+    target=await db.scalar(select(User).options(selectinload(User.roles)).where(User.id==user_id).with_for_update())
+    if not target:raise HTTPException(404,'Account not found')
+    if target.id==owner.id or {role.role for role in target.roles}.intersection({'admin','superadmin'}):
+        raise HTTPException(403,'Privileged and self account changes are not supported here')
+    field='email_verified' if payload.channel=='email' else 'mobile_verified'
+    previous=bool(getattr(target,field))
+    if payload.verified and payload.channel=='mobile':
+        if not target.mobile:raise HTTPException(409,'This account has no phone number saved')
+        variants={target.mobile,target.mobile.lstrip('+')}
+        if target.mobile.startswith('+91') and len(target.mobile)==13:variants.add(target.mobile[3:])
+        if await db.scalar(select(User.id).where(User.id!=target.id,User.mobile_verified.is_(True),User.mobile.in_(variants))):
+            raise HTTPException(409,'This phone number is already verified on another account')
+    if previous!=payload.verified:
+        setattr(target,field,payload.verified)
+        db.add(AuditLog(actor_id=owner.id,action='admin.contact_verification_changed',entity_type='user',entity_id=target.id,before={field:previous},after={'channel':payload.channel,field:payload.verified,'reason':payload.reason}))
+    await db.commit()
+    return {'id':str(target.id),'email_verified':bool(target.email_verified),'mobile_verified':bool(target.mobile_verified)}
 
 
 @router.get('/admin/bookings')
@@ -44,6 +80,17 @@ async def list_bookings(q:str=Query(default='',max_length=100),page:int=Query(de
     total=int(await db.scalar(select(func.count(Booking.id)).where(*filters)) or 0)
     items=(await db.execute(select(Booking,User.full_name).join(User,User.id==Booking.customer_id).where(*filters).order_by(Booking.created_at.desc(),Booking.id).offset((page-1)*page_size).limit(page_size))).all()
     return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'reference':item.public_id,'customer_name':name,'status':item.status,'total_amount':str(item.total_amount),'created_at':item.created_at.isoformat()} for item,name in items]}
+
+
+@router.get('/admin/requirements')
+async def list_requirements(q:str=Query(default='',max_length=100),page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+    # Customer requirements only; addresses, cargo notes and contacts stay out of the general list.
+    filters=[TransportRequest.marketplace_mode=='customer_demand']
+    if q:filters.append(or_(TransportRequest.public_id.icontains(q,autoescape=True),TransportRequest.pickup_city.icontains(q,autoescape=True),TransportRequest.destination_city.icontains(q,autoescape=True)))
+    total=int(await db.scalar(select(func.count(TransportRequest.id)).where(*filters)) or 0)
+    bids=select(func.count(Quote.id)).where(Quote.request_id==TransportRequest.id).correlate(TransportRequest).scalar_subquery()
+    rows=(await db.execute(select(TransportRequest,User.full_name,User.email,bids).join(User,User.id==TransportRequest.customer_id).where(*filters).order_by(TransportRequest.created_at.desc(),TransportRequest.id).offset((page-1)*page_size).limit(page_size))).all()
+    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'reference':item.public_id,'route':f'{item.pickup_city} → {item.destination_city}','status':item.status,'pickup_date':item.pickup_date.isoformat(),'customer_name':name,'bid_count':int(count or 0),'is_test':email.endswith('@transivox.invalid'),'created_at':item.created_at.isoformat()} for item,name,email,count in rows]}
 
 
 @router.post('/admin/users/{user_id}/status')
@@ -87,7 +134,28 @@ async def marketplace_health(db:AsyncSession=Depends(get_db),_:User=Depends(requ
     total_bookings=int(await db.scalar(select(func.count(Booking.id))) or 0)
     completed=int(await db.scalar(select(func.count(Booking.id)).where(Booking.status=="completed")) or 0)
     gmv=await db.scalar(select(func.coalesce(func.sum(Booking.total_amount),0)).where(Booking.status!="cancelled"))
-    return {
+    count=lambda query:db.scalar(query)
+    open_demand=(TransportRequest.marketplace_mode=="customer_demand")&(TransportRequest.status=="published")
+    bids_on_open=select(func.count(Quote.id)).join(TransportRequest,TransportRequest.id==Quote.request_id).where(open_demand,Quote.status=="active")
+    has_bid=select(Quote.id).where(Quote.request_id==TransportRequest.id,Quote.status=="active").exists()
+    role_count=lambda *roles:select(func.count(func.distinct(UserRole.user_id))).join(User,User.id==UserRole.user_id).where(UserRole.role.in_(roles),User.status=="active")
+    totals={
+        "open_requirements":await count(select(func.count(TransportRequest.id)).where(open_demand)),
+        "open_bids":await count(bids_on_open),
+        "requirements_without_bids":await count(select(func.count(TransportRequest.id)).where(open_demand,~has_bid)),
+        "total_customers":await count(role_count("customer")),
+        "total_truck_owners":await count(role_count("provider","fleet_owner")),
+        "verified_truck_owners":await count(role_count("provider","fleet_owner").join(ProviderProfile,ProviderProfile.user_id==User.id).where(ProviderProfile.kyc_status=="verified",ProviderProfile.active.is_(True))),
+        "total_trucks":await count(select(func.count(CarrierVehicle.id))),
+        "total_drivers":await count(select(func.count(DriverProfile.id))),
+        "total_trips":await count(select(func.count(Trip.id))),
+        "active_trips":await count(select(func.count(Trip.id)).where(Trip.status.not_in({"completed","cancelled"}))),
+        "completed_trips":await count(select(func.count(Trip.id)).where(Trip.status=="completed")),
+        "paid_connections":await count(select(func.count(DemandSelection.id)).where(DemandSelection.payment_status=="captured")),
+        "pending_customer_kyc":await count(select(func.count(CustomerKYCApplication.id)).where(CustomerKYCApplication.status=="under_review")),
+        "unverified_contacts":await count(select(func.count(User.id)).where(User.status=="active",User.email_verified.is_not(True),User.mobile_verified.is_not(True))),
+    }
+    return {**{key:int(value or 0) for key,value in totals.items()},
         "verified_providers":int(await db.scalar(select(func.count(ProviderProfile.id)).where(ProviderProfile.kyc_status=="verified",ProviderProfile.active.is_(True))) or 0),
         "approved_vehicles":int(await db.scalar(select(func.count(CarrierVehicle.id)).where(CarrierVehicle.status=="approved")) or 0),
         "open_requests":int(await db.scalar(select(func.count(TransportRequest.id)).where(TransportRequest.status=="published")) or 0),

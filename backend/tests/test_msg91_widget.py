@@ -95,7 +95,9 @@ def test_only_matching_mobile_is_verified_and_token_replay_is_denied(monkeypatch
             path='/api/v1/auth/mobile/verify-widget'
             payload={'verification_token':'fictional-token-not-valid-for-any-provider'}
             response=client.post(path,headers=headers,json=payload)
-            assert response.status_code==400 and user.mobile_verified is False and not stored
+            assert response.status_code==400 and user.mobile_verified is False
+            assert not [item for item in stored if isinstance(item,AccountVerification)]
+            stored.clear()
             sender.verify.return_value='+919999999999'
             verified=client.post(path,headers=headers,json=payload)
             assert verified.status_code==200 and verified.json()=={'mobile_verified':True}
@@ -103,6 +105,35 @@ def test_only_matching_mobile_is_verified_and_token_replay_is_denied(monkeypatch
             assert all(payload['verification_token'] not in str(vars(item)) for item in stored)
             replay=client.post(path,headers=headers,json=payload)
             assert replay.status_code==409
+    finally:
+        app.dependency_overrides.clear();app.dependency_overrides.update(previous)
+
+
+@pytest.mark.parametrize('provider_mobile,expected',[('+918888888888',{'verified_digits':12,'same_last_ten':False}),('+19999999999',{'verified_digits':11,'same_last_ten':True})])
+def test_mismatch_is_audited_by_shape_without_the_number(monkeypatch,provider_mobile,expected):
+    module=importlib.import_module('app.api.phone_verification')
+    from app.api.auth import current_user
+    from app.services.dependencies import get_phone_verifier
+    from app.models import AuditLog,User
+    user=User(id=uuid.uuid4(),mobile='+919999999999',mobile_verified=False,status='active')
+    stored=[]
+    async def scalar(query):return user
+    db=SimpleNamespace(scalar=scalar,add=stored.append,commit=AsyncMock())
+    async def session():yield db
+    async def actor():return user
+    previous=dict(app.dependency_overrides)
+    app.dependency_overrides.update({get_db:session,current_user:actor,get_phone_verifier:lambda:SimpleNamespace(verify=AsyncMock(return_value=provider_mobile))})
+    monkeypatch.setattr(module,'enforce_rate_limit',AsyncMock())
+    try:
+        with TestClient(app,base_url='http://localhost') as client:
+            headers={'Authorization':'Bearer '+create_access_token({'sub':str(user.id)})}
+            response=client.post('/api/v1/auth/mobile/verify-widget',headers=headers,json={'verification_token':'fictional-token-not-valid-for-any-provider'})
+        assert response.status_code==400
+        audit=next(item for item in stored if isinstance(item,AuditLog))
+        assert audit.action=='auth.mobile_verification_mismatch'
+        assert audit.after=={'method':'msg91_widget',**expected}
+        assert provider_mobile.lstrip('+') not in str(audit.after) and '9999999999' not in str(audit.after)
+        db.commit.assert_awaited()
     finally:
         app.dependency_overrides.clear();app.dependency_overrides.update(previous)
 

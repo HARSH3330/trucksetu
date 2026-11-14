@@ -1,0 +1,18 @@
+.admin-search{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin-bottom:12px}
+.admin-search label{display:grid;gap:4px;flex:1 1 220px}
+.admin-search input{min-height:44px}
+.admin-search button{min-height:44px}
+.admin-record-list{display:grid}
+.admin-record{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;align-items:center}
+.admin-record>div:first-child{display:grid;gap:3px;min-width:0}
+.admin-record small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.admin-actions{display:flex;flex-wrap:wrap;gap:8px}
+.admin-actions button{min-height:44px;width:auto}
+.admin-note{text-align:right}
+.admin-badge{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:8px;background:#fff4d6;color:#7a5200;font-size:11px;font-weight:700;vertical-align:middle}
+.admin-status-form{grid-column:1/-1;display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:8px;background:#fafcfb}
+.admin-status-form h3{margin:0;font-size:16px}
+.admin-status-form p{margin:0}
+.admin-status-form label{display:grid;gap:4px}
+.admin-status-form textarea{min-height:80px}
+@media(max-width:640px){.admin-record{grid-template-columns:1fr}.admin-note{text-align:left}}

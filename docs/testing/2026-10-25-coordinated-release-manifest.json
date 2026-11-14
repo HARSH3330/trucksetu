@@ -1,0 +1,2147 @@
+{
+  "snapshot_date_ist": "2026-10-26",
+  "deployed_frontend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
+  "deployed_backend_commit": "ccd594df8a78f56041876c058b522e0624db4fb6",
+  "candidate_branch": "release/customer-first-20261026",
+  "candidate_head": "d4efac586a4ee5e49e478fd304f6c65743ef3664",
+  "commits_not_deployed": [
+    "d4efac586a4ee5e49e478fd304f6c65743ef3664",
+    "1099527c6e8330be3858349370da5a68d7c2f4f8",
+    "ed4d0739488ea6c647f7b9cdf1d0218696c2a4f9",
+    "ba3057784e36f1c984e90f54b0695586a8c97650",
+    "66c63d17897837afc88f457dab0c0e7b8942ac2a",
+    "d5f4306697518d7a1335482ce37f49f1d41c4f06"
+  ],
+  "file_count": 301,
+  "tracked_changed": 300,
+  "untracked_source_files": 1,
+  "categories": {
+    "build_ci_configuration": 11,
+    "documentation": 59,
+    "operations_dependencies_and_helpers": 14,
+    "backend_runtime": 43,
+    "database_migrations": 7,
+    "backend_tests": 66,
+    "browser_verification": 33,
+    "infrastructure_templates_not_deployed": 19,
+    "frontend_runtime": 43,
+    "frontend_tests": 6
+  },
+  "credential_scan": {
+    "known_local_values_and_high_confidence_patterns": "PASS",
+    "included_commit_patches_scanned": 6,
+    "findings": [],
+    "forbidden_tracked_or_candidate_paths": [],
+    "limitations": "No general-purpose entropy scanner available; this is exact known-value/pattern plus path review, not a guarantee against all unknown credentials."
+  },
+  "files": [
+    {
+      "path": ".env.example",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "e197ea087f14dcd445671828029d48550e45ec2887a0994f6da42d8508897e52",
+      "bytes": 5117
+    },
+    {
+      "path": ".gitattributes",
+      "change": "A",
+      "category": "build_ci_configuration",
+      "sha256": "fdc1379147b641725cbdba80d127a3751886b6bba503021c5680319edc256950",
+      "bytes": 34
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "b2057ee8031373449edd78dd84b3e77a573f3d8d3816448a3fea3764c7f28849",
+      "bytes": 3099
+    },
+    {
+      "path": ".github/workflows/playwright.yml",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "44975a0ac979c8596eeef82f40f740392bf8fb321edbd2193636ecf38cd53523",
+      "bytes": 4425
+    },
+    {
+      "path": ".gitignore",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "23c9409bbd1008b31d0c3ee9fa95c2802fbc78b36c8c11d13d5acc33f17c64aa",
+      "bytes": 883
+    },
+    {
+      "path": "AGENTS.md",
+      "change": "M",
+      "category": "documentation",
+      "sha256": "c4f4cf9a59923fedbe62de4e7980d9665ee1434ec0360caec82c1c4ac3db09ec",
+      "bytes": 24800
+    },
+    {
+      "path": "DEPLOYMENT.md",
+      "change": "M",
+      "category": "documentation",
+      "sha256": "5e43858c6622857ab05719c6f178382de56f531cd3799b1229a5deda4d01485e",
+      "bytes": 3959
+    },
+    {
+      "path": "DESIGN.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "16df38f53f2e9ceba2d1e8ca478a6f2bc391659b2d0c277119120b130b697965",
+      "bytes": 5380
+    },
+    {
+      "path": "backend/.env.example",
+      "change": "M",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "2e4b43955dcbc0247f77c0aedc1f0abae40d8c116b5d3dda62eb0f52a97408df",
+      "bytes": 5732
+    },
+    {
+      "path": "backend/app/api/account_recovery.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "c6d4eb2046a4b2fdf3abda7e2c9c92565dcd7a351b31405bd9a30b9a2c5208b3",
+      "bytes": 7851
+    },
+    {
+      "path": "backend/app/api/auth.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "49be23f8dbc6815409719004124d7573dfef2c28e871b678153608ed1b3d6d3a",
+      "bytes": 18449
+    },
+    {
+      "path": "backend/app/api/bookings.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "180038cdec8849e2f5e23d9635d57484037a80f1b3dade38aadad377a1694e06",
+      "bytes": 23515
+    },
+    {
+      "path": "backend/app/api/capacity.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "05644fd754878953beef4e36c18da8c66f134a706fde19fa75253a37a8fe5497",
+      "bytes": 17673
+    },
+    {
+      "path": "backend/app/api/communications.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "fb2edd30e72aacbb3231c2da951d25c76dcd0715ad40adbc33c8dfd0f7c0b760",
+      "bytes": 7457
+    },
+    {
+      "path": "backend/app/api/connection_fee_policy.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "1a87c926db93f7713a9aca52ce45a168b473308b864773aa2bbb69c058effcf9",
+      "bytes": 5477
+    },
+    {
+      "path": "backend/app/api/cookie_sessions.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "a624358202997ad65b457eb5db2af6d0e22e31758f22be5c6fa5ef24f3b66c75",
+      "bytes": 3268
+    },
+    {
+      "path": "backend/app/api/customer_kyc.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "995c39ddeb8b9f8ab35327597da5d53710bd29053ccc4c91db75952962347952",
+      "bytes": 10961
+    },
+    {
+      "path": "backend/app/api/demands.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "c6b1c0c654b2bf34a4679458091144a056fb50eb3ca9332a398bcf4e3604bbea",
+      "bytes": 33510
+    },
+    {
+      "path": "backend/app/api/drivers.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "4acf99e1783ed5dcfe969911d08d55fc332100b6349b910583b39e120e82a3e0",
+      "bytes": 9743
+    },
+    {
+      "path": "backend/app/api/kyc.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "6ddf865baffbf25b199abf1d51e4b20433464e2bf41c77a8d4975dfe07ed8b75",
+      "bytes": 17073
+    },
+    {
+      "path": "backend/app/api/payments.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "c83f62260c9655989ef082a4fbe2ca75373eabd9449144881e62f6e23f7906a2",
+      "bytes": 26323
+    },
+    {
+      "path": "backend/app/api/quotes.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "69666e296a73133d0712f9379068a7f2997e01fc3fa54fe48ed339d4b25c7e03",
+      "bytes": 11237
+    },
+    {
+      "path": "backend/app/api/requests.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "adfe575f0963e3d5362d5dce4afa1e5c45a7f1c44f4f5b2b9f2c0b68bc1380f9",
+      "bytes": 7620
+    },
+    {
+      "path": "backend/app/api/shared_bookings.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "919beca5838eb3203086ebb29189d59142488e7286f69e3cb723d594d5ef4b6c",
+      "bytes": 13807
+    },
+    {
+      "path": "backend/app/api/trust.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "30472d83d4c6549d7c792f45a63615e714e490ca4dbdf35e8504f7f96466bb1d",
+      "bytes": 12681
+    },
+    {
+      "path": "backend/app/api/vehicle_documents.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "59ade56fdeb8327c22ddb798d2694bd091953f7a2e2be2ad7fa39906af9ab251",
+      "bytes": 9843
+    },
+    {
+      "path": "backend/app/api/vehicles.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "8a265ea9a50d99f01bcb62f8bc1ee24bd06bb2e5efdd852dc87875f736b568ef",
+      "bytes": 8533
+    },
+    {
+      "path": "backend/app/core/config.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "de8c8dab85625da1f2a08e99704eceece8a3d578da66d9cbeb08666c72a0cf5d",
+      "bytes": 11710
+    },
+    {
+      "path": "backend/app/core/marketplace_flags.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "7e8cb052dd5c5b18b9ea3e118eb396784d05b31bd20184ae19d001ffa8983899",
+      "bytes": 957
+    },
+    {
+      "path": "backend/app/core/middleware.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "447256cfafc3651f8ffafea41f421e80190fbdeac8ba90af093bbb0087a79f56",
+      "bytes": 3589
+    },
+    {
+      "path": "backend/app/core/routing.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "effe416799552bd3b2ecf90b5d396ce1810054723864e0af3b68c3daefba7d8c",
+      "bytes": 1788
+    },
+    {
+      "path": "backend/app/core/security.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "f948bc849b8ddbd414e7c3d2bb3a5e1da5aac762acfe237e02ed8b95466835eb",
+      "bytes": 3359
+    },
+    {
+      "path": "backend/app/main.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "aa46ec3236a27506f30b138a326427cd7736da3bd452031b2d72f7680bb40dcc",
+      "bytes": 10665
+    },
+    {
+      "path": "backend/app/models.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "e5fd93ff250b49daf2a97eb2b1ba2ade1e2419bb6af480b709bde11baacd992b",
+      "bytes": 63764
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "c3ca8c619bf33c844dad5b41bc24b8f1f913765d232497284540592db6f481ab",
+      "bytes": 22484
+    },
+    {
+      "path": "backend/app/services/account_email.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "782c7b8feadb4cb4c4d30f7b85157beded53dc50f4936541e10d940b07719c4d",
+      "bytes": 840
+    },
+    {
+      "path": "backend/app/services/communications.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "c1c85d1a093960156848091f6d68f7916e82fb4eab85151ff79b91f4aa6c15cd",
+      "bytes": 4205
+    },
+    {
+      "path": "backend/app/services/connection_fee_rules.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "375e67ce1dd7b0b9d76b1275af760bb618466c46fe1131a1ff343908ae6f3e90",
+      "bytes": 3487
+    },
+    {
+      "path": "backend/app/services/connection_refunds.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "a79f596ac20dafb25faec8e19db7f7c5ada49a436f47f48fdc7bc452cbc1d14f",
+      "bytes": 8510
+    },
+    {
+      "path": "backend/app/services/contact_access.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "2a78f58aefb994f685b4b5f1c89b628a2d498b1013048631eb9ee5f66ec0e0a7",
+      "bytes": 2400
+    },
+    {
+      "path": "backend/app/services/customer_kyc.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "8bdbed5176c1b961962e08f625f1bd3aade03d6fc373e5f5b6832f5f15ea8866",
+      "bytes": 3800
+    },
+    {
+      "path": "backend/app/services/demand_marketplace.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "2e6c54492b7e6005ffaa7bb5bd5cd2e34ea4d3af435abe3ae58c358daa776272",
+      "bytes": 18855
+    },
+    {
+      "path": "backend/app/services/demand_policy.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "9a20b5efd2917ce36bc9c8302323a5fb2cc3f6a3a467d42a788773b6ce7c8e94",
+      "bytes": 3735
+    },
+    {
+      "path": "backend/app/services/demand_schemas.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "d943b18b6d012bf65abfa5311bca99d8101d554bdc6d92c7d645482a15d9583a",
+      "bytes": 3482
+    },
+    {
+      "path": "backend/app/services/dependencies.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "64b492fd0f976105dbc8ac3c69f3ddf206e9696d2010be9f8ce7b3360ecc5c5b",
+      "bytes": 1694
+    },
+    {
+      "path": "backend/app/services/driver_eligibility.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "5619b3ce4ece9c47b9f04d35e8c0101b331dfa80f456cb2ea2a9c6cbcc549768",
+      "bytes": 849
+    },
+    {
+      "path": "backend/app/services/invoices.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "75a2d9f6faaa38074e5e85af1acbaa597b1ddbf21dfbc8811ece57f769c42c3e",
+      "bytes": 1878
+    },
+    {
+      "path": "backend/app/services/payments.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "bb538aa5976769ce4f7777417861953aad4b7ffb812d928a2fd7fd6e040128d6",
+      "bytes": 5872
+    },
+    {
+      "path": "backend/app/services/scan_contract.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "67aea615b1269f181cc7d4296932e3735532c8d484ff8240edaa2399ae3aff0c",
+      "bytes": 2019
+    },
+    {
+      "path": "backend/app/services/shared_quotes.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "afbfa6145e07654716d8dd3184e1600d688ff271f711ab2df9b6f83989cf6194",
+      "bytes": 1468
+    },
+    {
+      "path": "backend/app/services/storage.py",
+      "change": "M",
+      "category": "backend_runtime",
+      "sha256": "5d51acfcd1ebd0d98675d18ddad3eb1a221a2fa752084c7d36fe4812a52e5829",
+      "bytes": 4275
+    },
+    {
+      "path": "backend/app/services/vehicle_review_rollout.py",
+      "change": "A",
+      "category": "backend_runtime",
+      "sha256": "12af643b20997876a6f0d556231484e3958a57b157f14dc45d253da868e7f574",
+      "bytes": 2857
+    },
+    {
+      "path": "backend/connection_refund_sandbox.py",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "fe7f54363ce6bcb0a145d649a5ca84843dd70492d0871ccc342fe2cac677e327",
+      "bytes": 2228
+    },
+    {
+      "path": "backend/constraints-security.txt",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "adacbb7159a696edadd0d10c0fae0dbc7bb56aec3cd3a09383f8e712b1761451",
+      "bytes": 185
+    },
+    {
+      "path": "backend/e2e_database.py",
+      "change": "M",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "c86babdfe990e41da44d344228e3ac4204b4d9d7af4f9df2277b1ea017a40ad2",
+      "bytes": 5436
+    },
+    {
+      "path": "backend/e2e_journey_guard.py",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "938d4a1fc91e41f5db9890e5417ba789c9660a3593e5d55847839d370a962b12",
+      "bytes": 824
+    },
+    {
+      "path": "backend/e2e_session_control.py",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "990ace4d967add46594f8cd37980a052ee8e95f320d205de39fed47479ed30f2",
+      "bytes": 939
+    },
+    {
+      "path": "backend/e2e_support.py",
+      "change": "M",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "ca96b8b75390f1727ee62c7c39c5c06a6c3d4722945015e60c9af19b59672c29",
+      "bytes": 10272
+    },
+    {
+      "path": "backend/migrations/versions/20261014_23_kyc_versions.py",
+      "change": "A",
+      "category": "database_migrations",
+      "sha256": "2ac4b66df3a8b43a068e06470b02115669eafdf41791fc6d8b2fdb005790e6e5",
+      "bytes": 2122
+    },
+    {
+      "path": "backend/migrations/versions/20261014_24_shared_acceptance.py",
+      "change": "A",
+      "category": "database_migrations",
+      "sha256": "6b609b036c9d25c42198fb3f6091ce00f4250751e319f40674f19f8bcff784b2",
+      "bytes": 1053
+    },
+    {
+      "path": "backend/migrations/versions/20261021_25_customer_demand_marketplace.py",
+      "change": "A",
+      "category": "database_migrations",
+      "sha256": "6821cc9ec398a9a9945b4b591d3276e67ef0b8594605c456b0fb609cf904a7d8",
+      "bytes": 4709
+    },
+    {
+      "path": "backend/migrations/versions/20261023_26_customer_kyc.py",
+      "change": "A",
+      "category": "database_migrations",
+      "sha256": "38ffee63c14aaf771352c6fc28d8415e12fd628b899c2f7265c1efd0968f71a5",
+      "bytes": 2414
+    },
+    {
+      "path": "backend/migrations/versions/20261023_27_connection_fee_policy.py",
+      "change": "A",
+      "category": "database_migrations",
+      "sha256": "7b8abc8b9282be4cd784d91b3df92c8700c8722714a56da11dfafd8f39dc00a6",
+      "bytes": 2436
+    },
+    {
+      "path": "backend/migrations/versions/20261023_28_sandbox_refund_execution.py",
+      "change": "A",
+      "category": "database_migrations",
+      "sha256": "abc85d6150e776239f1eef80012813487a13a920cdccb9fbb2eb7569518dc753",
+      "bytes": 1301
+    },
+    {
+      "path": "backend/migrations/versions/20261025_29_demand_locations.py",
+      "change": "A",
+      "category": "database_migrations",
+      "sha256": "cedac8c13fefea9f59aebf9bd1545a8bfa5502032d0ffb116455a52f08ca6f2f",
+      "bytes": 532
+    },
+    {
+      "path": "backend/pyproject.toml",
+      "change": "M",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "023a369728805ebdb6c053be5ccddaee7ec44bcf7b3d462f89cb49683235a080",
+      "bytes": 1645
+    },
+    {
+      "path": "backend/razorpay_webhook_relay.py",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "5178a2454a04566e87a574a33d1d142e4ebf5a9789252c9c935476df33f03460",
+      "bytes": 1953
+    },
+    {
+      "path": "backend/s3_integration_check.py",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "3d4e0d3df460f4a60f28134c581c1acff6de503501814a77e0859d718aa7a229",
+      "bytes": 9033
+    },
+    {
+      "path": "backend/scan_worker.py",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "c5ded5bdadb825ab14dd3a353e87bb88a8ff6d8a5ec46314f7dcd60e64e82c78",
+      "bytes": 8799
+    },
+    {
+      "path": "backend/tests/integration/_local_release_db.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "024904327b305ddc59932f2a93044f3597faec22fa53442db7844434073cf0fa",
+      "bytes": 2505
+    },
+    {
+      "path": "backend/tests/integration/conftest.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "c8cf9767726659e327ec20ff6ad1684278cd261d040d072fba5e4d27cedad850",
+      "bytes": 444
+    },
+    {
+      "path": "backend/tests/integration/test_capacity_replay_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "a18cd8c3ac39c997733c12c342fd38963605647f4189468fd287926ae413fc74",
+      "bytes": 5929
+    },
+    {
+      "path": "backend/tests/integration/test_connection_fee_policy_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "61f6145db7017ad4e7a245c909dbba41ca280b1eb5ab8e12df3b122b111da37c",
+      "bytes": 14097
+    },
+    {
+      "path": "backend/tests/integration/test_cookie_session_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "34da0127d878e0f42c10cdcdd40a6533e043dbfe35faff746116848840d9c5b1",
+      "bytes": 4150
+    },
+    {
+      "path": "backend/tests/integration/test_customer_kyc_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "f649efc2b7fb7710eadc5fe30289dade9e5b552cd547588a93fb22995f9f0cfd",
+      "bytes": 9285
+    },
+    {
+      "path": "backend/tests/integration/test_demand_locations_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "3c25bb7beace4ebc47649c5d56e39a27ce60a2d4e92f2344ba594c1f3a35304e",
+      "bytes": 2690
+    },
+    {
+      "path": "backend/tests/integration/test_demand_marketplace_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "2253cd18017002be473cf3d31b19dd7920cbb38b57bcc2b01faa779c552581e5",
+      "bytes": 19665
+    },
+    {
+      "path": "backend/tests/integration/test_demand_milestone_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "fac3fd25036587808c0c46e0c2ae9965b38694914e23fc8220605f4ae05e8ed5",
+      "bytes": 19219
+    },
+    {
+      "path": "backend/tests/integration/test_financial_snapshots.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "a5da2a7d2a1bdba7b4c82bea15dc30caaf1d1124d65229ae327a022a76a22dc5",
+      "bytes": 6537
+    },
+    {
+      "path": "backend/tests/integration/test_http_rate_isolation.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "f40de5dc02c7234eb8896b2077859253ee66ecbe68de24f9ef8f33981baa664a",
+      "bytes": 953
+    },
+    {
+      "path": "backend/tests/integration/test_local_email_capture_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "c5ab5ec419cab4f5f5322a681d514538436902444c01abfcd4aedc0a22d88ca3",
+      "bytes": 8400
+    },
+    {
+      "path": "backend/tests/integration/test_local_email_races_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "b9f1634ddb18f7281d0663c33542482a0b4aeb1c93f15d608c27e1b1fe26e1c5",
+      "bytes": 7199
+    },
+    {
+      "path": "backend/tests/integration/test_pilot_auth_database.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "f646ed63dbc48614662eac915959a68df491da29206c613f2e46d036f3d80420",
+      "bytes": 1641
+    },
+    {
+      "path": "backend/tests/integration/test_refresh_logout_concurrency.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "664a05f4d2c9a871256a0456b4f19ec2a8ad6a33f97b25254f9df106eeed0940",
+      "bytes": 5015
+    },
+    {
+      "path": "backend/tests/integration/test_release_migrations.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "3f9d91f9fe2085fb145154fc0ecde78b57e898fc37271a1ae9addc5a52a9f156",
+      "bytes": 4579
+    },
+    {
+      "path": "backend/tests/integration/test_request_creation_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "13d2a9c4e870108736ecfb6e1cf1587b76b80a5df9441f7b375f4762c8efba3c",
+      "bytes": 2324
+    },
+    {
+      "path": "backend/tests/integration/test_sandbox_refund_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "3b83fef55eb197e42e3be49b3b99e2b373c732c45c7f5ba37da8cd5a14b3dfc3",
+      "bytes": 9314
+    },
+    {
+      "path": "backend/tests/integration/test_shared_booking_database.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "e325ac6e16b04d469bc741b0e3601f9cdeb9cc30282d9e04888552855e37f399",
+      "bytes": 12239
+    },
+    {
+      "path": "backend/tests/test_account_email_links.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "8de6db7ab3f80eda4527fa098412a33692ce026bdf977beb6d43858915833c88",
+      "bytes": 1402
+    },
+    {
+      "path": "backend/tests/test_account_recovery.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "0c414b81ff507b1d1cbf5c03f68228937c6b5c6a410ed73b670cba7fc030ab2a",
+      "bytes": 7923
+    },
+    {
+      "path": "backend/tests/test_capacity_expiry_audit.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "69aac8926ab5a539e82352ba969919f7bc47437daf11affbb50ade9f73350f63",
+      "bytes": 699
+    },
+    {
+      "path": "backend/tests/test_capacity_release.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "71f019a4e9fad4d7379faf1c5639f5a3fef18bb1f8945a7122e06dcc1f40c098",
+      "bytes": 1984
+    },
+    {
+      "path": "backend/tests/test_capacity_retry.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "1b7556ec77d152e85b4c8fca9b169e79ea9b09475e9743c31e03c05374367b69",
+      "bytes": 3947
+    },
+    {
+      "path": "backend/tests/test_capacity_reverification.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "b53cf3996b45d0ec349a67388f43cdeef32217ae0268b70b10a42efeec3a1aa6",
+      "bytes": 2157
+    },
+    {
+      "path": "backend/tests/test_connection_fee_rules.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "96b34b9bb3f0f74fe26afecce2f7af82759f446999702f2e76e7d93d0c9d9bca",
+      "bytes": 2546
+    },
+    {
+      "path": "backend/tests/test_cookie_sessions.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "29d94b89673a7641b6823cc22562b9f1e575a2a1c4fb163b2ece4e4036c830a7",
+      "bytes": 3028
+    },
+    {
+      "path": "backend/tests/test_customer_kyc.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "e6449889cb149e016790681e5f11a644ee6af928f0714f5e038e4d3f21f06376",
+      "bytes": 2342
+    },
+    {
+      "path": "backend/tests/test_customer_kyc_renewal.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "0c28ee9068e3434ff088eb26215ac502ac7096e06645e0217a3451d01ff55451",
+      "bytes": 732
+    },
+    {
+      "path": "backend/tests/test_demand_locations.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "3d734d3286114017608176e50267d730ba2964bee4ffe460f47bea477c023e05",
+      "bytes": 1594
+    },
+    {
+      "path": "backend/tests/test_demand_marketplace.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "b66672df5c05692b9ff878c503ec1a6ea1279b35f6324b7cdc7e5adeaf3d5a1d",
+      "bytes": 7033
+    },
+    {
+      "path": "backend/tests/test_dependency_manifests.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "a6f91fe03de83fa98b3e49cbe21690089283f90fa385d7e031b624e3b3742414",
+      "bytes": 503
+    },
+    {
+      "path": "backend/tests/test_driver_identity_gate.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "52cf2d61d486e3b33f1a08401d17f7e1e521362f675902288aabab71ab00d767",
+      "bytes": 738
+    },
+    {
+      "path": "backend/tests/test_driver_reactivation.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "06b6d14a6ca5eb9aa8412b41edaa56115f99fc8b3e7fdac536e4cc3312b68ee1",
+      "bytes": 2275
+    },
+    {
+      "path": "backend/tests/test_e2e_database_safety.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "8392220b174a8e00f01838c187a6694c79bec80ab08e8faaf2c76d25d00aa964",
+      "bytes": 2968
+    },
+    {
+      "path": "backend/tests/test_e2e_storage_support.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "c9812bebc22fd25003dc71091921006da39320afbb1cc34995a6990b2d88677f",
+      "bytes": 7894
+    },
+    {
+      "path": "backend/tests/test_invoice_download.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "10b12b19d72a5ae70376568a25e693d1f8dd2005296639c9d52a5cc9599fb3df",
+      "bytes": 2413
+    },
+    {
+      "path": "backend/tests/test_jwt_compatibility.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "261f3e6e84e16dd91ec4b373104510cda9c070e2ab93c3396dc1eeb7a906374b",
+      "bytes": 1270
+    },
+    {
+      "path": "backend/tests/test_kyc_review_regression.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "7b112718c762dcbc7c04475a875506ce174f14f8c555fae45dc16062c4764e31",
+      "bytes": 3492
+    },
+    {
+      "path": "backend/tests/test_kyc_versions.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "30f462d888f03dc12d6da997a08ef73ff2a9aa45c14db1cba388bbc2d1a88921",
+      "bytes": 6018
+    },
+    {
+      "path": "backend/tests/test_logout_revocation.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "776e102d9cdc1e2160f2b7fff7bc95244929613fea5fddfd1d965a9398ee10fa",
+      "bytes": 1884
+    },
+    {
+      "path": "backend/tests/test_phase18_health.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "81f07c0ce82029ae938b4a08bc96ca680e23480b13cc611369c6565a344f3cd5",
+      "bytes": 3889
+    },
+    {
+      "path": "backend/tests/test_phase20_migrations.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "21d9be411ffa5998a3262c9e13b748b189f6676fd591c1b0ee28f524333fc9ee",
+      "bytes": 2082
+    },
+    {
+      "path": "backend/tests/test_phase21_session_security.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "e087fd19417c7d8d5a337003d2f9116219432b370a97bd771e5775c5824927a7",
+      "bytes": 2848
+    },
+    {
+      "path": "backend/tests/test_phase26_kyc_security.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "a0187dc77c8b975e7a7ce601c7291be0037798f7008951964006fc4091b87fcf",
+      "bytes": 2276
+    },
+    {
+      "path": "backend/tests/test_phase28_pilot_authorization.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "b555eb6d28173f0b08a4c6cc100a075e54c029fb80230e4d0a15e6bf6069e486",
+      "bytes": 3166
+    },
+    {
+      "path": "backend/tests/test_provider_reverification.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "59b9d26a90d90c93e6b4c5aba2100f026d5536c8d96fe8df598505b5a226639f",
+      "bytes": 1805
+    },
+    {
+      "path": "backend/tests/test_razorpay_sandbox.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "b6a4397f2941245d5eecd9371522dbe9adad6dcd358d930aff1f50480f517127",
+      "bytes": 5435
+    },
+    {
+      "path": "backend/tests/test_razorpay_webhook_relay.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "8172c4e52d32fa14da3c2ab07e65c8bdfb7efdccb5abe879b257259e9c6ec812",
+      "bytes": 2998
+    },
+    {
+      "path": "backend/tests/test_refund_cli_schema.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "730846dcca3120122507f97ffd9e860d78cd16cef691ffbabe995c1847ace156",
+      "bytes": 1497
+    },
+    {
+      "path": "backend/tests/test_refund_queue.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "63924b02594aff449ce49da67391a0883b9dc1dce3792932ecc60e725f5610fb",
+      "bytes": 2652
+    },
+    {
+      "path": "backend/tests/test_release_payment_callbacks.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "b1005a7925a2752e54d0889d986f9e4453de369a038ad8feae6bc77a8fac691f",
+      "bytes": 5715
+    },
+    {
+      "path": "backend/tests/test_release_sensitive_logging.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "39177b312d45dda5c1dc7f85b8fbdc4cfb8d992244c6907c04050116eb5dffad",
+      "bytes": 915
+    },
+    {
+      "path": "backend/tests/test_s3_integration_check.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "d4693a055cc8e51669bae74a697f735f784a81715ce2ca424c39fca1b0bad976",
+      "bytes": 746
+    },
+    {
+      "path": "backend/tests/test_scan_contract.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "41a08ced999af8640777dbced3eba9b79045699bb50b9d09776e1d28c0787799",
+      "bytes": 2501
+    },
+    {
+      "path": "backend/tests/test_shared_acceptance.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "bbb0fabd7ca92e3256d5b25fbdd227fa549ec57966c58a3a16847e24f91d40e3",
+      "bytes": 6319
+    },
+    {
+      "path": "backend/tests/test_shared_quote_contract.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "bb91c09bc64e50cffb4ddeb8ea9a84e62bf57b26e8090e894eb41789fc8e42fc",
+      "bytes": 1672
+    },
+    {
+      "path": "backend/tests/test_shared_quote_revision.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "af7abc7fa3d6b42ab159db4a171eaf6bd5e2f47ba125161d248cc0582011d34f",
+      "bytes": 1885
+    },
+    {
+      "path": "backend/tests/test_signin_error_mapping.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "208ab3f06c614278fe0a7e455a1dbe8e247e504cb9e8a8c1be810f22fba202fd",
+      "bytes": 4245
+    },
+    {
+      "path": "backend/tests/test_smtp_acceptance.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "e9a05a4305528651b8603817d28e846f9b76f5566ee10d9a963060542306e533",
+      "bytes": 2251
+    },
+    {
+      "path": "backend/tests/test_trip_otp_delivery.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "aaadfe0871ffcb0c436b9f473d6b3e3e4609e70c59babfe5c59dff49e0ba8860",
+      "bytes": 6704
+    },
+    {
+      "path": "backend/tests/test_vehicle_assignment_lock.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "5e1fdf8e3b097e92f54608d0a8dca77cbd039da41b3c843e50cfedaa895d4629",
+      "bytes": 4443
+    },
+    {
+      "path": "backend/tests/test_vehicle_backfill.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "54b2c0f69a24d93ecfbb3d99129996c938984da315f80eb93a5ba5963d1741ff",
+      "bytes": 3462
+    },
+    {
+      "path": "backend/tests/test_vehicle_dispatch_documents.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "fbfca5233ab929f8ea29a30f5306c471c8eaec432cba81e2625f69d1266d32d0",
+      "bytes": 1298
+    },
+    {
+      "path": "backend/tests/test_vehicle_documents.py",
+      "change": "M",
+      "category": "backend_tests",
+      "sha256": "469a455394dc64a5fb76409761c5818d591fcce026ca26b858ba2e50f4551e8e",
+      "bytes": 7945
+    },
+    {
+      "path": "backend/tests/test_vehicle_review_state.py",
+      "change": "A",
+      "category": "backend_tests",
+      "sha256": "74187964b3c496b7f01194887698608cab763ebcb4dd534f4917abbb7682fce3",
+      "bytes": 1307
+    },
+    {
+      "path": "backend/vehicle_review_rollout.py",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "8d3e813d7b8116c241797208a66c72ff6461f40475e1ee26ace3888ed1b86ea1",
+      "bytes": 3682
+    },
+    {
+      "path": "backend/vercel.json",
+      "change": "A",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "3d3d723d834320eca6d0bdbd65ff3a57760532e5f1b4cc25aaf9d34bfe543b36",
+      "bytes": 106
+    },
+    {
+      "path": "docs/PROJECT_HANDOFF.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "af7c257b6fa9f6c04d08a56dd941dc90ee70a7455c1069d657c82acf058d0b73",
+      "bytes": 48059
+    },
+    {
+      "path": "docs/operations/2026-10-20-alerts-recovery-legal.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "5f09687ecfb10026b96f10f511f5d5fec42639ee0ba0f076335185544deef256",
+      "bytes": 6867
+    },
+    {
+      "path": "docs/operations/2026-10-20-payments-email-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "43485d12894f4ac7cf1039d4796059be584f91da0d887e49399985b0edbad36d",
+      "bytes": 5541
+    },
+    {
+      "path": "docs/operations/2026-10-20-storage-scanner-proposal.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "73cc6f8cffa0ae777bd38dc81cfcf54e1cfa06e4c0e3988a6d78b0837bc1b603",
+      "bytes": 6013
+    },
+    {
+      "path": "docs/operations/2026-10-23-connection-fee-policy.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "d915f45b7c7b2f6d0124af2c831f7d1714398faf63436d0f20421dda3a687df3",
+      "bytes": 4466
+    },
+    {
+      "path": "docs/operations/2026-10-23-isolated-preview-release.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "f9fa199fffd248a3532f7497d7253368a8b9889bff78784259905cd91e549f28",
+      "bytes": 5444
+    },
+    {
+      "path": "docs/operations/2026-10-26-coordinated-production-release.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "1f442a37ec774b10ca899652f452c6ac11e3cfb0f75bd1490bc8538406bc8ac6",
+      "bytes": 22629
+    },
+    {
+      "path": "docs/operations/2026-10-26-kyc-consent-draft.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "fb411b6b332559507ce3c6cdca83d2020fd5cc2a01eb22e4bef52a00c314ba72",
+      "bytes": 3415
+    },
+    {
+      "path": "docs/operations/2026-10-26-production-integration-settings.md",
+      "change": "UNTRACKED",
+      "category": "documentation",
+      "sha256": "2c3a500c7c06960cdebdadc29b7ba0c12ce8e2ccfd673607fd89f8e2d187fb0b",
+      "bytes": 8038
+    },
+    {
+      "path": "docs/operations/2026-10-26-recovery-isolation-incident.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "1dd438cb07ca617f60e11324e2ca732a5d7c0b6fb71e28f4acfcef1ee64a8d99",
+      "bytes": 4855
+    },
+    {
+      "path": "docs/operations/2026-10-26-release-isolation.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "d628ce347eb7fa64602edde5d5fea486ff33719712fa9a5e19f3c4c05164189c",
+      "bytes": 8837
+    },
+    {
+      "path": "docs/operations/account-email-setup.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "98039b68dedc770fe83a1dc8907b2ef56e0b66b6df5876e5a5b3fc0ad3ad53cc",
+      "bytes": 8085
+    },
+    {
+      "path": "docs/operations/customer-demand-marketplace.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "9559663865f724b0ee4ae611c360f162d31ad402c691d2d7b9aadc0f19552625",
+      "bytes": 5639
+    },
+    {
+      "path": "docs/operations/local-demand-maps.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "4b81e3ae87283fdff13fa9987f87ec2a48a0e13d8953b1968de7bb5e31e6a3d2",
+      "bytes": 2652
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-14-accepted-shared-release.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "7fde5eb44c18c4d77dd497e0881d1953192c52aee5f951d59ec008e152bb60c6",
+      "bytes": 4954
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-15-bounded-production-repair.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "064ddb8f69c9b3b1fcad50233762a6f201b9d1ed9738b4b05cb9f7e018292f1f",
+      "bytes": 11302
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-21-customer-demand-marketplace.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "07cb0ff8f123cba1a66098a2e979a52bdc94362c23a390d0c3f2fa521bbc7465",
+      "bytes": 3164
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-23-mvp-milestone-continuation.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "fdacef717383ede0cfc6b4e6b1aedec21b0ead513b22f64767b74bd5fc1f770f",
+      "bytes": 3181
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-23-razorpay-sandbox-refunds.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "fe46a677feec686672026f5380067d023fe7d87cc87df05bcb9eebf9bc490820",
+      "bytes": 3076
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-23-scanner-release-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "941a0e1f9605feaecb3ef6b54f1675d7b4c93ea55d2fbd7b17174b74b2cb16e7",
+      "bytes": 1790
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-25-account-email.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "46e6a32381456afca1073d897a834af4b72c588f1e80363cf2147ae94308da0f",
+      "bytes": 1503
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-25-demand-maps.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "c7bc0550fade618396b507566e90b532ffeaacfd0d9f07d1145d8bb81ab68730",
+      "bytes": 1039
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-21-customer-demand-marketplace-design.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "39c6c2a1eb377cb3cb4339da9a3834680dbfc6600f4cc068628f7ca861d9c7b4",
+      "bytes": 6258
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-21-private-malware-scanner-design.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "a8a39ee7ad90b45dda3a5bc896695a1521e9fa167ceee5579fbd548e61062f18",
+      "bytes": 13947
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-23-private-clamav-design.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "704b5b003b65a20402e24752d6ee94793e5ed658c903e5831c7d34c67b86d9b5",
+      "bytes": 3575
+    },
+    {
+      "path": "docs/testing/2026-10-14-functionality-audit.md",
+      "change": "M",
+      "category": "documentation",
+      "sha256": "21f92e36d893ce7c8632f03f836f8547da680b08768e05a2b1790167c9b651f4",
+      "bytes": 27008
+    },
+    {
+      "path": "docs/testing/2026-10-14-integration-environment-map.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "e0281ee500bf5149b8fe1c410b0c45132cb89986e9693ffa88e11d81eddfca22",
+      "bytes": 8241
+    },
+    {
+      "path": "docs/testing/2026-10-14-release-candidate-checklist.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "dc6588c940fe87d32162a74b9d1ab024d047751723a476c1316154e329c35df3",
+      "bytes": 34915
+    },
+    {
+      "path": "docs/testing/2026-10-14-s3-storage-probe.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "a7e830516f640afe718547f72956505ed64b475a3220b11cfbbd2989c6caf96d",
+      "bytes": 5146
+    },
+    {
+      "path": "docs/testing/2026-10-15-bounded-repair-execution.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "25fc082df316bb1f6ac5dbac0f807727ad6efcbc505d7b2b5cf0caa6ceedb5f1",
+      "bytes": 7122
+    },
+    {
+      "path": "docs/testing/2026-10-15-database-readiness-followup.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "1acb2fc25cc28654edcf025cd9867e531d41520e0872c19811ce5501be73b3d2",
+      "bytes": 9648
+    },
+    {
+      "path": "docs/testing/2026-10-15-integration-blockers.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "e74e0c8afec9c9fd253a4cf754367e29953dc04d6b647c38f997064de5415cf5",
+      "bytes": 23999
+    },
+    {
+      "path": "docs/testing/2026-10-15-migration-18-to-22.generated.sql",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "105dfd42fd058944fad10e5122f6e3b80987ea2364e5ac5189fb9bd0058aec14",
+      "bytes": 3234
+    },
+    {
+      "path": "docs/testing/2026-10-15-release-candidate-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "8a67310efce9d2a0422dda1c04e9c9905febe8b4a872e68f6298d0a5b5989c15",
+      "bytes": 9422
+    },
+    {
+      "path": "docs/testing/2026-10-15-signin-investigation.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "009024d91f711b6c5ff91789b70cd1ab6c844d9057e4d9972c8750caab417a80",
+      "bytes": 15534
+    },
+    {
+      "path": "docs/testing/2026-10-19-isolated-postgresql-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "0bcdffad21216da4af759daa3d9f7cf2777aa8955748f1c7decb296f25246090",
+      "bytes": 10328
+    },
+    {
+      "path": "docs/testing/2026-10-19-plugin-assisted-release-progress.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "0b8b380012fd6cb1db1ffb4ab4d4893285832f2142e72e28b98bfb889feb76d3",
+      "bytes": 7337
+    },
+    {
+      "path": "docs/testing/2026-10-19-postgres-source-manifest.json",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "8f8f6a7e8f2029f310d4885fa80aa5e605b70f36f38efbfe56d32a05a9829c2c",
+      "bytes": 9117
+    },
+    {
+      "path": "docs/testing/2026-10-20-launch-preparation-ledger.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "4f37479dfa1ad6acec4a4eeff0fcf816ccf240ff10bc4902ffa4d27b933c376b",
+      "bytes": 7441
+    },
+    {
+      "path": "docs/testing/2026-10-20-prepush-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "909782b9a7c9f5bfa166acfc4429a7f2228cd6d52d8c69c70df1d5ff56c3b733",
+      "bytes": 4641
+    },
+    {
+      "path": "docs/testing/2026-10-21-launch-preparation-handoff.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "cb6d10083ada3e03ce44a656c4c7c7f51b1bb4273859a8d2ad8b1c0151331de5",
+      "bytes": 17329
+    },
+    {
+      "path": "docs/testing/2026-10-21-launch-source-manifest.json",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "a5d7dc96012f64cb0f4f883e790431dcf0cfc9c1372bf40914894788b73691e7",
+      "bytes": 2747
+    },
+    {
+      "path": "docs/testing/2026-10-21-source-publication.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "e81d31d1e22b9d1c2100435a663c0111885d33b83ace22a3d601447e6c6800cf",
+      "bytes": 1919
+    },
+    {
+      "path": "docs/testing/2026-10-23-customer-demand-source-manifest.json",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "62c6edc484a9b671476d9ba331f7dcdd24ea8446db4a42ba7e2e7f0e23ebf502",
+      "bytes": 8672
+    },
+    {
+      "path": "docs/testing/2026-10-23-customer-demand-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "9d54adaa75cf5685d66ce2c05efc0bb65f0bd83c7cb1ef8bc73d2b67749c23e5",
+      "bytes": 9549
+    },
+    {
+      "path": "docs/testing/2026-10-23-scanner-fee-release-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "f07c43f16eac3432b6bb0ebca6d4184164fa6128e0bc6e862a3ea16d4a96b3e2",
+      "bytes": 12801
+    },
+    {
+      "path": "docs/testing/2026-10-23-scanner-fee-source-manifest.json",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "d903bea76c407dbbe79b5bd6925d0064910fea36b4d006f84d4842da0b556cab",
+      "bytes": 14317
+    },
+    {
+      "path": "docs/testing/2026-10-24-razorpay-source-manifest.json",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "c2863ea7d548664c64f31959e22f48c6eca1804f673396faaf7c066253cfd361",
+      "bytes": 16522
+    },
+    {
+      "path": "docs/testing/2026-10-24-razorpay-test-mode-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "e3c51d4bdc8012e6317e2b442dfba5bc5ca9619d233ff029e9c4734ce1fc0986",
+      "bytes": 9838
+    },
+    {
+      "path": "docs/testing/2026-10-25-account-email-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "5d2a5b48aed1c6405a689c98d0854a6bdab7c697a76f0846081039ac7b05b04b",
+      "bytes": 6215
+    },
+    {
+      "path": "docs/testing/2026-10-25-brevo-real-email-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "3fb5d15e6e72e608c1c98c7cd7600d5eed783bf39cbbb10796031f3083b174e7",
+      "bytes": 6697
+    },
+    {
+      "path": "docs/testing/2026-10-25-coordinated-release-manifest.json",
+      "change": "A",
+      "category": "documentation",
+      "sha256": null,
+      "bytes": null,
+      "hash_note": "Manifest self-reference deliberately not hashed"
+    },
+    {
+      "path": "docs/testing/2026-10-25-local-google-maps-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "4058b5f4f52d889e6ee56208c3255ce720673a33e605bf1b9e8029ebdbe098ba",
+      "bytes": 8916
+    },
+    {
+      "path": "docs/testing/2026-10-25-maps-source-manifest.json",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "5c7c6e2b04625dbbd692ab90ae270f59ae66d76f92ac5375b499992c4b8de0bd",
+      "bytes": 4140
+    },
+    {
+      "path": "docs/testing/2026-10-25-razorpay-test-execution.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "83dbde802ce8a1dfc7a258464e69ad618d14264b93cff26a8650812a902af7cb",
+      "bytes": 2833
+    },
+    {
+      "path": "docs/testing/2026-10-26-coordinated-release-verification.md",
+      "change": "A",
+      "category": "documentation",
+      "sha256": "74a7110db9a1418f39c5dc930a389b6b497b77c0e3081f9a0a4872662be6528c",
+      "bytes": 5949
+    },
+    {
+      "path": "e2e/customer-verification.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "acc84988b4d4dcaabd262be37c3df6ef33f6415d242f102348fa6b9595963765",
+      "bytes": 1495
+    },
+    {
+      "path": "e2e/demand-marketplace.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "7cf7cfe195c87e8d067535cc33013857927f23a9f0d289fa999982e7f8ae5e69",
+      "bytes": 15763
+    },
+    {
+      "path": "e2e/demand-session.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "03eeefcbe530c98f95f911d2614db1da5bccd442937af006a36093d1bd2e3654",
+      "bytes": 5069
+    },
+    {
+      "path": "e2e/fixtures/api.ts",
+      "change": "M",
+      "category": "browser_verification",
+      "sha256": "bd7eaab1ee298dd77c4ff8777c8acefb4d629cd2ea7870ab1ab16c330f12e30a",
+      "bytes": 3213
+    },
+    {
+      "path": "e2e/fixtures/customerJourney.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "33d7c7c6d22d6f34a07a32c379834e5b37b2d1b315636fa1d3570c3f66137f85",
+      "bytes": 4557
+    },
+    {
+      "path": "e2e/fixtures/demand_database.py",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "26353ae4657c520a5d9dc029b1f1a9fa6d75042d5be067b899d69262f8bdac88",
+      "bytes": 2395
+    },
+    {
+      "path": "e2e/fixtures/mapsHarness.tsx",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "08d349242d69ddc21f0586497c55393aa0b1b354e73d2f7a76cd523d84fb8aff",
+      "bytes": 680
+    },
+    {
+      "path": "e2e/fixtures/shared_database.py",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "d3167040eee2943b227d39a9aa6b54e180131136de19a3de43bdcbf2670561a8",
+      "bytes": 2614
+    },
+    {
+      "path": "e2e/journey-global-setup.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "cb736d79b2b10c0241e6e5f89db07e90c4bc89eaa2a12c3364546d1083aaec3e",
+      "bytes": 547
+    },
+    {
+      "path": "e2e/maps-harness.html",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "bb0209e6aad9640b0c6ed8bfc6acc8afc956dd1a3b6e1c5e683b766bbde70d10",
+      "bytes": 183
+    },
+    {
+      "path": "e2e/public-design.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "e9bea1be916a84a2aaec054ed7519cebfda6e2951e69c0d966072371ee8e048c",
+      "bytes": 1794
+    },
+    {
+      "path": "e2e/public-followup.spec.ts",
+      "change": "M",
+      "category": "browser_verification",
+      "sha256": "3413c29481ecfd5ef38d4a3d3e620c6be7ad2c4cdbff60b34a666d2356a0c6bb",
+      "bytes": 23895
+    },
+    {
+      "path": "e2e/public-session.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "755dfb03418c1fa3ca2633e5e8691fdcee5d6c7b05161df972d504e2f01848c8",
+      "bytes": 4045
+    },
+    {
+      "path": "e2e/public-shared.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "b320ccc569ef6e847ee18b660230163015ebf9866ee978ff361a94a650049a72",
+      "bytes": 7710
+    },
+    {
+      "path": "e2e/public-ux.spec.ts",
+      "change": "M",
+      "category": "browser_verification",
+      "sha256": "0a9dd933d844c9faca01c8877262f43692a575d2625ce44b328c5835753f3660",
+      "bytes": 9998
+    },
+    {
+      "path": "e2e/public-widget.spec.ts",
+      "change": "M",
+      "category": "browser_verification",
+      "sha256": "61055b9e9218449e73d0ca52e99f5f8628a9a969e7474d3022a13aa005a2442f",
+      "bytes": 6359
+    },
+    {
+      "path": "e2e/release-customer-kyc.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "67c93f206c67a552cbb6d1817a01ecaccd111012a74690ad2ab7c715cd9f613b",
+      "bytes": 3506
+    },
+    {
+      "path": "e2e/release-demand-management.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "61b11afc8b9a499c0c2070e221e890814623556d834d348071421335021195d5",
+      "bytes": 9357
+    },
+    {
+      "path": "e2e/release-demand-maps-real.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "7c16f72dc28b96956121fb0f500b7d6442287acb16b9ab72944a2bb4491c4bc0",
+      "bytes": 2824
+    },
+    {
+      "path": "e2e/release-demand-maps.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "e74ac061e6b79c0c9a29fbf0ea9d364b54f03629e34923c344c11d02036559d6",
+      "bytes": 10229
+    },
+    {
+      "path": "e2e/release-email.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "0c783b708d2d507b5ba8635d219cc149682f6cff5994792a8290b8dbae0acff2",
+      "bytes": 1940
+    },
+    {
+      "path": "e2e/release-session.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "bd9020fed890c196e8b781cd353c8ab0acdf0d61fa6483bdb899596d7392afb5",
+      "bytes": 4912
+    },
+    {
+      "path": "e2e/release-shared.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "8a7ccc3c113570d2dc037ff0c99338982e600f7056a7b785ae9240039f77a13f",
+      "bytes": 11895
+    },
+    {
+      "path": "e2e/release-vehicle.spec.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "096552f53db565319d8304e6db34364edbee8807e7f510a425c11dfaef854ad2",
+      "bytes": 8116
+    },
+    {
+      "path": "e2e/serve-maps-harness.mjs",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "5a2b8197f8a2da3610795503c0e9e3c357ecc5c38755f519c32e523215809fad",
+      "bytes": 566
+    },
+    {
+      "path": "ops/aws/application-document-policy.example.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "39dc55d3bd33be5e5ffc35c5beadeb978d824e547bc3755c5db5ffa862ef8937",
+      "bytes": 609
+    },
+    {
+      "path": "ops/aws/clamav/DEPLOYMENT_PROPOSAL.md",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "9e911dbb708e79a3eca485dc842d54e3ee5c887b6eca26c4a044cfa88b4c19fb",
+      "bytes": 11228
+    },
+    {
+      "path": "ops/aws/clamav/api-result-reader-policy.proposed.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "2a2b3155ac9cb9859021181a9b49d5e4d990af890e14ac0079776f78a10fe509",
+      "bytes": 956
+    },
+    {
+      "path": "ops/aws/clamav/application.env.example",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "b715709a8a7351d756ab6e1d828ff1e33a49aa2049d2497d96c8a7af8603d20c",
+      "bytes": 315
+    },
+    {
+      "path": "ops/aws/clamav/notification-fragment.proposed.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "733edfd2ede987f67a04320c170cae282fef11201dff2233da1e18cb723bff0a",
+      "bytes": 389
+    },
+    {
+      "path": "ops/aws/clamav/prepare_backfill.py",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "64c95b9e5861c81c29fd551bf739f2f836eaa018be342c44ca066f4392665293",
+      "bytes": 1236
+    },
+    {
+      "path": "ops/aws/clamav/scanner-stack.proposed.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "d544ee641241c6a2c4a1e6422217ea57c1a49b22ecf17c6eaf91bf23c5e32195",
+      "bytes": 21047
+    },
+    {
+      "path": "ops/aws/clamav/verify_access.py",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "0c75c91bcc1170718921ff09b55cc08a9a6120b5815d3966185562c4f9a661e5",
+      "bytes": 2405
+    },
+    {
+      "path": "ops/aws/document-cors.example.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "3f6ae60781437d0bad4a7ee3ee8ccbf8522a8eda6dcc4f5cc124f6706128b347",
+      "bytes": 282
+    },
+    {
+      "path": "ops/aws/scanner-alert-pattern.example.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "2bc150254bd87f0afefa87231cb015c696b99414d93527545422c889f1b904c3",
+      "bytes": 305
+    },
+    {
+      "path": "ops/aws/scanner-plan.example.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "45dc33119a2d7deca8991deaeadcfba45d3e2b16f45e6c9f9a1ed7f022255e93",
+      "bytes": 250
+    },
+    {
+      "path": "ops/aws/scanner-role-policy.example.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "c566c077ff968c3c723600f502f0fcb45a12793d6f670432530ff6d7089b8b98",
+      "bytes": 1380
+    },
+    {
+      "path": "ops/aws/scanner-role-trust.example.json",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "291fc4933758d0112ad6ec15d978ab72e123147ef144f5797583e084932b7d59",
+      "bytes": 189
+    },
+    {
+      "path": "ops/clamav/Dockerfile",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "ae8427befed9d5611f0d7225fed4ffd0164bd8d01030917e0c59506bfeabdcaf",
+      "bytes": 593
+    },
+    {
+      "path": "ops/clamav/Dockerfile.dockerignore",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "c788b9026b767af8e0d1b28aa77ad2ea681f2ccc135d2e7750496e6cf2425ff5",
+      "bytes": 164
+    },
+    {
+      "path": "ops/clamav/clamd.conf",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "e3e84918de7ad9edfafd83e80b0865ab5aed2a92824559d5127b4a27f60498b4",
+      "bytes": 419
+    },
+    {
+      "path": "ops/clamav/test_real_scanner.py",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "193d4941144eabfbe36ecb625a9e1e1753b3f7614356901f77204e52d3ef9bdc",
+      "bytes": 3300
+    },
+    {
+      "path": "ops/preview/api.env.example",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "1f2159ddb13bce643cc5791ea50acf0a3a26000687c859843f2b528bca788f8d",
+      "bytes": 1232
+    },
+    {
+      "path": "ops/preview/frontend.env.example",
+      "change": "A",
+      "category": "infrastructure_templates_not_deployed",
+      "sha256": "4d0a8d633365e7bfcb00c752d6d92db8a574a86a6ecfdcb9fe856a7252f2f212",
+      "bytes": 175
+    },
+    {
+      "path": "package-lock.json",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "80090739441e4a69674b29dbf860408130848c7744c23dc21e56cd99d260039f",
+      "bytes": 57025
+    },
+    {
+      "path": "package.json",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "2222de7533a8374a2b3b6675800ef99ae2946014569256f0b95655f3496db707",
+      "bytes": 958
+    },
+    {
+      "path": "playwright.config.ts",
+      "change": "M",
+      "category": "browser_verification",
+      "sha256": "ed21dd3e372095340bd286a8fe95ae112823465694c090deab6a3e50e803dbf4",
+      "bytes": 2731
+    },
+    {
+      "path": "playwright.demand.config.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "b4ce38db3042e62a4a4149a77cd3184d90ec010e239492eb6c585f50262caca8",
+      "bytes": 1717
+    },
+    {
+      "path": "playwright.design.config.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "5138fcb7207520e9d456c300eb11051066ef11314bafa48b3790db4b473bb6dd",
+      "bytes": 683
+    },
+    {
+      "path": "playwright.email.config.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "1b82a44f85ab789bad5d1055908513d666683d9eb39f72c32635207e6993f0f0",
+      "bytes": 568
+    },
+    {
+      "path": "playwright.journeys.config.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "343f802eff3c50456ec47a42990a4e6b4f451cd0f4665533dfb08cd695ae8f1b",
+      "bytes": 905
+    },
+    {
+      "path": "playwright.maps-real.config.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "057159baf807b4961bac8607f670a605fbee332b16337f95fe6a9b01b7e70240",
+      "bytes": 388
+    },
+    {
+      "path": "playwright.maps.config.ts",
+      "change": "A",
+      "category": "browser_verification",
+      "sha256": "236adf76d7ce2e54d28960341396bdba00e940b3e998aadcab7e15b6cd53c01d",
+      "bytes": 631
+    },
+    {
+      "path": "playwright.public.config.ts",
+      "change": "M",
+      "category": "browser_verification",
+      "sha256": "b92625260cfed62c7fda95d49de94aebaee8b10dac519bd1fba4bb5dfb1eb8cd",
+      "bytes": 1101
+    },
+    {
+      "path": "pyproject.toml",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "6013bab4cb87f3bf56773292ef8e8f7311dcf96cf9d1811bad8f42ff0db5920c",
+      "bytes": 825
+    },
+    {
+      "path": "scripts/check-migrations.ps1",
+      "change": "M",
+      "category": "operations_dependencies_and_helpers",
+      "sha256": "61b4b0193737ca26d8633321d229f46c9ce0ed28a44f9db1f3fe244283994f15",
+      "bytes": 822
+    },
+    {
+      "path": "src/components/AccountSecurity.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "b66f5aac0852602c492e1e55945ed5e3c352eff8d091dda3afc80eb0e776a46a",
+      "bytes": 5906
+    },
+    {
+      "path": "src/components/AdminRecords.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "8870706547851364a8b40f176c3975c5d815fae1ec9977d75f7ec0baccb39719",
+      "bytes": 6020
+    },
+    {
+      "path": "src/components/AppErrorBoundary.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "b126c1a7f32dd02d4d0da31e09e518ec16ea58004c8fc39d581c38d3b6434ccc",
+      "bytes": 807
+    },
+    {
+      "path": "src/components/CapacityPublication.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "75bcc2e9010fa0759d551bc12661a306e4aaf1c67fee33992657f77ae2c7e71d",
+      "bytes": 6278
+    },
+    {
+      "path": "src/components/ConnectionFeeReview.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "ac34ad474b82ffcb051767ff366505ee8d01b19874ab6830c4a0405bd0334871",
+      "bytes": 3571
+    },
+    {
+      "path": "src/components/CustomerHome.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "e818b6c7c3765075af4b1fbdd7d3ed5dd4a008e7e12faea6b3f6b5fe284c5028",
+      "bytes": 3933
+    },
+    {
+      "path": "src/components/CustomerVerification.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "f4e67f5fd7bd41f5ae4d6c4bb40413f4310b4fb623443cb99d213646378b3455",
+      "bytes": 9950
+    },
+    {
+      "path": "src/components/DemandComposer.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "1172b7c680fc82a8fe9ed2e1b6b620c64e8c6a5bb9c971c2d04442f4366e0218",
+      "bytes": 14462
+    },
+    {
+      "path": "src/components/DemandLocationMap.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "37e7de09306e7e898a71ebde898573df82c50276b292e5d25a93077cd60a3bc4",
+      "bytes": 7592
+    },
+    {
+      "path": "src/components/DemandMarketplace.css",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "337891ccc1b5c27caeca93e8b197bfa8f09811a3eb922904e76dfde1708f9698",
+      "bytes": 9153
+    },
+    {
+      "path": "src/components/DemandWorkspace.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "37997bef728d0cb2563b19f50bcd70d54607d8b10d6183ae7cb3cfd684148dc5",
+      "bytes": 28406
+    },
+    {
+      "path": "src/components/LiveAdmin.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "0779d4ae9ccf937a0ebd78509272e99d9a27787c98cfc73a80abb02d276bd3d2",
+      "bytes": 4775
+    },
+    {
+      "path": "src/components/LiveCapacity.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "40d9d7cb52aeefb73adf13c4caa5f4b661dbbb6c3364589f155b451589468185",
+      "bytes": 5251
+    },
+    {
+      "path": "src/components/LiveCommunications.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "cfc19eeee92a2f35d0ffe7fa9ac4e777e798cf784c60d1a89e50b2dd6c7d925f",
+      "bytes": 7773
+    },
+    {
+      "path": "src/components/LiveDashboard.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "7372ff13397f785cacbe33194cee54762c65050fd75371fe7a9acd1f8786dc80",
+      "bytes": 4318
+    },
+    {
+      "path": "src/components/LiveFleet.css",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "b2f13264d7a6df566621277173f59907d663342a0283bbf1f6deaf847ed7a03a",
+      "bytes": 2680
+    },
+    {
+      "path": "src/components/LiveFleet.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "c3abbe1c1af231df423d5f12f36c31eecd127034563285100cc30dbf513b5c05",
+      "bytes": 11094
+    },
+    {
+      "path": "src/components/LiveInvoices.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "625c2e40ad8065bd2910161a119f8aff9cb137f58b87b82d8c9cc8d45e13f2c9",
+      "bytes": 6823
+    },
+    {
+      "path": "src/components/LiveKYC.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "a39aefce93a252f9cb84a698ee00b98aa5466b2f503ea1a739e8d4d9fc0ebc35",
+      "bytes": 16605
+    },
+    {
+      "path": "src/components/LivePayments.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "d0804d7a639f47bad1cde7a0ec620f5faf781f848cd0f6b6ce2a1b4cdaf59b24",
+      "bytes": 10591
+    },
+    {
+      "path": "src/components/LivePricing.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "e2d2de217f69ab69a970f8005b5f66cf5b955c3652a046586291cd8e14cd1d65",
+      "bytes": 5606
+    },
+    {
+      "path": "src/components/LiveQuoteComparison.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "9b6399a41c0072bed7b622b992e3df6732f78eed48eec0191b45eaa7c33081fe",
+      "bytes": 8617
+    },
+    {
+      "path": "src/components/LiveQuoteModal.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "bea0119d2c1e1f6a642a2f4c5f8eaa4aa248ff845212c7198f596ec35e3a1d6e",
+      "bytes": 4785
+    },
+    {
+      "path": "src/components/LiveTrips.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "b03106f06bab7200083c185f281439d1980160a83f8a4b62c4af733d68dd74fe",
+      "bytes": 10426
+    },
+    {
+      "path": "src/components/LiveTrustCenter.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "f49a72efe7c3643ac136e755ff7331d13b469d3844e65ff5b19915c13053f52a",
+      "bytes": 9232
+    },
+    {
+      "path": "src/components/LiveVehicleReview.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "0537b955666d768bdebf2c692120c50484063980f83bb7a25238431dd8f3a8c5",
+      "bytes": 6764
+    },
+    {
+      "path": "src/components/ManualRefundPanel.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "b38bce8dea0e3d496488f343675653e8ffd99f37a8b3788ffe22cbb064e7e6d4",
+      "bytes": 4118
+    },
+    {
+      "path": "src/components/PublicInformation.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "0bbb4f402f1e7993ef6e4c552d516ef844695eb39ea40345025533e88a029d87",
+      "bytes": 5251
+    },
+    {
+      "path": "src/components/SharedCapacityRequest.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "33cf906e70b4ff137afe330d04710051768008d0f3d10bdbf84c3a864a904f66",
+      "bytes": 2904
+    },
+    {
+      "path": "src/components/SharedMatchReview.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "ce1f9ccacdf71bde0fdbf89802a5e5ac575ec5c4a9e41c772ceab77d16182460",
+      "bytes": 4501
+    },
+    {
+      "path": "src/components/SharedProviderQuotes.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "09b5ac3bff3d656d0649e5f07d8fc2150ca894ecaf02eab5419c6f685d76b366",
+      "bytes": 4976
+    },
+    {
+      "path": "src/components/SharedQuoteAcceptance.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "810c87ae598dece26d63a91f0e94bb8b7e206d17bfa4d43fc3d2964ea605515d",
+      "bytes": 4225
+    },
+    {
+      "path": "src/components/SharedQuoteRevisions.tsx",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "1a4d3e643b6e8c4bc4f1a3b640ed1f2a7aa5659263085b15debf30022dfd1a26",
+      "bytes": 3773
+    },
+    {
+      "path": "src/design-ui.css",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "ca9f330815761dbf34e19ec6b48850fdad11da5e67cba5c4c15502ca1970405f",
+      "bytes": 6721
+    },
+    {
+      "path": "src/lib/account-email-link.test.ts",
+      "change": "A",
+      "category": "frontend_tests",
+      "sha256": "5eeaa0063f565158e57c8c5bac7034cd2c194863db92998ae1e121704f0803be",
+      "bytes": 745
+    },
+    {
+      "path": "src/lib/account-email-link.ts",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "473cb280869ab5f78d29998abbe87b5354a921ab0b6ba98fb582492c748489c9",
+      "bytes": 735
+    },
+    {
+      "path": "src/lib/api.test.ts",
+      "change": "M",
+      "category": "frontend_tests",
+      "sha256": "bf8480ef17fc80c1ed220b49899033dca5aaa54d768020d67c272f7004defdbe",
+      "bytes": 6632
+    },
+    {
+      "path": "src/lib/api.ts",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "cf9f8924e5a92e24ab7e4a1d2f3d26c7073e81e942bdc3b947c62405ac94f46c",
+      "bytes": 12403
+    },
+    {
+      "path": "src/lib/connection-fee-status.test.ts",
+      "change": "A",
+      "category": "frontend_tests",
+      "sha256": "63f725fcc46105dd519d179db6356b36b6863f4cd4849a32969febc776ac92ab",
+      "bytes": 854
+    },
+    {
+      "path": "src/lib/connectionCheckout.ts",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "19ee6c6e8d919ac1970e7c081d4839dd29a741cfcd91d8542e6a9ce3de2cb290",
+      "bytes": 1420
+    },
+    {
+      "path": "src/lib/cookie-session.test.ts",
+      "change": "A",
+      "category": "frontend_tests",
+      "sha256": "b9b20d228016a024f7767ca1231a7c6dc18a251c87713097aedc69e4468a5f68",
+      "bytes": 3313
+    },
+    {
+      "path": "src/lib/demand-location.test.ts",
+      "change": "A",
+      "category": "frontend_tests",
+      "sha256": "a17725b4c855ad40d7ea72a2fe81b36558b9da6b51efe2b4ee3c5a2b5410c5ee",
+      "bytes": 1219
+    },
+    {
+      "path": "src/lib/demand-location.ts",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "cbfcccc9ba4b6306fbc05ee822880d7a3a3613f76a9f3b5ae4967439148032f2",
+      "bytes": 993
+    },
+    {
+      "path": "src/lib/demand-types.ts",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "e7c62373d70e9cc047d1dac25825772c97eeb53ec71d5433bd09309c1aee07a8",
+      "bytes": 4284
+    },
+    {
+      "path": "src/lib/google-maps.ts",
+      "change": "A",
+      "category": "frontend_runtime",
+      "sha256": "efd744ac94d0af6dcc33fc675e93c43b878c3fcb86badeb8fa596a694e082406",
+      "bytes": 2707
+    },
+    {
+      "path": "src/lib/routes.ts",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "c2646ec6f8df48054b3876bc48e7ce852b72115fc9076d670c667128fc826a81",
+      "bytes": 1174
+    },
+    {
+      "path": "src/lib/trips.test.ts",
+      "change": "M",
+      "category": "frontend_tests",
+      "sha256": "18ed314123ac674e66df3ea5b95c993a52f3d1ef8b70c19347b769ef28c59a3b",
+      "bytes": 1306
+    },
+    {
+      "path": "src/lib/trips.ts",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "616268807a768540aeb79f2709fc3632868fa2f7bb1efbc1e8f335449b8334f9",
+      "bytes": 578
+    },
+    {
+      "path": "src/main.tsx",
+      "change": "M",
+      "category": "frontend_runtime",
+      "sha256": "1bff71d8d53a77c099e8c760730902d87efe4aa662b4bd0f75ab0695ce81dfd6",
+      "bytes": 75030
+    },
+    {
+      "path": "vercel.json",
+      "change": "A",
+      "category": "build_ci_configuration",
+      "sha256": "3d3d723d834320eca6d0bdbd65ff3a57760532e5f1b4cc25aaf9d34bfe543b36",
+      "bytes": 106
+    },
+    {
+      "path": "vite.config.ts",
+      "change": "M",
+      "category": "build_ci_configuration",
+      "sha256": "e8fb044d8efa7aa129ea2a4625fb14e49aa1a09cbd3912e5a56ca85651facf5d",
+      "bytes": 423
+    },
+    {
+      "path": "vite.maps-harness.config.ts",
+      "change": "A",
+      "category": "build_ci_configuration",
+      "sha256": "dc8323ce5efc848f75a4d1247ea7bd49f4af1b5c70c966a4780d795224ff3b0e",
+      "bytes": 224
+    }
+  ]
+}

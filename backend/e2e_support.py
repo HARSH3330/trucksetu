@@ -13,11 +13,14 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy.engine import make_url
 
 from app.main import app as production_app
 from app.services.dependencies import get_private_document_storage,get_document_storage_factory,get_trip_otp_delivery,get_account_email_delivery,get_phone_verifier
 from app.services.msg91_widget import InvalidWidgetVerification
 from app.services.storage import ALLOWED_CONTENT_TYPES
+from app.core.config import settings
+from e2e_database import safe_database_url
 
 
 class LocalDocumentStorage:
@@ -103,6 +106,11 @@ def require_e2e_control(expected: str, provided: str | None) -> None:
 def create_e2e_app() -> FastAPI:
     if os.getenv('APP_ENV', '').lower() != 'test' or os.getenv('TRANSIVOX_E2E', '').lower() != 'true':
         raise RuntimeError('E2E support API is available only in explicit local test mode')
+    # Enforce this here too, not only in e2e_server: a direct ASGI import must
+    # never enable simulated clean scans against an application/production DB.
+    raw=safe_database_url()
+    if os.getenv('E2E_REAL_AWS','').lower()!='false' or make_url(settings.DATABASE_URL).set(drivername='postgresql')!=make_url(raw).set(drivername='postgresql'):
+        raise RuntimeError('Fake support API must be bound to the isolated E2E database with E2E_REAL_AWS=false')
     token = os.getenv('E2E_CONTROL_TOKEN', '')
     if len(token) < 16:
         raise RuntimeError('E2E_CONTROL_TOKEN must contain at least 16 characters')
@@ -121,6 +129,10 @@ def create_e2e_app() -> FastAPI:
         allow_headers=['*'],
     )
     app.dependency_overrides[get_private_document_storage] = lambda: storage
+    # Publication rechecks call this service boundary outside FastAPI Depends.
+    # This override exists ONLY after exact local E2E guards above succeed.
+    from app.services import customer_kyc
+    customer_kyc.get_private_document_storage=lambda:storage
     app.dependency_overrides[get_document_storage_factory]=lambda:lambda:storage
     class LocalPhoneVerifier:
         async def verify(self,proof):
@@ -128,6 +140,15 @@ def create_e2e_app() -> FastAPI:
             # arbitrary callback. Not exposed as an HTTP production control.
             if proof not in app.state.phone_proofs:raise InvalidWidgetVerification('Unknown local proof')
             return app.state.phone_proofs[proof]
+    # This app is created only after the explicit local database safety guards.
+    # No gateway call or browser callback can capture a real payment here.
+    from app.api.demands import get_connection_gateway
+    import uuid
+    class LocalConnectionGateway:
+        is_simulated = True
+        async def create_order(self, amount, currency, receipt):
+            return {'id':'order_local_'+uuid.uuid4().hex,'amount':int(amount*100),'currency':currency,'local_simulation':True}
+    app.dependency_overrides[get_connection_gateway] = lambda:LocalConnectionGateway()
     app.state.phone_proofs={}
     app.dependency_overrides[get_phone_verifier]=lambda:LocalPhoneVerifier()
     outbox=[]
