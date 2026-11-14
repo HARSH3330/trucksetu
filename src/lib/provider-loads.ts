@@ -34,6 +34,14 @@ export function bidGateMessage(profile:ProviderProfile|null):string|null{
   return `You can read open requirements now. Bidding opens once your provider verification is approved (currently: ${status}).`
 }
 
+/** Says up front when no truck can carry a bid yet. `loaded` is false when the truck list failed to load, so nothing is claimed. */
+export function truckGateMessage(trucks:{status:string;document_eligible_today:boolean}[],loaded:boolean):string|null{
+  if(!loaded)return null
+  if(!trucks.length)return 'Add a truck and upload its documents before you bid. Our team reviews each truck; you can bid once one is approved.'
+  if(trucks.some(truck=>truck.status==='approved'&&truck.document_eligible_today))return null
+  return `Your ${trucks.length>1?'trucks are':'truck is'} waiting for review. You can bid once our team approves ${trucks.length>1?'one':'it'} and accepts its documents.`
+}
+
 /** Mirrors the server's contact rule for bidding: a phone number plus a verified email or phone. */
 export function contactGateMessage(user:{mobile?:string|null;email_verified?:boolean;mobile_verified?:boolean}):string|null{
   if(!user.mobile)return 'Add a phone number to your account before you bid. Customers get this number after they pay.'

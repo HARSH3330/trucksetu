@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {contactGateMessage,driverChoice,loadProviderWorkspace} from './provider-loads'
+import {contactGateMessage,driverChoice,loadProviderWorkspace,truckGateMessage} from './provider-loads'
 
 const demand={id:'d1'}
 function fake(responses:Record<string,unknown|Error>){
@@ -45,6 +45,14 @@ describe('fleet-owner readiness',()=>{
     expect(contactGateMessage({mobile:null,email_verified:true,mobile_verified:false})).toBe('Add a phone number to your account before you bid. Customers get this number after they pay.')
     expect(contactGateMessage({mobile:'+919800000000',email_verified:false,mobile_verified:false})).toBe('Verify your email or phone before you bid.')
     expect(contactGateMessage({mobile:'+919800000000',email_verified:true,mobile_verified:false})).toBeNull()
+  })
+  it('says before bidding when no truck is approved yet, and stays quiet when trucks could not be loaded',()=>{
+    const truck={id:'t',status:'pending',document_eligible_today:false}
+    expect(truckGateMessage([],true)).toBe('Add a truck and upload its documents before you bid. Our team reviews each truck; you can bid once one is approved.')
+    expect(truckGateMessage([truck],true)).toBe('Your truck is waiting for review. You can bid once our team approves it and accepts its documents.')
+    expect(truckGateMessage([{...truck,status:'approved'}],true)).toBe('Your truck is waiting for review. You can bid once our team approves it and accepts its documents.')
+    expect(truckGateMessage([{...truck,status:'approved',document_eligible_today:true}],true)).toBeNull()
+    expect(truckGateMessage([],false)).toBeNull()
   })
   it('explains why a driver cannot be assigned yet',()=>{
     const ready={id:'d',full_name:'A',active:true,kyc_status:'verified',contact_ready:true}
