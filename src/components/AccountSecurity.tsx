@@ -38,7 +38,7 @@ export default function AccountSecurity({close,initialEmail='',initialMode='requ
   return <div className="overlay"><div ref={dialog} className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="account-security-title" tabIndex={-1}>
     <button className="modal-close" onClick={close} aria-label="Close account help"><X/></button>
     <div className="wizard-head"><small>ACCOUNT SECURITY</small><h2 id="account-security-title">Account recovery & verification</h2><p>Recover access, verify your email or update your trip contact.</p></div>
-    <div className="auth-tabs"><button disabled={busy} onClick={()=>switchMode('request-reset')}>Recover password</button><button disabled={busy} onClick={()=>switchMode('verify')}>Verify email</button>{signedIn&&<button disabled={busy} onClick={()=>switchMode('mobile')}>Trip contact</button>}</div>
+    <div className="auth-tabs"><button disabled={busy} onClick={()=>switchMode('request-reset')}>Recover password</button><button disabled={busy} onClick={()=>switchMode('verify')}>{signedIn?'Verify email or phone':'Verify email'}</button>{signedIn&&<button disabled={busy} onClick={()=>switchMode('mobile')}>Trip contact</button>}</div>
     <form className="auth-form" onSubmit={submit}>
       {mode!=='mobile'&&<label>Email address<input type="email" required maxLength={254} value={email} onChange={event=>setEmail(event.target.value)}/></label>}
       {mode==='mobile'&&signedIn&&<><label>Mobile for trip OTP<input type="tel" required pattern="\+?[0-9]{10,15}" maxLength={16} value={mobile} onChange={event=>setMobile(event.target.value)}/></label><label>Current password<input type="password" autoComplete="current-password" required maxLength={72} value={password} onChange={event=>setPassword(event.target.value)}/></label></>}
@@ -50,5 +50,6 @@ export default function AccountSecurity({close,initialEmail='',initialMode='requ
       {mode==='reset'&&<button type="button" disabled={busy} onClick={()=>switchMode('request-reset')}>Request another recovery email</button>}
     </form>
     {mode==='mobile'&&signedIn&&<PhoneVerification key={phoneRevision}/>}
+    {mode==='verify'&&signedIn&&<div className="verify-alternative"><p><b>Or verify your phone by SMS.</b> One verified email or phone is enough to publish requirements.</p><PhoneVerification key={phoneRevision}/></div>}
   </div></div>
 }

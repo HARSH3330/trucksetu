@@ -25,6 +25,17 @@ it('provides both resend and email-code verification controls',()=>{
   expect(html).toContain('Verify email code')
 })
 
+it('offers SMS verification next to email verification for a signed-in person, since either one unlocks publishing',()=>{
+  const html=renderToStaticMarkup(<AccountSecurity close={()=>{}} signedIn initialMode="verify"/>)
+  expect(html).toContain('Verify email or phone')
+  expect(html).toContain('Or verify your phone by SMS')
+  expect(html).toContain('aria-label="Phone ownership verification"')
+})
+it('does not offer SMS verification to a signed-out person',()=>{
+  const html=renderToStaticMarkup(<AccountSecurity close={()=>{}} initialMode="verify"/>)
+  expect(html).not.toContain('Phone ownership verification')
+})
+
 it('requires current-password confirmation to change trip contact when signed in',()=>{
   const html=renderToStaticMarkup(<AccountSecurity close={()=>{}} signedIn initialMode="mobile"/>)
   expect(html).toContain('Mobile for trip OTP')
