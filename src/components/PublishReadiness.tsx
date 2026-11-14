@@ -19,3 +19,25 @@ export default function PublishReadiness({user,kycStatus,onVerify,onAccountHelp}
     </div>
   </section>
 }
+
+/** Repeats the gate next to the Publish button, where the customer actually tries to post. */
+export function PublishBlockedNotice({user,kycStatus,onVerify,onAccountHelp}:{user:CurrentUser;kycStatus:string|null|undefined;onVerify?:()=>void;onAccountHelp?:()=>void}){
+  const readiness=publishReadiness(user,kycStatus)
+  if(readiness.ready||readiness.checking)return null
+  const contact=Boolean(user.email_verified||user.mobile_verified)
+  const pan=readiness.items.find(item=>item.key==='pan')
+  return <div className="verification-box tone-warn publish-blocked" role="alert">
+    <div className="verification-body">
+      <b>You cannot post this requirement yet.</b>
+      <p>Your account must be verified first. Your entries are kept; save a draft and publish once verification is complete.</p>
+      <ul className="readiness-list">
+        <li className={contact?'done':undefined}>Email or phone: {contact?'verified':'not verified'}</li>
+        <li className={pan?.done?'done':undefined}>PAN review: {pan?.done?'verified':pan?.detail.toLowerCase()}</li>
+      </ul>
+      <div className="demand-actions">
+        {!contact&&onAccountHelp&&<button type="button" className="secondary" onClick={onAccountHelp}>Verify email or phone</button>}
+        {!pan?.done&&onVerify&&<button type="button" className="secondary" onClick={onVerify}>PAN verification</button>}
+      </div>
+    </div>
+  </div>
+}
