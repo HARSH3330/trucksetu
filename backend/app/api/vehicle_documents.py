@@ -49,7 +49,7 @@ def read(item:VehicleDocument)->dict[str,object]:
 async def clean(storage:PrivateDocumentStorage,key:str,version_id:str)->None:
     if not version_id or version_id=='null':raise HTTPException(503,'Immutable document version is unavailable')
     try:await run_in_threadpool(storage.require_clean_scan,key,version_id)
-    except ValueError as exc:raise HTTPException(409,'Document scan is pending or was not clean') from exc
+    except ValueError as exc:raise HTTPException(409,'Your file is still being scanned for safety, or it failed the scan. Wait a minute, or upload a different file.') from exc
     except Exception as exc:raise HTTPException(503,'Document scan is unavailable') from exc
 
 async def require_accepted_documents(db:AsyncSession,vehicle_id:uuid.UUID,through:date|None=None)->list[VehicleDocument]:
@@ -69,7 +69,7 @@ async def list_documents(vehicle_id:uuid.UUID,user:User=Depends(current_user),db
 async def prepare(vehicle_id:uuid.UUID,payload:Upload,request:Request,user:User=Depends(require_roles('provider','fleet_owner')),db:AsyncSession=Depends(get_db),storage:PrivateDocumentStorage=Depends(get_private_document_storage))->dict[str,object]:
     await enforce_rate_limit(request,'vehicle-upload',20,600,str(user.id))
     vehicle=await authorized_vehicle(vehicle_id,user,db)
-    if vehicle.status=='approved':raise HTTPException(409,'Suspend vehicle before replacing approved documents')
+    if vehicle.status=='approved':raise HTTPException(409,'To replace approved papers, the truck must first be paused by an admin.')
     kind=f'vehicle_{vehicle.id}_{payload.document_type}'
     try:key,url=await run_in_threadpool(storage.upload_url,vehicle.provider_id,kind,payload.filename,payload.content_type)
     except ValueError as exc:raise HTTPException(422,'Invalid document filename or type') from exc
@@ -80,7 +80,7 @@ async def prepare(vehicle_id:uuid.UUID,payload:Upload,request:Request,user:User=
 async def register(vehicle_id:uuid.UUID,payload:Complete,request:Request,user:User=Depends(require_roles('provider','fleet_owner')),db:AsyncSession=Depends(get_db),storage:PrivateDocumentStorage=Depends(get_private_document_storage))->dict[str,object]:
     await enforce_rate_limit(request,'vehicle-register',30,600,str(user.id))
     vehicle=await authorized_vehicle(vehicle_id,user,db)
-    if vehicle.status=='approved':raise HTTPException(409,'Suspend vehicle before replacing approved documents')
+    if vehicle.status=='approved':raise HTTPException(409,'To replace approved papers, the truck must first be paused by an admin.')
     prefix=f'kyc/{vehicle.provider_id}/vehicle_{vehicle.id}_{payload.document_type}/'
     if not payload.storage_key.startswith(prefix):raise HTTPException(422,'Invalid document reference')
     if payload.expires_on<date.today():raise HTTPException(422,'Document is expired')
@@ -95,9 +95,9 @@ async def register(vehicle_id:uuid.UUID,payload:Complete,request:Request,user:Us
     except Exception as exc:raise HTTPException(503,'Document content could not be verified') from exc
     size=int(metadata.get('ContentLength',0))
     if size<=0 or size>10*1024*1024 or detected!=payload.content_type or metadata.get('ContentType')!=detected:
-        raise HTTPException(422,'Document size or content type is invalid')
+        raise HTTPException(422,"This file can't be used. Upload a PDF, JPG or PNG file under 10 MB.")
     if await db.scalar(select(VehicleDocument.id).where(VehicleDocument.vehicle_id==vehicle.id,VehicleDocument.document_type==payload.document_type,VehicleDocument.status!='rejected')):
-        raise HTTPException(409,'Reject the current document before replacing it')
+        raise HTTPException(409,'Remove the current document before uploading a new one.')
     item=VehicleDocument(vehicle_id=vehicle.id,document_type=payload.document_type,storage_key=payload.storage_key,storage_version_id=version_id,original_filename=payload.filename,content_type=payload.content_type,size_bytes=size,expires_on=payload.expires_on,status='uploaded')
     db.add(item);await db.flush()
     setattr(vehicle,f'{payload.document_type}_expires_on',payload.expires_on)
@@ -123,7 +123,7 @@ async def review(vehicle_id:uuid.UUID,document_id:uuid.UUID,payload:Decision,use
     vehicle=await authorized_vehicle(vehicle_id,user,db)
     item=await db.get(VehicleDocument,document_id)
     if not item or item.vehicle_id!=vehicle_id:raise HTTPException(404,'Document not found')
-    if item.status=='rejected':raise HTTPException(409,'Rejected document must be replaced')
+    if item.status=='rejected':raise HTTPException(409,'This document was rejected. Please upload a new one.')
     if payload.status=='accepted':
         if item.expires_on<date.today():raise HTTPException(422,'Document is expired')
         await clean(storage_factory(),item.storage_key,item.storage_version_id)

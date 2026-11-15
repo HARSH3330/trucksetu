@@ -44,13 +44,13 @@ class Msg91WidgetVerifier:
             if response.status_code>=500 or response.status_code in {301,302,307,308,429}:
                 raise WidgetVerificationUnavailable('Phone verification is unavailable')
             if response.status_code!=200:
-                raise InvalidWidgetVerification('Invalid or expired phone verification')
+                raise InvalidWidgetVerification('Phone verification did not work. Please try again.')
             payload=response.json()
         except (httpx.HTTPError,ValueError) as exc:
             if isinstance(exc,InvalidWidgetVerification):raise
             raise WidgetVerificationUnavailable('Phone verification is unavailable') from exc
         if not isinstance(payload,dict) or payload.get('type')!='success':
-            raise InvalidWidgetVerification('Invalid or expired phone verification')
+            raise InvalidWidgetVerification('Phone verification did not work. Please try again.')
         # MSG91's documented success message is the verified identifier, NOT
         # a human success phrase. Reject emails, missing or malformed identifiers.
         return canonical_mobile(payload.get('message'))

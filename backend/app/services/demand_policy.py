@@ -71,7 +71,7 @@ CONTACT = re.compile(r'(?i)(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|https?://|www\.|mailto
 
 def reject_contact(*values):
     if any(CONTACT.search(value) for value in values if isinstance(value, str)):
-        raise HTTPException(422, 'Keep phone numbers, email addresses and direct-contact links out of marketplace text')
+        raise HTTPException(422, 'Please remove phone numbers, email addresses and links. Contact details are shared only after payment.')
 
 
 def public_text(value: str | None) -> str | None:

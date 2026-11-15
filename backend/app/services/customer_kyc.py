@@ -39,7 +39,7 @@ async def clean_document(storage,document):
     try:
         await run_in_threadpool(storage.require_clean_scan,document.storage_key,document.storage_version_id)
     except ValueError as exc:
-        raise HTTPException(409,'Document scan is pending or was not clean') from exc
+        raise HTTPException(409,'Your file is still being scanned for safety, or it failed the scan. Wait a minute, or upload a different file.') from exc
     except Exception as exc:
         raise HTTPException(503,'Document scan could not be verified') from exc
 
@@ -50,13 +50,13 @@ async def require_customer_kyc(db,user):
     version,required=customer_document_policy()
     item=await current_application(db,user.id,lock=True)
     if not item or item.status!='verified' or item.policy_version!=version or sorted(item.required_documents)!=required:
-        raise HTTPException(403,'Complete customer document verification before publishing')
+        raise HTTPException(403,'Finish your document verification before posting a load.')
     consent=await application_consent(db,item)
     if consent.get('consent_sha256')!=customer_consent_policy()['sha256']:
-        raise HTTPException(403,'Review the current customer document consent before publishing')
+        raise HTTPException(403,'Please read and accept the latest document consent before posting.')
     documents=list(await db.scalars(select(CustomerKYCDocument).where(CustomerKYCDocument.application_id==item.id,CustomerKYCDocument.status=='accepted')))
     if set(required)!={d.document_type for d in documents}:
-        raise HTTPException(403,'Current accepted customer documents are required')
+        raise HTTPException(403,'Your documents must be approved before you can do this.')
     try:
         storage=get_private_document_storage()
     except Exception as exc:

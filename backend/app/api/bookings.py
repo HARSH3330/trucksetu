@@ -48,12 +48,12 @@ async def _trip_parties(
         # A trip without its booking parties is corrupt and must never be operable.
         raise HTTPException(status_code=409, detail="Trip allocation is incomplete")
     if booking.status == 'connection_fee_pending':
-        raise HTTPException(409, 'Captured connection fee is required before trip operations')
+        raise HTTPException(409, 'The trip can start only after the connection fee is paid.')
     if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand':
         from app.models import DemandSelection
         selection = await db.scalar(select(DemandSelection).where(DemandSelection.booking_id == booking.id))
         if not selection or selection.status != 'paid' or selection.payment_status != 'captured' or booking.status in {'cancelled','disputed'}:
-            raise HTTPException(409,'An eligible captured connection fee is required before trip operations')
+            raise HTTPException(409,'The trip can start only after the connection fee is paid.')
     return allocation, provider, booking
 
 
@@ -213,7 +213,7 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
     if driver.provider_id != provider.id:
         raise HTTPException(status_code=422, detail="Driver does not belong to the allocated provider")
     if not provider.active or provider.kyc_status != 'verified':
-        raise HTTPException(409, 'Provider re-verification is required before new assignments')
+        raise HTTPException(409, 'Your verification needs to be renewed before you can take new jobs.')
     await require_verified_driver_identity(db, driver)
     vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == payload.carrier_vehicle_id).with_for_update().execution_options(populate_existing=True))
     booking = await db.get(Booking, allocation.booking_id)
@@ -221,7 +221,7 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
         from app.models import DemandSelection
         selected = await db.scalar(select(DemandSelection).where(DemandSelection.booking_id == booking.id))
         if not selected or selected.status != 'paid' or selected.payment_status != 'captured' or selected.driver_id != payload.driver_id or selected.vehicle_id != payload.carrier_vehicle_id:
-            raise HTTPException(409, 'Confirm the verified assignment through the demand selection workflow')
+            raise HTTPException(409, 'Assign the driver from Won jobs.')
     if booking and getattr(booking,'booking_mode',None)=='SHARED_CAPACITY':
         accepted=booking.route_snapshot or {}
         if accepted.get('carrier_vehicle_id')!=str(payload.carrier_vehicle_id) or accepted.get('driver_id')!=str(payload.driver_id):
@@ -229,17 +229,17 @@ async def assign_driver(trip_id: uuid.UUID, payload: DriverAssignment, db: Async
     request = await db.get(TransportRequest, booking.request_id) if booking else None
     trip_end = request.delivery_deadline_at if request and request.delivery_deadline_at else datetime.now(UTC)
     if request and request.delivery_deadline_at and request.delivery_deadline_at <= datetime.now(UTC):
-        raise HTTPException(status_code=409, detail="The trip delivery deadline has already passed")
+        raise HTTPException(status_code=409, detail="The delivery deadline for this trip has passed.")
     if driver.licence_expires_on is None or driver.licence_expires_on < trip_end.date():
-        raise HTTPException(status_code=422, detail="Driver licence must remain valid through the trip")
+        raise HTTPException(status_code=422, detail="The driving licence expires before this trip ends.")
     if vehicle is None or vehicle.provider_id != provider.id or not vehicle_is_document_eligible(vehicle, trip_end.date()):
-        raise HTTPException(status_code=422, detail="Select an approved provider vehicle with documents valid through the trip")
+        raise HTTPException(status_code=422, detail="This truck's papers expire before the trip ends. Renew them or choose another truck.")
     await require_accepted_documents(db, vehicle.id, trip_end.date())
     quote = await db.get(Quote, allocation.quote_id)
     if quote and vehicle.vehicle_category_id != quote.vehicle_category_id:
         raise HTTPException(status_code=422, detail="Assigned vehicle category does not match the accepted quotation")
     if not driver.active or driver.kyc_status != "verified":
-        raise HTTPException(status_code=403, detail="Only a verified active driver can be assigned")
+        raise HTTPException(status_code=403, detail="Only a verified, active driver can be assigned.")
     ensure_trip_transition(TripStatus(trip.status), TripStatus.DRIVER_ASSIGNED)
     trip.driver_id, trip.carrier_vehicle_id, trip.vehicle_registration, trip.status = driver.id, vehicle.id, vehicle.registration_number, TripStatus.DRIVER_ASSIGNED.value
     db.add(TripStatusHistory(trip_id=trip.id, status=trip.status, changed_by=user.id, notes="Driver and vehicle assigned"))
@@ -286,16 +286,16 @@ async def verify_trip_otp(trip_id: uuid.UUID, payload: OtpVerify, request: Reque
     await _require_trip_operator(db, user, trip, provider)
     required = TripStatus.ARRIVED_AT_PICKUP if payload.otp_type == 'pickup' else TripStatus.ARRIVED_AT_DESTINATION
     if TripStatus(trip.status) != required:
-        raise HTTPException(409, 'OTP verification is not available at this trip status')
+        raise HTTPException(409, "A code can't be checked at this stage of the trip.")
     otp = await db.scalar(select(TripOtp).where(TripOtp.trip_id == trip_id, TripOtp.otp_type == payload.otp_type, TripOtp.verified_at.is_(None)).order_by(TripOtp.created_at.desc()).with_for_update())
     if otp is None or otp.expires_at < datetime.now(UTC):
-        raise HTTPException(status_code=410, detail="OTP has expired; request a new one")
+        raise HTTPException(status_code=410, detail="This code has expired. Ask for a new one.")
     if otp.attempts >= settings.OTP_MAX_ATTEMPTS:
         raise HTTPException(status_code=429, detail="Maximum OTP attempts reached")
     otp.attempts += 1
     if not verify_otp(payload.code, otp.otp_hash):
         await db.commit()
-        raise HTTPException(status_code=422, detail="Incorrect OTP")
+        raise HTTPException(status_code=422, detail="That code is wrong. Please check and try again.")
     target = TripStatus.PICKUP_VERIFIED if payload.otp_type == "pickup" else TripStatus.DELIVERY_VERIFIED
     ensure_trip_transition(TripStatus(trip.status), target)
     otp.verified_at, trip.status = datetime.now(UTC), target.value
@@ -319,7 +319,7 @@ async def issue_trip_otp(trip_id: uuid.UUID, otp_type: str, request: Request, db
         raise HTTPException(status_code=409, detail=f"{otp_type.title()} OTP is not available at the current trip status")
     recipient = await db.get(User, booking.customer_id)
     if recipient is None or not recipient.mobile:
-        raise HTTPException(409, 'The booking customer needs a mobile number for trip OTP delivery')
+        raise HTTPException(409, 'The customer needs a mobile number on their account to receive trip codes.')
     code = generate_otp()
     try:
         acknowledged = await delivery.send(recipient.mobile, code)

@@ -53,7 +53,7 @@ async def submit_quote(request_id: uuid.UUID, payload: QuoteCreate, db: AsyncSes
     try:
         ensure_provider_can_quote(provider.kyc_status, provider.active, request.status)
     except PermissionError:
-        raise HTTPException(status_code=403, detail="Provider KYC must be verified before quoting")
+        raise HTTPException(status_code=403, detail="Your verification must be approved before you can send a price.")
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if vehicle is None or not vehicle.active:

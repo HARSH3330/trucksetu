@@ -16,13 +16,13 @@ describe('vehicle form',()=>{
 
 describe('driver link form',()=>{
   it('explains what to do when the email is not a driver account',()=>{
-    expect(driverLinkError(new ApiError(404,'Verified driver account not found'))).toBe('No driver account uses this email. Ask the driver to sign up on TransivoX as a driver with this email and complete driver verification, then link them here.')
+    expect(driverLinkError(new ApiError(404,'No verified driver account uses this email.'))).toBe('No driver account uses this email. Ask the driver to sign up on TransivoX as a driver with this email and complete driver verification, then link them here.')
   })
   it('explains that the driver still needs verification',()=>{
-    expect(driverLinkError(new ApiError(403,'Driver KYC must be verified before linking'))).toBe('This driver has not been verified yet. They must finish driver verification before you can link them.')
+    expect(driverLinkError(new ApiError(403,"This driver's verification must be approved before you can link them."))).toBe('This driver has not been verified yet. They must finish driver verification before you can link them.')
   })
   it('keeps other server messages as they are',()=>{
-    expect(driverLinkError(new ApiError(409,'Driving licence is already registered'))).toBe('Driving licence is already registered')
+    expect(driverLinkError(new ApiError(409,'This driving licence number is already registered.'))).toBe('This driving licence number is already registered.')
     expect(driverLinkError('boom')).toBe('Driver could not be linked. Try again.')
   })
 })

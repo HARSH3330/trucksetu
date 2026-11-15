@@ -23,7 +23,7 @@ def audit(db, actor, action, entity, identity, details=None):
 async def provider_for(db, user):
     provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
     if not provider or not provider.active or provider.kyc_status != 'verified':
-        raise HTTPException(403, 'Complete provider verification before browsing demands or bidding')
+        raise HTTPException(403, 'Finish your verification before you can see loads and bid.')
     return provider
 
 
@@ -61,7 +61,7 @@ async def expire_pending(db, demand):
 async def selection_for(db, identity, *, lock=True):
     located = await db.get(DemandSelection, identity)
     if located is None:
-        raise HTTPException(404, 'Selection not found')
+        raise HTTPException(404, "We couldn't find this booking. Refresh the page.")
     demand = await demand_for(db, located.request_id, lock=lock)
     await expire_pending(db, demand)
     query = select(DemandSelection).where(DemandSelection.id == identity).execution_options(populate_existing=True)
@@ -73,13 +73,13 @@ async def selection_for(db, identity, *, lock=True):
 async def eligible_vehicle(db, identity, provider_id, demand, pickup, delivery, *, own_selection=None):
     vehicle = await db.scalar(select(CarrierVehicle).where(CarrierVehicle.id == identity).with_for_update().execution_options(populate_existing=True))
     if not vehicle or vehicle.provider_id != provider_id or not vehicle_is_document_eligible(vehicle, delivery.date()):
-        raise HTTPException(409, 'Choose your approved vehicle with documents current through delivery')
+        raise HTTPException(409, "This truck's papers (RC, insurance, fitness, pollution or permit) expire before your delivery date. Pick an earlier delivery date or renew the papers.")
     await require_accepted_documents(db, vehicle.id, delivery.date())
     cargo = demand.cargo
     if vehicle.maximum_payload_tonnes < cargo.weight_tonnes or vehicle.maximum_volume_m3 < cargo.volume_m3:
-        raise HTTPException(422, 'This vehicle does not have enough load capacity')
+        raise HTTPException(422, "This truck can't carry this much weight or volume. Choose a bigger truck.")
     if cargo.length_m > vehicle.internal_length_m or cargo.width_m > vehicle.internal_width_m or cargo.height_m > vehicle.internal_height_m:
-        raise HTTPException(422, 'Load dimensions exceed this vehicle; arrange a suitable vehicle')
+        raise HTTPException(422, 'This load is too long, wide or tall for this truck. Choose a bigger truck.')
     # Vehicle row serializes both new selections and existing assignment checks.
     busy = select(DemandSelection.id).join(Quote, Quote.id == DemandSelection.quote_id).where(
         DemandSelection.vehicle_id == identity,
@@ -89,7 +89,7 @@ async def eligible_vehicle(db, identity, provider_id, demand, pickup, delivery, 
     if own_selection:
         busy = busy.where(DemandSelection.id != own_selection)
     if await db.scalar(busy.limit(1)):
-        raise HTTPException(409, 'Vehicle is already reserved for an overlapping job')
+        raise HTTPException(409, 'This truck is already booked for another job at the same time.')
     trips = select(Trip.id).join(BookingAllocation, BookingAllocation.id == Trip.allocation_id).join(Quote, Quote.id == BookingAllocation.quote_id).where(
         Trip.carrier_vehicle_id == identity, Trip.status.not_in(['completed','delivered','cancelled']),
         Quote.estimated_pickup < delivery, Quote.estimated_delivery > pickup,
@@ -98,7 +98,7 @@ async def eligible_vehicle(db, identity, provider_id, demand, pickup, delivery, 
         owner = await db.get(DemandSelection, own_selection)
         trips = trips.where(BookingAllocation.booking_id != owner.booking_id)
     if await db.scalar(trips.limit(1)):
-        raise HTTPException(409, 'Vehicle has an overlapping active trip')
+        raise HTTPException(409, 'This truck is already on another trip at the same time.')
     routes = select(AvailableRoute.id).where(AvailableRoute.carrier_vehicle_id == identity, AvailableRoute.status == 'active', AvailableRoute.departure_at < delivery, AvailableRoute.expected_arrival_at > pickup)
     if await db.scalar(routes.limit(1)):
         raise HTTPException(409, 'Vehicle has an existing shared-route commitment')
@@ -108,17 +108,17 @@ async def eligible_vehicle(db, identity, provider_id, demand, pickup, delivery, 
 async def eligible_driver(db, identity, provider_id, pickup, delivery, own_booking=None):
     driver = await db.scalar(select(DriverProfile).where(DriverProfile.id == identity).with_for_update().execution_options(populate_existing=True))
     if not driver or driver.provider_id != provider_id or not driver.active or driver.kyc_status != 'verified' or not driver.licence_expires_on or driver.licence_expires_on < delivery.date():
-        raise HTTPException(409, 'A verified provider driver with a current licence is required')
+        raise HTTPException(409, 'Choose a verified driver with a valid licence.')
     await require_verified_driver_identity(db, driver)
     account = await db.get(User, driver.user_id) if driver.user_id else None
     # Same rule as provider contacts: a phone number plus a verified email or phone.
     if not account or account.status != 'active' or not account.mobile or not (account.mobile_verified or account.email_verified):
-        raise HTTPException(409, 'Driver needs an active linked account with a phone number and a verified email or phone')
+        raise HTTPException(409, 'This driver needs an active account with a phone number and a verified email or phone.')
     busy = select(Trip.id).join(BookingAllocation, BookingAllocation.id == Trip.allocation_id).join(Quote, Quote.id == BookingAllocation.quote_id).where(Trip.driver_id == identity, Trip.status.not_in(['completed','delivered','cancelled']), Quote.estimated_pickup < delivery, Quote.estimated_delivery > pickup)
     if own_booking:
         busy = busy.where(BookingAllocation.booking_id != own_booking)
     if await db.scalar(busy.limit(1)):
-        raise HTTPException(409, 'Driver has an overlapping active trip')
+        raise HTTPException(409, 'This driver is already on another trip at the same time.')
     return driver
 
 

@@ -44,16 +44,16 @@ async def require_route_eligibility(db, shipment, quote, route, match, hold, now
     driver = await db.scalar(select(DriverProfile).where(DriverProfile.id==route.driver_id).with_for_update().execution_options(populate_existing=True))
     end = shipment.delivery_deadline_at
     if not end or not vehicle or vehicle.provider_id!=quote.provider_id or vehicle.vehicle_category_id!=quote.vehicle_category_id or not vehicle_is_document_eligible(vehicle,end.date()):
-        raise HTTPException(409,'Vehicle approval/documents no longer cover this shipment')
+        raise HTTPException(409,"This truck's approval or papers no longer cover this trip.")
     await require_accepted_documents(db,vehicle.id,end.date())
     if not driver or driver.provider_id!=quote.provider_id or not driver.active or driver.kyc_status!='verified' or not driver.licence_expires_on or driver.licence_expires_on<end.date():
         raise HTTPException(409,'Driver is no longer eligible')
     await require_verified_driver_identity(db,driver)
     cargo = shipment.cargo
     if not {shipment.pickup_city.casefold(),shipment.destination_city.casefold()}.issubset({value.casefold() for value in vehicle.permit_territories}) or cargo.category.casefold() not in {value.casefold() for value in route.allowed_cargo_types}:
-        raise HTTPException(409,'Permit or cargo compatibility changed')
+        raise HTTPException(409,'The truck permit or the goods changed. Please check the bid again.')
     if cargo.vehicle_body_requirement not in {None,'any',vehicle.body_type}:
-        raise HTTPException(409,'Vehicle body is incompatible')
+        raise HTTPException(409,"This truck's body type doesn't suit this load.")
     active = and_(CapacityReservation.available_route_id==route.id, or_(CapacityReservation.status=='confirmed',and_(CapacityReservation.status=='reserved',CapacityReservation.expires_at>now)))
     if hold:active=and_(active,CapacityReservation.id!=hold.id)
     others = list(await db.scalars(select(CapacityReservation).where(active)))
@@ -101,7 +101,7 @@ async def accept_shared_quote(quote_id:uuid.UUID,payload:SharedQuoteAcceptance,d
     if not match:raise HTTPException(409,'A current approved shared-route match is required; no capacity is guaranteed by a quotation')
     await acquire_idempotency_lock(db,f'capacity-match:{match.id}')
     provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.id==quote.provider_id).with_for_update().execution_options(populate_existing=True))
-    if not provider or not provider.active or provider.kyc_status!='verified':raise HTTPException(409,'Provider re-verification required')
+    if not provider or not provider.active or provider.kyc_status!='verified':raise HTTPException(409,'Your verification needs to be renewed before you can continue.')
     hold_query = select(CapacityReservation).where(CapacityReservation.id==payload.capacity_reservation_id) if payload.capacity_reservation_id else select(CapacityReservation).where(CapacityReservation.match_evaluation_id==match.id)
     hold = await db.scalar(hold_query.with_for_update().execution_options(populate_existing=True))
     if payload.capacity_reservation_id and not hold:raise HTTPException(409,'Capacity hold is unavailable')

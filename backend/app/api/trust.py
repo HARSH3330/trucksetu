@@ -35,7 +35,7 @@ async def _require_participant(db: AsyncSession, booking: Booking, user: User) -
 
 async def _cancellation_amounts(db: AsyncSession, booking: Booking) -> tuple[Decimal, dict[str, Decimal]]:
     if (booking.route_snapshot or {}).get('marketplace_mode') == 'customer_demand':
-        raise HTTPException(409,'Use requirement cancellation; connection-fee refund rules are separate')
+        raise HTTPException(409,'Cancel from the load itself. Connection-fee refunds follow their own rules.')
     setting=await db.get(ApplicationSetting,"cancellation_fee_percent_by_status")
     policy=setting.value if setting else {"advance_pending":"0","booking_confirmed":"10","disputed":"0"}
     percent=Decimal(str(policy.get(booking.status,"100")))
@@ -74,7 +74,7 @@ async def cancellation_preview(booking_id:uuid.UUID,db:AsyncSession=Depends(get_
     booking=await db.get(Booking,booking_id)
     if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
     await _require_participant(db,booking,user)
-    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can no longer be cancelled")
+    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can't be cancelled any more.")
     percent,amounts=await _cancellation_amounts(db,booking)
     return {"booking_status":booking.status,"fee_percent":str(percent),"fee":str(amounts["fee"]),"refund":str(amounts["refund"])}
 
@@ -123,7 +123,7 @@ async def cancel_booking(booking_id:uuid.UUID,payload:CancellationCreate,db:Asyn
     booking=await db.scalar(select(Booking).where(Booking.id==booking_id).with_for_update())
     if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
     if user.id not in await _participants(db,booking):raise HTTPException(status_code=403,detail="Only booking participants can cancel")
-    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can no longer be cancelled")
+    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can't be cancelled any more.")
     percent,amounts=await _cancellation_amounts(db,booking)
     item=Cancellation(booking_id=booking.id,cancelled_by=user.id,reason_code=payload.reason_code,reason_detail=payload.reason_detail,booking_status_snapshot=booking.status,policy_snapshot={"fee_percent":str(percent)},cancellation_fee=amounts["fee"],refund_amount=amounts["refund"])
     if booking.capacity_reservation_id:

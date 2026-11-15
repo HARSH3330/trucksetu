@@ -252,7 +252,7 @@ class DriverLinkCreate(BaseModel):
     @classmethod
     def licence_must_be_current(cls, value: date) -> date:
         if value < date.today():
-            raise ValueError("Driver licence is expired")
+            raise ValueError("This driving licence has expired.")
         return value
 
 
@@ -280,7 +280,7 @@ class CarrierVehicleCreate(BaseModel):
         if self.maximum_volume_m3 is None:
             self.maximum_volume_m3 = computed
         elif self.maximum_volume_m3 > computed:
-            raise ValueError("Maximum cargo volume cannot exceed internal body volume")
+            raise ValueError("The load space can't be bigger than the truck body's length × width × height.")
         return self
 
 

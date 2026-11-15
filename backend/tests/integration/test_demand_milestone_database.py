@@ -256,7 +256,7 @@ def test_provider_cannot_bid_on_its_own_customer_demand(monkeypatch):
                 assert published.status_code==201,published.text
                 offered=await client.post(f"/api/v1/demands/{published.json()['id']}/bids",headers=headers[0],json=bid)
                 assert offered.status_code==403
-                assert 'own transport requirement' in offered.json()['detail']
+                assert 'your own load' in offered.json()['detail']
     run_local(exercise())
 
 

@@ -49,7 +49,7 @@ def owner(item, user):
 def require_customer_policy(user):
     require_policy()
     if not (user.email_verified or user.mobile_verified):
-        raise HTTPException(403, 'Verify your account before publishing a transport requirement')
+        raise HTTPException(403, 'Verify your account before posting a load.')
 
 
 async def read_bid(db, identity):
@@ -92,7 +92,7 @@ async def update_draft(identity: uuid.UUID, payload: DraftInput, db=Depends(get_
     if item is None or item.customer_id != user.id:
         raise HTTPException(404, 'Draft not found')
     if payload.expected_version != item.version:
-        raise HTTPException(409, 'Draft changed in another session; reopen it before saving')
+        raise HTTPException(409, 'This draft was changed in another tab or device. Reopen it before saving.')
     item.payload, item.version = payload.payload, item.version+1
     await db.commit()
     return {'id':str(item.id),'version':item.version}
@@ -111,7 +111,7 @@ async def publish_demand(payload: DemandInput, db=Depends(get_db), user=Depends(
         if not draft or draft.customer_id != user.id:
             raise HTTPException(404, 'Draft not found')
         if payload.expected_draft_version != draft.version:
-            raise HTTPException(409,'Draft changed in another session; review it before publishing')
+            raise HTTPException(409,'This draft was changed in another tab or device. Check it before posting.')
     result = await create_request(payload.model_copy(update={'publish':True}), db, user)
     item = await db.get(TransportRequest, result.id, options=[selectinload(TransportRequest.cargo), selectinload(TransportRequest.stops)])
     item.marketplace_mode = 'customer_demand'
@@ -163,7 +163,7 @@ async def edit_demand(identity: uuid.UUID, payload: DemandInput, db=Depends(get_
     owner(item,user)
     await expire_pending(db,item)
     if item.status != 'published' or payload.expected_revision != item.revision:
-        raise HTTPException(409, 'Only the current open requirement can be edited; accepted agreements stay unchanged')
+        raise HTTPException(409, "You can only edit a load that is still open. Once you pick a bid, the load can't be changed.")
     reject_contact(payload.cargo.category, payload.cargo.description, payload.special_instructions, *[value for stop in payload.stops for value in (stop.instructions, stop.contact_name)])
     # Revalidate using the existing creation contract, but keep the original identity.
     for key in ['pickup_address','pickup_city','destination_address','destination_city','pickup_date','pickup_time','flexible_schedule','earliest_pickup_at','latest_pickup_at','delivery_deadline_at','budget_amount','special_instructions']:
@@ -190,18 +190,18 @@ async def submit_bid(identity: uuid.UUID, payload: BidInput, db=Depends(get_db),
     await expire_pending(db,item)
     provider = await provider_for(db,user)
     if item.customer_id == user.id:
-        raise HTTPException(403,'You cannot bid on your own transport requirement')
+        raise HTTPException(403,"You can't bid on your own load.")
     if item.status != 'published' or item.revision != payload.expected_request_revision:
-        raise HTTPException(409,'Requirement changed or is no longer open')
+        raise HTTPException(409,'This load was changed or is no longer open. Refresh the page and try again.')
     if payload.currency != item.currency or payload.pickup_at < item.earliest_pickup_at or payload.pickup_at > item.latest_pickup_at or payload.delivery_at > item.delivery_deadline_at:
-        raise HTTPException(422,'Bid currency and availability must match the requirement')
+        raise HTTPException(422,"Your pickup or delivery time is outside the customer's dates. Pick times within the customer's window.")
     reject_contact(payload.inclusions,payload.exclusions,payload.notes)
     vehicle = await eligible_vehicle(db,payload.vehicle_id,provider.id,item,payload.pickup_at,payload.delivery_at)
     await verified_contact(db,provider.id,payload.contact_kind,payload.driver_id,payload.delivery_at.date())
     quote = await db.scalar(select(Quote).where(Quote.request_id == identity,Quote.provider_id == provider.id).with_for_update())
     if quote:
         if quote.status not in {'active','withdrawn','expired'} or quote.version != payload.expected_version:
-            raise HTTPException(409,'Only your current unselected bid can be revised')
+            raise HTTPException(409,"You can only change a bid the customer hasn't picked yet.")
         quote.version += 1
     else:
         quote = Quote(id=uuid.uuid4(),request_id=identity,provider_id=provider.id,vehicle_category_id=vehicle.vehicle_category_id,vehicles_offered=1,version=1)
@@ -246,7 +246,7 @@ async def withdraw_bid(identity: uuid.UUID,db=Depends(get_db),user=Depends(provi
     if quote.provider_id != provider.id:
         raise HTTPException(404,'Bid not found')
     if quote.status not in {'active','withdrawn'}:
-        raise HTTPException(409,'Selected bids cannot be silently withdrawn; contact operations to resolve the commitment')
+        raise HTTPException(409,"The customer has already picked this bid, so it can't be withdrawn. Please contact support.")
     quote.status = 'withdrawn'
     audit(db,user.id,'bid.withdrawn','quote',quote.id)
     await db.commit()
@@ -264,10 +264,10 @@ async def select_bid(identity: uuid.UUID,payload: SelectionInput,db=Depends(get_
     existing = await db.scalar(select(DemandSelection).where(DemandSelection.idempotency_key == payload.idempotency_key))
     if existing:
         if existing.customer_id != user.id or existing.request_id != identity or existing.quote_id != payload.quote_id or existing.quote_version != payload.expected_quote_version:
-            raise HTTPException(409,'Idempotency key belongs to another selection')
+            raise HTTPException(409,'This request was already sent. Refresh the page and try again.')
         return selection_view(existing)
     if item.status != 'published' or item.revision != payload.expected_request_revision:
-        raise HTTPException(409,'Requirement already selected or changed')
+        raise HTTPException(409,'This load already has a chosen bid or was changed. Refresh the page.')
     # An explicitly cancelled checkout no longer blocks a new choice: a late capture on it becomes a
     # full refund obligation. Any other open gateway order, an order still being created, an unknown
     # order or a disputed payment needs reconciliation before another connection fee is charged.
@@ -275,17 +275,17 @@ async def select_bid(identity: uuid.UUID,payload: SelectionInput,db=Depends(get_
     unsettled = DemandSelection.order_state.in_(['creating','unknown']) | (DemandSelection.payment_status == 'disputed') | open_order | (DemandSelection.gateway_order_id.is_not(None) & DemandSelection.status.in_(['pending','paid']))
     prior_checkout = await db.scalar(select(DemandSelection.id).where(DemandSelection.request_id == identity, unsettled).limit(1))
     if prior_checkout:
-        raise HTTPException(409,'A previous checkout needs payment reconciliation before another connection fee can be created')
+        raise HTTPException(409,'Your last payment is still being confirmed. Please wait a few minutes before trying again.')
     if not payload.accept_terms or payload.accepted_fee_policy_version != fee.version:
         raise HTTPException(422,'Review and accept the current connection-fee terms')
     quote = await db.scalar(select(Quote).where(Quote.id == payload.quote_id,Quote.request_id == identity).with_for_update().options(selectinload(Quote.provider),selectinload(Quote.vehicle_category),selectinload(Quote.versions)))
     if not quote or quote.status != 'active' or quote.version != payload.expected_quote_version or not quote.expires_at or quote.expires_at <= datetime.now(UTC):
-        raise HTTPException(409,'Bid expired, changed or is no longer available')
+        raise HTTPException(409,'This bid has expired or changed. Refresh the page.')
     if not quote.provider.active or quote.provider.kyc_status != 'verified':
-        raise HTTPException(409,'Provider verification is no longer current')
+        raise HTTPException(409,'Your verification has expired. Renew it to continue.')
     snapshot = next((v.snapshot for v in quote.versions if v.version == quote.version),None)
     if not snapshot or snapshot.get('request_revision') != item.revision:
-        raise HTTPException(409,'Bid does not match the current requirement')
+        raise HTTPException(409,'The customer changed this load. Refresh and check your bid.')
     vehicle = await eligible_vehicle(db,uuid.UUID(snapshot['vehicle_id']),quote.provider_id,item,quote.estimated_pickup,quote.estimated_delivery)
     contact_kind = snapshot.get('contact_kind','provider')
     driver_id = uuid.UUID(snapshot['driver_id']) if snapshot.get('driver_id') else None
@@ -351,13 +351,13 @@ async def checkout_order(identity: uuid.UUID,request: Request,db=Depends(get_db)
     if item.payment_status == 'captured':
         return {'already_paid':True,'selection_id':str(item.id)}
     if item.status != 'pending':
-        raise HTTPException(409,'Selection is no longer awaiting payment')
+        raise HTTPException(409,'This bid is no longer waiting for payment. Refresh the page.')
     if not await selected_contact(db,item):
-        raise HTTPException(409,'The promised verified contact is unavailable; checkout is blocked')
+        raise HTTPException(409,"The truck owner's contact details are unavailable, so this bid can't be paid for right now.")
     if item.gateway_order_id:
         return {'order_id':item.gateway_order_id,'amount':int(item.fee_amount*100),'currency':item.currency,'key_id':settings.RAZORPAY_KEY_ID,'status':'pending','local_simulation':bool(getattr(gateway,'is_simulated',False) and settings.APP_ENV=='test')}
     if item.order_state != 'not_created':
-        raise HTTPException(409,'Checkout creation is in progress or needs reconciliation; do not create another charge')
+        raise HTTPException(409,"Your payment is already being processed. Please wait — don't pay again.")
     if item.credit_id:
         raise HTTPException(503,'Platform connection fee waived. Checkout is blocked pending tax and accounting confirmation')
     item.order_state = 'creating'
@@ -412,13 +412,13 @@ async def confirm_assignment(identity: uuid.UUID,payload: AssignmentInput,db=Dep
     provider = await provider_for(db,user)
     quote = await db.get(Quote,item.quote_id)
     if quote.provider_id != provider.id:
-        raise HTTPException(404,'Selection not found')
+        raise HTTPException(404,"We couldn't find this booking. Refresh the page.")
     if item.status != 'paid' or item.payment_status != 'captured':
-        raise HTTPException(409,'Captured connection fee is required before fulfillment assignment')
+        raise HTTPException(409,'Assign a driver after the connection fee is paid.')
     if item.driver_id and item.driver_id != payload.driver_id:
-        raise HTTPException(409,'Replacing an assigned driver requires an operations review; previously viewed contact cannot be unseen')
+        raise HTTPException(409,'To change the driver after the customer saw their number, please contact support.')
     if payload.vehicle_id != item.vehicle_id:
-        raise HTTPException(409,'Use the selected bid vehicle; do not silently replace the accepted agreement')
+        raise HTTPException(409,'Use the truck from the chosen bid. To change it, contact support.')
     await eligible_vehicle(db,item.vehicle_id,provider.id,demand,quote.estimated_pickup,quote.estimated_delivery,own_selection=item.id)
     driver = await eligible_driver(db,payload.driver_id,provider.id,quote.estimated_pickup,quote.estimated_delivery,item.booking_id)
     trip = await db.scalar(select(Trip).join(BookingAllocation).where(BookingAllocation.booking_id == item.booking_id))
@@ -448,7 +448,7 @@ async def read_contact(identity,response,db,user,*,reveal):
     booking = await db.get(Booking,item.booking_id)
     if item.status != 'paid' or item.payment_status != 'captured' or booking.status in {'cancelled','disputed'}:
         await db.commit()
-        if reveal:raise HTTPException(409,'Contact reveal is unavailable for this booking')
+        if reveal:raise HTTPException(409,"Contact details aren't available for this booking yet.")
         return {'state':'locked'}
     if not item.contact_revealed_at and not reveal:
         await db.commit()
@@ -479,10 +479,10 @@ async def cancel_demand(identity: uuid.UUID,payload: CancelInput,db=Depends(get_
     item = await demand_for(db,identity,lock=True)
     owner(item,user)
     if item.status in {'completed','cancelled'}:
-        raise HTTPException(409,'Requirement is already terminal')
+        raise HTTPException(409,'This load is already closed.')
     selections = list(await db.scalars(select(DemandSelection).where(DemandSelection.request_id==identity).with_for_update()))
     if any(selection.contact_revealed_at for selection in selections) and not payload.confirm_after_reveal:
-        raise HTTPException(409,'Contact was revealed. Confirm ordinary cancellation without a refund')
+        raise HTTPException(409,'You have already seen the contact details, so cancelling now gives no refund. Confirm if you still want to cancel.')
     from app.services.connection_fee_rules import cancel_connection
     outcomes=[await cancel_connection(db,selection,item,user.id,payload.reason) for selection in selections if selection.status in {'pending','paid','refund_requested','cancelled'}]
     item.status='cancelled'

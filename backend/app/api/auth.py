@@ -364,7 +364,7 @@ async def refresh(payload: RefreshInput, request: Request, db: AsyncSession = De
             await db.execute(update(RefreshSession).where(RefreshSession.family_id == session.family_id).values(revoked_at=now))
             db.add(AuditLog(actor_id=session.user_id,action='auth.refresh_family_revoked',entity_type='user',entity_id=session.user_id,after={'family_sessions_revoked':True}))
             await db.commit()
-        raise HTTPException(401, "Refresh session is no longer valid")
+        raise HTTPException(401, "Your session has ended. Please sign in again.")
     user = await db.get(User, session.user_id)
     if not user or user.status != "active": raise HTTPException(401, "Account is unavailable")
     session.revoked_at = now
@@ -377,13 +377,13 @@ async def refresh(payload: RefreshInput, request: Request, db: AsyncSession = De
 async def verify_email(payload: VerifyInput, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
     await enforce_rate_limit(request, "verify-email", settings.VERIFICATION_RATE_LIMIT, 600, payload.email)
     user = await db.scalar(select(User).where(User.email == payload.email.lower()))
-    if not user: raise HTTPException(400, "Invalid or expired verification code")
+    if not user: raise HTTPException(400, "That code is wrong or has expired. Request a new code and try again.")
     item = await db.scalar(select(AccountVerification).where(AccountVerification.user_id == user.id, AccountVerification.channel == "email", AccountVerification.used_at.is_(None)).order_by(AccountVerification.created_at.desc()).with_for_update())
-    if not item or item.expires_at <= datetime.now(UTC) or item.attempts >= settings.OTP_MAX_ATTEMPTS: raise HTTPException(400, "Invalid or expired verification code")
+    if not item or item.expires_at <= datetime.now(UTC) or item.attempts >= settings.OTP_MAX_ATTEMPTS: raise HTTPException(400, "That code is wrong or has expired. Request a new code and try again.")
     item.attempts += 1
     if not verify_otp(payload.code, item.code_hash):
         await db.commit()
-        raise HTTPException(400, "Invalid or expired verification code")
+        raise HTTPException(400, "That code is wrong or has expired. Request a new code and try again.")
     item.used_at = datetime.now(UTC); user.email_verified = True
     return {"verified": True}
 
@@ -394,13 +394,13 @@ async def current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncS
     user = await db.get(User, user_id)
     if not user or user.status != "active": raise HTTPException(401, "Account is unavailable")
     if claims.get('sv',0) != int(getattr(user,'auth_version',0) or 0):
-        raise HTTPException(401, 'Session is no longer valid')
+        raise HTTPException(401, 'Your session has ended. Please sign in again.')
     return user
 
 
 def require_roles(*allowed: str):
     async def dependency(user: Annotated[User, Depends(current_user)]) -> User:
-        if not ({r.role for r in user.roles} & set(allowed)): raise HTTPException(403, "Insufficient permissions")
+        if not ({r.role for r in user.roles} & set(allowed)): raise HTTPException(403, "Your account does not have access to this.")
         return user
     return dependency
 

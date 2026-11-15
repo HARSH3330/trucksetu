@@ -203,7 +203,7 @@ def test_checkout_contact_and_repeat_charge_guards(monkeypatch,scenario):
                                 user.email_verified=False  # either channel alone still counts as verified
                                 await db.commit()
                         _,_,_,rejection=await prepare_selection(client,headers,payload,bid,before_checkout=revoke,checkout_status=409)
-                        assert 'promised verified contact' in rejection['detail']
+                        assert "contact details are unavailable" in rejection['detail']
                         assert calls==[]
                     else:
                         identity,pick,selected,order=await prepare_selection(client,headers,payload,bid)

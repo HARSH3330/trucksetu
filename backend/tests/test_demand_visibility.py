@@ -10,7 +10,7 @@ from app.api import demands
 
 
 def unverified(monkeypatch):
-    monkeypatch.setattr(demands, "provider_for", AsyncMock(side_effect=HTTPException(403, "Complete provider verification before browsing demands or bidding")))
+    monkeypatch.setattr(demands, "provider_for", AsyncMock(side_effect=HTTPException(403, "Finish your verification before you can see loads and bid.")))
     monkeypatch.setattr(demands, "require_policy", lambda kind="marketplace": SimpleNamespace(selection_minutes=15))
     monkeypatch.setattr(demands, "expire_due", AsyncMock())
     monkeypatch.setattr(demands, "expire_pending", AsyncMock())

@@ -56,15 +56,15 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
     if provider.user_id != user.id and not {role.role for role in user.roles}.intersection({"admin", "superadmin"}):
         raise HTTPException(status_code=403, detail="You can publish routes only for your provider account")
     if vehicle is None or not vehicle.active:
-        raise HTTPException(status_code=422, detail="Vehicle category is unavailable")
+        raise HTTPException(status_code=422, detail="This truck type is not available. Choose another one.")
     arrival = payload.expected_arrival_at
     if carrier_vehicle is None or carrier_vehicle.provider_id != provider.id or carrier_vehicle.vehicle_category_id != vehicle.id:
-        raise HTTPException(status_code=422, detail="Select an approved vehicle belonging to this provider")
+        raise HTTPException(status_code=422, detail="Choose one of your approved trucks.")
     if not vehicle_is_document_eligible(carrier_vehicle, arrival.date()):
         raise HTTPException(status_code=422, detail="Vehicle approval or documents do not cover this route")
     await require_accepted_documents(db, carrier_vehicle.id, arrival.date())
     if payload.total_capacity_tonnes > carrier_vehicle.maximum_payload_tonnes:
-        raise HTTPException(status_code=422, detail="Capacity exceeds the configured safe vehicle limit")
+        raise HTTPException(status_code=422, detail="This is more than the truck can safely carry.")
     if payload.total_volume_m3 > carrier_vehicle.maximum_volume_m3:
         raise HTTPException(status_code=422, detail="Volume exceeds this vehicle's approved internal capacity")
     required_territories = {payload.origin_city.casefold(), payload.destination_city.casefold()}
@@ -74,10 +74,10 @@ async def publish_route(payload: AvailableRouteCreate, db: AsyncSession = Depend
     if payload.driver_id:
         driver = await db.get(DriverProfile, payload.driver_id)
         if driver is None or driver.provider_id != provider.id or driver.kyc_status != "verified" or not driver.active:
-            raise HTTPException(status_code=422, detail="Selected driver is not a verified driver for this provider")
+            raise HTTPException(status_code=422, detail="This driver isn't one of your verified drivers.")
         await require_verified_driver_identity(db, driver)
         if driver.licence_expires_on is None or driver.licence_expires_on < arrival.date():
-            raise HTTPException(status_code=422, detail="Driver licence does not cover the planned route date")
+            raise HTTPException(status_code=422, detail="The driving licence expires before this trip date.")
     item = AvailableRoute(provider_id=provider.id, vehicle_category_id=vehicle.id, carrier_vehicle_id=carrier_vehicle.id, driver_id=payload.driver_id,
         vehicle_registration=carrier_vehicle.registration_number, origin_address=payload.origin_address,
         origin_city=payload.origin_city, destination_address=payload.destination_address,
@@ -129,7 +129,7 @@ async def reserve_route_capacity(route_id: uuid.UUID, payload: CapacityReservati
         existing = await db.scalar(select(CapacityReservation).where(CapacityReservation.match_evaluation_id == payload.match_evaluation_id))
     if existing:
         if existing.customer_id != user.id or existing.available_route_id != route_id or existing.match_evaluation_id != payload.match_evaluation_id or existing.cargo_type.casefold() != payload.cargo_type.casefold() or existing.weight_tonnes != payload.weight_tonnes or existing.volume_m3 != payload.volume_m3:
-            raise HTTPException(status_code=409, detail="Idempotency key was already used for another operation")
+            raise HTTPException(status_code=409, detail="This request was already sent. Refresh the page and try again.")
         if existing.status == "reserved" and existing.expires_at <= datetime.now(UTC):
             existing = await db.scalar(select(CapacityReservation).where(CapacityReservation.id == existing.id).with_for_update().execution_options(populate_existing=True))
             if existing.status != 'reserved' or existing.expires_at > datetime.now(UTC):

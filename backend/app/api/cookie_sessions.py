@@ -21,7 +21,7 @@ def require_browser_origin(request:Request):
 
 def require_refresh_cookie(request:Request):
     value=request.cookies.get(COOKIE)
-    if not value:raise HTTPException(401,'Sign in to restore your session')
+    if not value:raise HTTPException(401,'Please sign in again.')
     return value
 
 

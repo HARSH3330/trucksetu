@@ -52,15 +52,15 @@ async def reactivate_driver(user_id: uuid.UUID, payload: DriverReactivation, db:
         raise HTTPException(404, 'Linked driver not found')
     identity = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user_id, ProviderProfile.provider_type == 'driver').with_for_update())
     if not identity or not identity.active or identity.kyc_status != 'verified':
-        raise HTTPException(409, 'Driver identity re-verification is required')
+        raise HTTPException(409, "This driver's verification needs renewing.")
     application = await db.scalar(select(KYCApplication).where(KYCApplication.provider_id == identity.id, KYCApplication.status == 'verified').options(selectinload(KYCApplication.documents)).order_by(KYCApplication.created_at.desc()).with_for_update())
     if not application:
-        raise HTTPException(409, 'Verified driver application is required')
+        raise HTTPException(409, 'The driver must finish driver verification first.')
     owner = await db.scalar(select(ProviderProfile).where(ProviderProfile.id == driver.provider_id).with_for_update())
     if not owner or not owner.active or owner.kyc_status != 'verified':
-        raise HTTPException(409, 'Linked transport provider must be active and verified')
+        raise HTTPException(409, 'The truck owner this driver works for must be active and verified.')
     if not driver.licence_expires_on or driver.licence_expires_on < date.today():
-        raise HTTPException(422, 'Driver licence is expired')
+        raise HTTPException(422, 'This driving licence has expired.')
     accepted = {document.document_type:document for document in application.documents if document.status == 'accepted' and (not document.expires_on or document.expires_on >= date.today())}
     if REQUIRED['driver'] - accepted.keys():
         raise HTTPException(422, 'All current driver identity documents must be accepted')
@@ -95,7 +95,7 @@ async def list_provider_drivers(
         raise HTTPException(404, "Provider not found")
     roles = {role.role for role in user.roles}
     if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}):
-        raise HTTPException(403, "You can view drivers only for your provider account")
+        raise HTTPException(403, "You can only see your own drivers.")
     rows = (await db.execute(select(DriverProfile, User).outerjoin(User, User.id == DriverProfile.user_id).where(DriverProfile.provider_id == provider.id).order_by(DriverProfile.full_name))).all()
     # contact_ready mirrors the assignment rule: an active account with a phone and a verified email or phone.
     return [{"id": str(item.id), "full_name": item.full_name, "masked_mobile": item.masked_mobile,
@@ -116,12 +116,12 @@ async def link_driver(
         raise HTTPException(404, "Provider not found")
     roles = {role.role for role in user.roles}
     if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}):
-        raise HTTPException(403, "You can link drivers only to your provider account")
+        raise HTTPException(403, "You can only link drivers to your own account.")
     driver_user = await db.scalar(select(User).where(User.email == payload.email.lower()))
     if driver_user is None or not await db.scalar(
         select(UserRole.id).where(UserRole.user_id == driver_user.id, UserRole.role == "driver")
     ):
-        raise HTTPException(404, "Verified driver account not found")
+        raise HTTPException(404, "No verified driver account uses this email.")
     driver_kyc = await db.scalar(
         select(ProviderProfile).where(
             ProviderProfile.user_id == driver_user.id,
@@ -129,14 +129,14 @@ async def link_driver(
         )
     )
     if driver_kyc is None or driver_kyc.kyc_status != "verified":
-        raise HTTPException(403, "Driver KYC must be verified before linking")
+        raise HTTPException(403, "This driver's verification must be approved before you can link them.")
     if payload.licence_expires_on < date.today():
-        raise HTTPException(422, "Driver licence is expired")
+        raise HTTPException(422, "This driving licence has expired.")
     if await db.scalar(select(DriverProfile.id).where(DriverProfile.user_id == driver_user.id)):
-        raise HTTPException(409, "Driver account is already linked to a provider")
+        raise HTTPException(409, "This driver is already linked to another truck owner.")
     licence = payload.licence_number.replace(" ", "").upper()
     if await db.scalar(select(DriverProfile.id).where(DriverProfile.licence_number == licence)):
-        raise HTTPException(409, "Driving licence is already registered")
+        raise HTTPException(409, "This driving licence number is already registered.")
     driver = DriverProfile(
         user_id=driver_user.id,
         provider_id=provider.id,

@@ -33,9 +33,9 @@ async def credits(db=Depends(get_db),user=Depends(customer)):
 @router.post('/demand-selections/{identity}/cancel')
 async def cancel(identity:uuid.UUID,payload:CancelInput,db=Depends(get_db),user=Depends(customer)):
     item,demand=await selection_for(db,identity)
-    if item.customer_id!=user.id:raise HTTPException(404,'Selection not found')
+    if item.customer_id!=user.id:raise HTTPException(404,"We couldn't find this booking. Refresh the page.")
     if item.contact_revealed_at and not payload.confirm_after_reveal:
-        raise HTTPException(409,'Contact was revealed. Ordinary cancellation has no refund; confirm this explicitly')
+        raise HTTPException(409,'You have already seen the contact details, so cancelling now gives no refund. Confirm if you still want to cancel.')
     result=await cancel_connection(db,item,demand,user.id,payload.reason)
     await db.commit()
     return result
@@ -60,9 +60,9 @@ async def confirm_failure(identity:uuid.UUID,payload:ReasonInput,db=Depends(get_
 @router.post('/demand-selections/{identity}/apply-credit')
 async def apply_credit(identity:uuid.UUID,payload:ApplyCredit,db=Depends(get_db),user=Depends(customer)):
     item,demand=await selection_for(db,identity)
-    if item.customer_id!=user.id:raise HTTPException(404,'Selection not found')
+    if item.customer_id!=user.id:raise HTTPException(404,"We couldn't find this booking. Refresh the page.")
     if item.status!='pending' or item.order_state!='not_created' or item.gateway_order_id or item.credit_id not in {None,payload.credit_id}:
-        raise HTTPException(409,'Apply a credit before creating any payment order')
+        raise HTTPException(409,'Use your credit first, then pay any balance.')
     await acquire_idempotency_lock(db,'connection-credit:'+str(user.id))
     credit=await db.scalar(select(ConnectionFeeCredit).where(ConnectionFeeCredit.id==payload.credit_id).with_for_update())
     if not credit or credit.customer_id!=user.id:raise HTTPException(404,'Credit not found')

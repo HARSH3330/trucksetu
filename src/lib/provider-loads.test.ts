@@ -10,7 +10,7 @@ function fake(responses:Record<string,unknown|Error>){
 
 describe('provider workspace loading',()=>{
   it('shows open requirements to a truck owner who has no provider profile yet',async()=>{
-    const {fetch}=fake({'/demands?pickup=':[demand],'/providers/me':new Error('Complete your provider verification profile before quoting'),'/demand-bids/mine':new Error('forbidden'),'/demand-selections/mine':new Error('forbidden'),'/carrier-vehicles':[]})
+    const {fetch}=fake({'/demands?pickup=':[demand],'/providers/me':new Error('Finish your verification profile before sending a price.'),'/demand-bids/mine':new Error('forbidden'),'/demand-selections/mine':new Error('forbidden'),'/carrier-vehicles':[]})
     const result=await loadProviderWorkspace(fetch,new URLSearchParams({pickup:''}))
     expect(result.demands).toEqual([demand])
     expect(result.profile).toBeNull()

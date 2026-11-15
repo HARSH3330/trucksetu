@@ -52,7 +52,7 @@ async def view(db,item):
 async def editable(db,user):
     item=await current_application(db,user.id,lock=True)
     if not item or item.status not in {'registered','resubmit_required'}:
-        raise HTTPException(409,'Customer verification documents cannot be changed at this stage')
+        raise HTTPException(409,"Your documents are being reviewed and can't be changed right now.")
     return item
 
 
@@ -74,12 +74,12 @@ async def start(payload:Start,db=Depends(get_db),user=Depends(customer)):
     version,documents=customer_document_policy()
     consent=customer_consent_policy()
     if payload.consent_version!=version or payload.consent_sha256!=consent['sha256']:
-        raise HTTPException(409,'Review the current customer verification policy')
+        raise HTTPException(409,'Please read and accept the latest verification terms.')
     await db.scalar(select(User).where(User.id==user.id).with_for_update())
     existing=await current_application(db,user.id)
     previous_consent=await application_consent(db,existing) if existing else {}
     if not may_restart_application(existing,version,documents,previous_consent.get('consent_sha256')==consent['sha256']):
-        raise HTTPException(409,'A customer verification application already exists')
+        raise HTTPException(409,'You have already started verification. Continue it from the Verification page.')
     if existing and existing.status not in {'rejected','suspended'}:
         existing.status='superseded'
         audit(db,user.id,'policy_superseded',existing,{'new_policy_version':version})
@@ -115,14 +115,14 @@ async def complete(payload:Complete,db=Depends(get_db),user=Depends(customer),st
         detected=await run_in_threadpool(storage.detected_content_type,payload.storage_key,version)
         size=int(metadata.get('ContentLength',0))
         if not 0<size<=10*1024*1024 or detected!=payload.content_type or metadata.get('ContentType')!=detected:
-            raise HTTPException(422,'Document size or content type is invalid')
+            raise HTTPException(422,"This file can't be used. Upload a PDF, JPG or PNG file under 10 MB.")
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(503,'Uploaded document could not be verified') from exc
     existing=await db.scalar(select(CustomerKYCDocument.id).where(CustomerKYCDocument.application_id==item.id,CustomerKYCDocument.document_type==payload.document_type,CustomerKYCDocument.status!='rejected'))
     if existing:
-        raise HTTPException(409,'Reject the previous document before replacement')
+        raise HTTPException(409,'Remove the old document before uploading a new one.')
     candidate.application_id=item.id;candidate.document_type=payload.document_type;candidate.content_type=detected;candidate.size_bytes=size
     db.add(candidate);await db.flush()
     audit(db,user.id,'document_registered',item,{'document_id':str(candidate.id),'type':payload.document_type})

@@ -13,4 +13,4 @@ async def require_verified_driver_identity(db: AsyncSession, driver: DriverProfi
     """
     identity = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == driver.user_id, ProviderProfile.provider_type == 'driver').with_for_update()) if driver.user_id else None
     if identity is None or not identity.active or identity.kyc_status != 'verified':
-        raise HTTPException(409, 'Driver identity re-verification is required before new operations')
+        raise HTTPException(409, "This driver's verification needs renewing before new trips.")

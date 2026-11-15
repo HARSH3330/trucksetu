@@ -69,7 +69,7 @@ class PrivateDocumentStorage:
             raise ValueError('Scanner is unavailable; test simulation requires an explicit test dependency')
         status = self.malware_scan_status(key,version_id)
         if status != "NO_THREATS_FOUND":
-            raise ValueError("Document scan is pending or was not clean")
+            raise ValueError("Your file is still being scanned for safety, or it failed the scan. Wait a minute, or upload a different file.")
 
     def download_url(self, key: str, version_id: str | None = None) -> str:
         return self.client.generate_presigned_url("get_object", Params={"Bucket": self.bucket, "Key": key, "ResponseContentDisposition": "attachment", **({'VersionId':version_id} if version_id else {})}, ExpiresIn=300)

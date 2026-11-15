@@ -54,7 +54,7 @@ async def update_mobile(payload:MobileInput,request:Request,user:User=Depends(cu
     await enforce_rate_limit(request,'account-mobile',settings.VERIFICATION_RATE_LIMIT,600,str(user.id))
     record=await db.scalar(select(User).where(User.id==user.id).with_for_update().execution_options(populate_existing=True))
     if record is None or record.status!='active' or not verify_password(payload.password,record.password_hash):
-        raise HTTPException(401,'Account update authorization failed')
+        raise HTTPException(401,"We could not confirm it's you. Check your password and try again.")
     try:changed=canonical_mobile(record.mobile)!=payload.mobile
     except InvalidWidgetVerification:changed=True
     record.mobile=payload.mobile
@@ -109,15 +109,15 @@ async def resend_verification(payload:EmailInput,request:Request,db:AsyncSession
 async def confirm_reset(payload:PasswordResetInput,request:Request,db:AsyncSession=Depends(get_db))->dict[str,str]:
     await enforce_rate_limit(request,'password-reset-confirm',settings.VERIFICATION_RATE_LIMIT,600,str(payload.email))
     user=await db.scalar(select(User).options(selectinload(User.roles)).where(User.email==str(payload.email).lower()).with_for_update())
-    if not eligible(user):raise HTTPException(400,'Invalid or expired password reset token')
+    if not eligible(user):raise HTTPException(400,'This password reset link is wrong or has expired. Request a new link.')
     item=await db.scalar(select(AccountVerification).where(AccountVerification.user_id==user.id,AccountVerification.channel=='password_reset',AccountVerification.used_at.is_(None)).order_by(AccountVerification.created_at.desc()).limit(1).with_for_update())
     now=datetime.now(UTC)
     if item is None or item.used_at is not None or item.expires_at<=now or item.attempts>=settings.OTP_MAX_ATTEMPTS:
-        raise HTTPException(400,'Invalid or expired password reset token')
+        raise HTTPException(400,'This password reset link is wrong or has expired. Request a new link.')
     item.attempts+=1
     if not token_hash_matches(payload.token,item.code_hash):
         await db.commit()
-        raise HTTPException(400,'Invalid or expired password reset token')
+        raise HTTPException(400,'This password reset link is wrong or has expired. Request a new link.')
     item.used_at=now
     user.password_hash=get_password_hash(payload.password)
     user.auth_version=(user.auth_version or 0)+1

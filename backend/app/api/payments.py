@@ -54,9 +54,9 @@ async def _decimal_setting(db: AsyncSession, key: str, fallback: Decimal) -> Dec
 
 async def _payment_amount(db: AsyncSession, booking: Booking, payment_type: str) -> Decimal:
     if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
-        raise HTTPException(409,'Transport payment collection is retained but outside this MVP; settle freight directly')
+        raise HTTPException(409,'Pay the transport charge directly to the truck owner.')
     if (getattr(booking,'route_snapshot',None) or {}).get('marketplace_mode') == 'customer_demand':
-        raise HTTPException(409, 'Freight collection is separate and is not enabled for connection-fee bookings')
+        raise HTTPException(409, 'Pay the transport charge directly to the truck owner.')
     paid = Decimal(str(await db.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.booking_id == booking.id, Payment.status == "paid"))))
     if payment_type == "advance":
         percent = await _decimal_setting(db, "default_advance_percent", settings.DEFAULT_ADVANCE_PERCENT)
@@ -159,7 +159,7 @@ async def download_invoice(invoice_id: uuid.UUID, db: AsyncSession = Depends(get
 @router.post("/bookings/{booking_id}/payments/online", status_code=status.HTTP_201_CREATED)
 async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str | int]:
     if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
-        raise HTTPException(409,'Transport payment collection is outside this MVP; settle freight directly')
+        raise HTTPException(409,'Pay the transport charge directly to the truck owner.')
     await acquire_idempotency_lock(db, payload.idempotency_key)
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None:
@@ -169,18 +169,18 @@ async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db
     existing = await db.scalar(select(Payment).where(Payment.idempotency_key == payload.idempotency_key))
     if existing:
         if existing.booking_id != booking.id:
-            raise HTTPException(status_code=409, detail="Idempotency key was already used for another operation")
+            raise HTTPException(status_code=409, detail="This request was already sent. Refresh the page and try again.")
         if existing.provider != "razorpay" or existing.payment_type != payload.payment_type or existing.status != "pending":
-            raise HTTPException(status_code=409, detail="This payment attempt cannot be reused")
+            raise HTTPException(status_code=409, detail="This payment link can't be used again. Start a new payment.")
         return {"payment_id": str(existing.id), "order_id": existing.gateway_order_id or "", "amount": str(existing.amount), "amount_subunits": int(existing.amount * 100), "currency": existing.currency, "key_id": settings.RAZORPAY_KEY_ID}
     active = await db.scalar(select(Payment).where(Payment.booking_id == booking.id, Payment.payment_type == payload.payment_type, Payment.status.in_({"pending", "pending_confirmation"})).with_for_update())
     if active:
         if active.provider == "razorpay" and active.status == "pending" and active.gateway_order_id:
             return {"payment_id": str(active.id), "order_id": active.gateway_order_id, "amount": str(active.amount), "amount_subunits": int(active.amount * 100), "currency": active.currency, "key_id": settings.RAZORPAY_KEY_ID}
-        raise HTTPException(status_code=409, detail="A payment attempt of this type is already pending")
+        raise HTTPException(status_code=409, detail="A payment is already in progress. Please wait for it to finish.")
     amount = await _payment_amount(db, booking, payload.payment_type)
     if amount <= 0:
-        raise HTTPException(status_code=409, detail="No payment is currently due")
+        raise HTTPException(status_code=409, detail="Nothing is due right now.")
     try:
         order = await RazorpayGateway().create_order(amount, booking.currency, booking.public_id)
     except RuntimeError as exc:
@@ -195,7 +195,7 @@ async def online_payment(booking_id: uuid.UUID, payload: PaymentIntentCreate, db
 @router.post("/bookings/{booking_id}/payments/offline", status_code=status.HTTP_201_CREATED)
 async def offline_payment(booking_id: uuid.UUID, payload: OfflinePaymentCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_roles("customer", "admin", "superadmin"))) -> dict[str, str]:
     if not settings.ENABLE_TRANSPORT_PAYMENT_COLLECTION:
-        raise HTTPException(409,'Transport payment collection is outside this MVP; settle freight directly')
+        raise HTTPException(409,'Pay the transport charge directly to the truck owner.')
     await acquire_idempotency_lock(db, payload.idempotency_key)
     booking = await db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
     if booking is None:
@@ -205,11 +205,11 @@ async def offline_payment(booking_id: uuid.UUID, payload: OfflinePaymentCreate, 
     existing = await db.scalar(select(Payment).where(Payment.idempotency_key == payload.idempotency_key))
     if existing:
         if existing.booking_id != booking.id:
-            raise HTTPException(status_code=409, detail="Idempotency key was already used for another operation")
+            raise HTTPException(status_code=409, detail="This request was already sent. Refresh the page and try again.")
         return {"payment_id": str(existing.id), "status": existing.status}
     active = await db.scalar(select(Payment.id).where(Payment.booking_id == booking.id, Payment.payment_type == payload.payment_type, Payment.status.in_({"pending", "pending_confirmation"})))
     if active:
-        raise HTTPException(status_code=409, detail="A payment attempt of this type is already pending")
+        raise HTTPException(status_code=409, detail="A payment is already in progress. Please wait for it to finish.")
     due = await _payment_amount(db, booking, payload.payment_type)
     if payload.amount > due:
         raise HTTPException(status_code=422, detail=f"Payment exceeds the amount due: {due}")
@@ -317,7 +317,7 @@ async def record_manual_refund(booking_id: uuid.UUID, payload: ManualRefundCreat
     existing = await db.scalar(select(PaymentRefund).where(PaymentRefund.idempotency_key == payload.idempotency_key))
     if existing:
         if existing.booking_id != booking_id or existing.amount != payload.amount or existing.method != payload.method or existing.reference != payload.reference:
-            raise HTTPException(409, "Idempotency key was already used for another operation")
+            raise HTTPException(409, "This request was already sent. Refresh the page and try again.")
         return {"refund_id": str(existing.id), "status": existing.status, "amount": str(existing.amount)}
     cancellation = await db.scalar(select(Cancellation).where(Cancellation.booking_id == booking_id).with_for_update())
     if cancellation is None or cancellation.refund_amount <= 0:

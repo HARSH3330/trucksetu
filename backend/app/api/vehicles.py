@@ -30,7 +30,7 @@ async def own_provider_profile(
 ) -> dict[str, object]:
     provider = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
     if provider is None:
-        raise HTTPException(404, "Complete your provider verification profile before quoting")
+        raise HTTPException(404, "Finish your verification profile before sending a price.")
     return {
         "id": str(provider.id),
         "display_name": provider.display_name,
@@ -88,15 +88,15 @@ async def add_vehicle(
         raise HTTPException(404, "Provider not found")
     roles = {role.role for role in user.roles}
     if provider.user_id != user.id and not roles.intersection({"admin", "superadmin"}):
-        raise HTTPException(403, "You can add vehicles only to your provider account")
+        raise HTTPException(403, "You can only add trucks to your own account.")
     category = await db.get(VehicleCategory, payload.vehicle_category_id)
     if category is None or not category.active:
-        raise HTTPException(422, "Vehicle category is unavailable")
+        raise HTTPException(422, "This truck type is not available. Choose another one.")
     if payload.maximum_payload_tonnes > category.max_capacity_tonnes:
-        raise HTTPException(422, "Payload exceeds the configured safe category limit")
+        raise HTTPException(422, "This weight is more than this truck type can carry. Choose a bigger truck type or lower the weight.")
     registration = payload.registration_number.replace(" ", "").upper()
     if await db.scalar(select(CarrierVehicle.id).where(CarrierVehicle.registration_number == registration)):
-        raise HTTPException(409, "This vehicle registration is already registered")
+        raise HTTPException(409, "A truck with this registration number is already registered.")
     values = payload.model_dump(exclude={"provider_id", "vehicle_category_id", "registration_number"})
     item = CarrierVehicle(
         provider_id=provider.id,
@@ -150,26 +150,26 @@ async def update_vehicle(
     if item is None or provider is None or provider.user_id != user.id:
         raise HTTPException(404, "Vehicle not found")
     if item.status == "suspended":
-        raise HTTPException(409, "A suspended vehicle cannot be edited. Contact support.")
+        raise HTTPException(409, "This truck is suspended and can't be edited. Please contact support.")
     changes = {name: value for name, value in payload.model_dump(exclude_unset=True).items() if getattr(item, name) != value}
     if not changes:
         return _read(item)
     active_trip = select(Trip.id).where(Trip.carrier_vehicle_id == item.id, Trip.status.not_in(["completed", "delivered", "cancelled"]))
     if await db.scalar(active_trip.limit(1)):
-        raise HTTPException(409, "Vehicle has an active trip and cannot be changed until it ends")
+        raise HTTPException(409, "This truck is on a trip. You can change it after the trip ends.")
     active_route = select(AvailableRoute.id).where(AvailableRoute.carrier_vehicle_id == item.id, AvailableRoute.status == "active")
     if await db.scalar(active_route.limit(1)):
         raise HTTPException(409, "Vehicle has a published shared route. Close the route before changing the vehicle")
     category = await db.get(VehicleCategory, changes.get("vehicle_category_id", item.vehicle_category_id))
     if category is None or not category.active:
-        raise HTTPException(422, "Vehicle category is unavailable")
+        raise HTTPException(422, "This truck type is not available. Choose another one.")
     if changes.get("maximum_payload_tonnes", item.maximum_payload_tonnes) > category.max_capacity_tonnes:
-        raise HTTPException(422, "Payload exceeds the configured safe category limit")
+        raise HTTPException(422, "This weight is more than this truck type can carry. Choose a bigger truck type or lower the weight.")
     dimensions = [changes.get(name, getattr(item, name)) for name in ("internal_length_m", "internal_width_m", "internal_height_m")]
     body_volume = (dimensions[0] * dimensions[1] * dimensions[2]).quantize(Decimal("0.001"))
     if "maximum_volume_m3" in changes:
         if changes["maximum_volume_m3"] > body_volume:
-            raise HTTPException(422, "Maximum cargo volume cannot exceed internal body volume")
+            raise HTTPException(422, "The load space can't be bigger than the truck body's length × width × height.")
     elif item.maximum_volume_m3 > body_volume:
         changes["maximum_volume_m3"] = body_volume
     previous = item.status
@@ -207,7 +207,7 @@ async def review_vehicle(
         # The helper includes status, so check dates explicitly while the vehicle is pending.
         expiries = (item.rc_expires_on, item.insurance_expires_on, item.fitness_expires_on, item.pollution_expires_on, item.permit_expires_on)
         if any(expiry < date.today() for expiry in expiries):
-            raise HTTPException(422, "Expired vehicle documents must be renewed before approval")
+            raise HTTPException(422, "Some truck papers have expired. Upload the renewed papers first.")
     item.status = payload.status
     item.review_reason = payload.reason
     item.reviewed_by = admin.id

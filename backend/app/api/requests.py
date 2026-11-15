@@ -79,7 +79,7 @@ async def create_request(payload: TransportRequestCreate, db: AsyncSession = Dep
     if payload.vehicle_category_id:
         category = await db.get(VehicleCategory, payload.vehicle_category_id)
         if category is None or not category.active:
-            raise HTTPException(status_code=422, detail="Selected vehicle category is not available")
+            raise HTTPException(status_code=422, detail="This truck type is not available. Choose another one.")
         if category.max_capacity_tonnes < payload.cargo.weight_tonnes:
             raise HTTPException(
                 status_code=422,
