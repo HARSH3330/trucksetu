@@ -234,3 +234,6 @@ body{line-height:1.5}
 :root .google-role-step p{margin:0;color:var(--muted)}
 :root .google-role-step label{display:grid;gap:6px;font-size:13px;font-weight:700}
 :root .google-role-step select{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fff}
+/* Expected format under fixed-format inputs; turns into a warning once the typed value would be refused. */
+:root .format-hint{display:block;margin-top:4px;color:var(--muted);font-size:13px;font-weight:500;line-height:1.4}
+:root .format-hint.format-warning{color:#9a3427}

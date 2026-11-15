@@ -3,6 +3,8 @@ import {X} from 'lucide-react'
 import {apiFetch,publicFetch} from '../lib/api'
 import {useDialog} from '../lib/useDialog'
 import PhoneVerification from './PhoneVerification'
+import FormatHint from './FormatHint'
+import {FORMATS} from '../lib/field-formats'
 
 type Mode='request-reset'|'reset'|'verify'|'mobile'
 /** The app reloads the signed-in account when this dialog closes, so nobody needs to sign in again. */
@@ -41,7 +43,7 @@ export default function AccountSecurity({close,initialEmail='',initialMode='requ
     <div className="auth-tabs"><button disabled={busy} onClick={()=>switchMode('request-reset')}>Recover password</button><button disabled={busy} onClick={()=>switchMode('verify')}>{signedIn?'Verify email or phone':'Verify email'}</button>{signedIn&&<button disabled={busy} onClick={()=>switchMode('mobile')}>Trip contact</button>}</div>
     <form className="auth-form" onSubmit={submit}>
       {mode!=='mobile'&&<label>Email address<input type="email" required maxLength={254} value={email} onChange={event=>setEmail(event.target.value)}/></label>}
-      {mode==='mobile'&&signedIn&&<><label>Mobile for trip OTP<input type="tel" required pattern="\+?[0-9]{10,15}" maxLength={16} value={mobile} onChange={event=>setMobile(event.target.value)}/></label><label>Current password<input type="password" autoComplete="current-password" required maxLength={72} value={password} onChange={event=>setPassword(event.target.value)}/></label></>}
+      {mode==='mobile'&&signedIn&&<><label>Mobile for trip OTP<input type="tel" required pattern="\+?[0-9]{10,15}" maxLength={16} aria-describedby="otp-mobile-format" value={mobile} onChange={event=>setMobile(event.target.value)}/><FormatHint id="otp-mobile-format" format={FORMATS.otpMobile} value={mobile}/></label><label>Current password<input type="password" autoComplete="current-password" required maxLength={72} value={password} onChange={event=>setPassword(event.target.value)}/></label></>}
       {mode==='mobile'&&!signedIn&&<p role="alert">Sign in before changing your trip contact.</p>}
       {mode==='reset'&&<><label>Password reset token<input type="password" name="token" autoComplete="off" required minLength={32} maxLength={128} value={token} onChange={event=>setToken(event.target.value)}/></label><label>New password<input aria-describedby="account-password-requirements" type="password" autoComplete="new-password" required minLength={10} maxLength={72} value={password} onChange={event=>setPassword(event.target.value)}/></label><small id="account-password-requirements">10–72 characters, including uppercase, lowercase and a number.</small></>}
       {mode==='verify'&&<><button type="button" disabled={busy||!email} onClick={()=>void perform('/auth/verification/resend',{email},'If eligible and delivery is available, check your email for a new code. Delivery is not confirmed.')}>Request verification email</button><label>Email verification code<input inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6} value={code} onChange={event=>setCode(event.target.value.replace(/\D/g,''))}/></label></>}

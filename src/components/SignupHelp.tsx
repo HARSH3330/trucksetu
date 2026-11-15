@@ -1,4 +1,6 @@
 import {Check} from 'lucide-react'
+import FormatHint from './FormatHint'
+import {FORMATS} from '../lib/field-formats'
 
 export const ROLE_CHOICES=[
   {value:'customer',label:'Customer — I need goods moved',help:'Post what you need moved, compare bids from verified truck owners and choose one.'},
@@ -12,7 +14,7 @@ export const phoneRequired=(role:string)=>['provider','fleet_owner','driver'].in
 
 export function PhoneField({role,value,onChange}:{role:string;value:string;onChange:(value:string)=>void}){
   const required=phoneRequired(role)
-  return <label>{required?'Mobile number':'Mobile (optional)'}<input required={required} type="tel" autoComplete="tel" value={value} onChange={event=>onChange(event.target.value)} placeholder="+91 98765 43210"/>
+  return <label>{required?'Mobile number':'Mobile (optional)'}<input required={required} type="tel" autoComplete="tel" aria-describedby="signup-mobile-format" value={value} onChange={event=>onChange(event.target.value)} placeholder="+91 98765 43210"/><FormatHint id="signup-mobile-format" format={FORMATS.mobile} value={value}/>
     {required&&<small className="role-help">{role==='driver'?'Customers see this number when you are assigned to their trip.':'Customers see this number after they pay for your bid.'}</small>}</label>
 }
 
