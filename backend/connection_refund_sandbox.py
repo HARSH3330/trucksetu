@@ -21,7 +21,7 @@ async def run(identity):
                 raise RuntimeError('Unexpected sandbox database or privileged database role')
             revision=await db.scalar(text('SELECT version_num FROM alembic_version'))
             # Migration29 adds nullable private pins and preserves refund execution metadata.
-            if revision not in {'20261023_28','20261025_29'}:
+            if revision not in {'20261023_28','20261025_29','20261115_30'}:
                 raise RuntimeError('Sandbox requires a reviewed compatible local schema revision')
         result=await execute_refund(factory,identity)
         print(json.dumps(result))  # Curated provider references/states only.

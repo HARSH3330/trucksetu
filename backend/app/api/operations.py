@@ -7,7 +7,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -32,10 +32,23 @@ class ContactVerification(BaseModel):
     channel: Literal['email','mobile']
     verified: bool
     reason: str=Field(min_length=10,max_length=2000)
+    # The superadmin saw the warning that another account already has this number verified.
+    allow_shared_number: bool=False
 
 
 def masked_mobile(value:str|None)->str|None:
     return '••••'+value[-4:] if value else None
+
+
+def masked_email(value:str)->str:
+    name,_,domain=value.partition('@')
+    return name[:2]+'•••@'+domain
+
+
+def mobile_variants(value:str)->set[str]:
+    variants={value,value.lstrip('+')}
+    if value.startswith('+91') and len(value)==13:variants.add(value[3:])
+    return variants
 
 
 @router.get('/admin/users')
@@ -46,10 +59,12 @@ async def list_users(q:str=Query(default='',max_length=120),account_status:Liter
     total=int(await db.scalar(select(func.count(User.id)).where(*filters)) or 0)
     customer_kyc=select(CustomerKYCApplication.status).where(CustomerKYCApplication.user_id==User.id).order_by(CustomerKYCApplication.created_at.desc()).limit(1).correlate(User).scalar_subquery()
     provider_kyc=select(ProviderProfile.kyc_status).where(ProviderProfile.user_id==User.id).limit(1).correlate(User).scalar_subquery()
-    rows=(await db.execute(select(User,customer_kyc,provider_kyc).options(selectinload(User.roles)).where(*filters).order_by(User.created_at.desc(),User.id).offset((page-1)*page_size).limit(page_size))).all()
+    other=aliased(User)
+    shared=select(func.count(other.id)).where(other.id!=User.id,other.mobile_verified.is_(True),other.mobile==User.mobile).correlate(User).scalar_subquery()
+    rows=(await db.execute(select(User,customer_kyc,provider_kyc,shared).options(selectinload(User.roles)).where(*filters).order_by(User.created_at.desc(),User.id).offset((page-1)*page_size).limit(page_size))).all()
     # Phone numbers stay masked in the general list.
     return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'name':item.full_name,'email':item.email,'roles':sorted(role.role for role in item.roles),'status':item.status,'email_verified':item.email_verified,
-            'mobile':masked_mobile(item.mobile),'mobile_verified':bool(item.mobile_verified),'customer_kyc_status':customer,'provider_kyc_status':provider,'created_at':item.created_at.isoformat()} for item,customer,provider in rows]}
+            'mobile':masked_mobile(item.mobile),'mobile_verified':bool(item.mobile_verified),'mobile_shared_count':int(shared_count or 0),'customer_kyc_status':customer,'provider_kyc_status':provider,'created_at':item.created_at.isoformat()} for item,customer,provider,shared_count in rows]}
 
 
 @router.post('/admin/users/{user_id}/contact-verification')
@@ -61,17 +76,22 @@ async def change_contact_verification(user_id:uuid.UUID,payload:ContactVerificat
         raise HTTPException(403,'Privileged and self account changes are not supported here')
     field='email_verified' if payload.channel=='email' else 'mobile_verified'
     previous=bool(getattr(target,field))
+    others:list[User]=[]
     if payload.verified and payload.channel=='mobile':
         if not target.mobile:raise HTTPException(409,'This account has no phone number saved')
-        variants={target.mobile,target.mobile.lstrip('+')}
-        if target.mobile.startswith('+91') and len(target.mobile)==13:variants.add(target.mobile[3:])
-        if await db.scalar(select(User.id).where(User.id!=target.id,User.mobile_verified.is_(True),User.mobile.in_(variants))):
-            raise HTTPException(409,'This phone number is already verified on another account')
+        others=list(await db.scalars(select(User).where(User.id!=target.id,User.mobile_verified.is_(True),User.mobile.in_(mobile_variants(target.mobile))).order_by(User.created_at)))
+        if others and not payload.allow_shared_number:
+            names=', '.join(f'{other.full_name} ({masked_email(other.email)})' for other in others[:3])
+            raise HTTPException(409,f'This phone number is already verified on another account: {names}. Tick "Verify anyway" if the same person uses both accounts.')
     if previous!=payload.verified:
         setattr(target,field,payload.verified)
-        db.add(AuditLog(actor_id=owner.id,action='admin.contact_verification_changed',entity_type='user',entity_id=target.id,before={field:previous},after={'channel':payload.channel,field:payload.verified,'reason':payload.reason}))
+        after:dict[str,object]={'channel':payload.channel,field:payload.verified,'reason':payload.reason}
+        if others:after['shared_with']=len(others)
+        db.add(AuditLog(actor_id=owner.id,action='admin.contact_verification_changed',entity_type='user',entity_id=target.id,before={field:previous},after=after))
     await db.commit()
-    return {'id':str(target.id),'email_verified':bool(target.email_verified),'mobile_verified':bool(target.mobile_verified)}
+    result:dict[str,object]={'id':str(target.id),'email_verified':bool(target.email_verified),'mobile_verified':bool(target.mobile_verified)}
+    if others:result['shared_with']=len(others)
+    return result
 
 
 @router.get('/admin/bookings')

@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react'
 import {apiFetch,ApiError} from '../lib/api'
 import './AdminRecords.css'
 
-type User={id:string;name:string;email:string;status:string;roles:string[];email_verified:boolean;mobile?:string|null;mobile_verified?:boolean;customer_kyc_status?:string|null;provider_kyc_status?:string|null}
+type User={id:string;name:string;email:string;status:string;roles:string[];email_verified:boolean;mobile?:string|null;mobile_verified?:boolean;mobile_shared_count?:number;customer_kyc_status?:string|null;provider_kyc_status?:string|null}
 type RowMode='status'|'verification'
 type Booking={id:string;reference:string;customer_name:string;status:string;total_amount:string}
 type Requirement={id:string;reference:string;route:string;status:string;pickup_date:string;customer_name:string;bid_count:number;is_test:boolean}
@@ -15,6 +15,8 @@ const privileged=(item:User)=>item.roles.some(role=>['admin','superadmin'].inclu
 const words=(value:string)=>value.replaceAll('_',' ')
 export function verificationSummary(item:User):string[]{
   const lines=[`Email: ${item.email_verified?'verified':'not verified'}`,item.mobile?`Phone ${item.mobile}: ${item.mobile_verified?'verified':'not verified'}`:'Phone: not added']
+  const shared=item.mobile_shared_count||0
+  if(shared>0)lines.push(`Warning: this phone number is also verified on ${shared} other account${shared===1?'':'s'}`)
   if(item.roles.includes('customer'))lines.push(`PAN: ${item.customer_kyc_status?words(item.customer_kyc_status):'not started'}`)
   if(item.roles.some(role=>['provider','fleet_owner'].includes(role)))lines.push(`Provider verification: ${item.provider_kyc_status?words(item.provider_kyc_status):'not started'}`)
   return lines
@@ -26,25 +28,30 @@ function VerificationForm({item,onClose,onSaved}:{item:User;onClose:()=>void;onS
     {value:'email',label:`Mark email ${item.email_verified?'not verified':'verified'}`,channel:'email',verified:!item.email_verified},
     ...(item.mobile||item.mobile_verified?[{value:'mobile',label:`Mark phone ${item.mobile_verified?'not verified':'verified'}`,channel:'mobile' as const,verified:!item.mobile_verified}]:[]),
   ]
-  const [choice,setChoice]=useState(choices[0].value),[reason,setReason]=useState(''),[saving,setSaving]=useState(false),[error,setError]=useState('')
+  const firstUnverified=choices.find(entry=>entry.verified)||choices[0]
+  const [choice,setChoice]=useState(firstUnverified.value),[shareConfirmed,setShareConfirmed]=useState(false),[sharedRefused,setSharedRefused]=useState(false),[reason,setReason]=useState(''),[saving,setSaving]=useState(false),[error,setError]=useState('')
   const heading=useRef<HTMLHeadingElement>(null)
   useEffect(()=>heading.current?.focus(),[])
   const picked=choices.find(entry=>entry.value===choice)||choices[0]
+  const shared=item.mobile_shared_count||0
+  // The server is the source of truth: a 409 also shows the confirmation if the list was out of date.
+  const needsShareConfirm=picked.channel==='mobile'&&picked.verified&&(shared>0||sharedRefused)
   async function save(event:React.FormEvent){
     event.preventDefault();if(saving||reason.trim().length<10)return
     setSaving(true);setError('')
-    try{await apiFetch(`/admin/users/${item.id}/contact-verification`,{method:'POST',body:JSON.stringify({channel:picked.channel,verified:picked.verified,reason:reason.trim()})});onSaved(`${item.name}: ${picked.channel==='email'?'email':'phone'} is now ${picked.verified?'verified':'not verified'}.`)}
-    catch(failure){setError(failure instanceof Error?failure.message:'Verification change failed')}
+    try{await apiFetch(`/admin/users/${item.id}/contact-verification`,{method:'POST',body:JSON.stringify({channel:picked.channel,verified:picked.verified,reason:reason.trim(),...(needsShareConfirm&&shareConfirmed?{allow_shared_number:true}:{})})});onSaved(`${item.name}: ${picked.channel==='email'?'email':'phone'} is now ${picked.verified?'verified':'not verified'}.`)}
+    catch(failure){if(failure instanceof ApiError&&failure.status===409&&picked.channel==='mobile'&&/another account/.test(failure.message))setSharedRefused(true);setError(failure instanceof Error?failure.message:'Verification change failed')}
     finally{setSaving(false)}
   }
   return <form className="admin-status-form" onSubmit={save} onKeyDown={event=>{if(event.key==='Escape'&&!saving)onClose()}}>
     <h3 ref={heading} tabIndex={-1}>Edit verification: {item.name}</h3>
     <label>Change<select value={choice} onChange={event=>setChoice(event.target.value)}>{choices.map(entry=><option key={entry.value} value={entry.value}>{entry.label}</option>)}</select></label>
+    {needsShareConfirm&&<><p role="alert" className="form-error">{shared>0?`This phone number is also verified on ${shared} other account${shared===1?'':'s'}. `:''}Verify it here only if the same person uses both accounts. The other account keeps its verification.</p><label className="demand-check"><input type="checkbox" required checked={shareConfirmed} onChange={event=>setShareConfirmed(event.target.checked)}/>Verify anyway — the same person uses both accounts</label></>}
     {!item.mobile&&<p>No phone number is saved on this account, so phone verification cannot be marked.</p>}
     <p>This changes only email or phone verification. PAN and provider verification stay in the Verification queue.</p>
     <label>Reason (kept in the audit log, at least 10 characters)<textarea required minLength={10} maxLength={2000} value={reason} onChange={event=>setReason(event.target.value)}/></label>
     {error&&<p role="alert" className="form-error">{error}</p>}
-    <div className="admin-actions"><button disabled={saving||reason.trim().length<10}>{saving?'Saving…':'Save verification change'}</button><button type="button" className="secondary" disabled={saving} onClick={onClose}>Cancel</button></div>
+    <div className="admin-actions"><button disabled={saving||reason.trim().length<10||(needsShareConfirm&&!shareConfirmed)}>{saving?'Saving…':'Save verification change'}</button><button type="button" className="secondary" disabled={saving} onClick={onClose}>Cancel</button></div>
   </form>
 }
 

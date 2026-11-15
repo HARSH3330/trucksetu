@@ -55,3 +55,12 @@ it('lists requirements with a clear TEST badge and bid count',()=>{
   expect(html).toContain('TEST data')
   expect(html).toContain('0 bids')
 })
+
+it('warns when the phone is already verified on another account and asks the superadmin to confirm',()=>{
+  const shared={...person,email_verified:true,mobile_verified:false,mobile_shared_count:1}
+  expect(renderToStaticMarkup(<UserRow item={shared} open={false} busy={false} onOpen={noop} onClose={noop} onSaved={noop}/>)).toContain('Warning: this phone number is also verified on 1 other account')
+  const open=renderToStaticMarkup(<UserRow item={shared} superadmin open="verification" busy={false} onOpen={noop} onClose={noop} onSaved={noop}/>)
+  expect(open).toContain('Mark phone verified')
+  expect(open).toMatch(/role="alert"[^>]*>.*also verified on 1 other account/s)
+  expect(open).toMatch(/<input type="checkbox" required=""[^>]*\/>Verify anyway/)
+})

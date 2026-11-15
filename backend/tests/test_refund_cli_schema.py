@@ -8,7 +8,7 @@ import connection_refund_sandbox as cli
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('revision,allowed', [('20261023_28', True), ('20261025_29', True), ('20261023_27', False), ('20261026_30', False)])
+@pytest.mark.parametrize('revision,allowed', [('20261023_28', True), ('20261025_29', True), ('20261115_30', True), ('20261023_27', False), ('20261026_30', False)])
 async def test_refund_cli_accepts_only_reviewed_compatible_revisions(monkeypatch, revision, allowed):
     class DB:
         async def __aenter__(self): return self

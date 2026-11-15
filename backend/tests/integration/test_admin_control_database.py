@@ -72,12 +72,23 @@ def test_only_superadmin_edits_contact_verification_with_an_audit_reason(monkeyp
                 assert 'customer_kyc_status' in listed and 'provider_kyc_status' in listed
                 undone = await client.post(path, headers=owner, json={**body, 'verified': False, 'reason': 'Number belongs to someone else'})
                 assert undone.status_code == 200 and undone.json()['mobile_verified'] is False
-                # A phone already verified on another account cannot be verified again here.
+                # A phone already verified on another account needs an explicit "verify anyway" from the superadmin.
                 async with factory() as db:
                     (await db.get(User, provider)).mobile = '+917000000001'
                     (await db.get(User, provider)).mobile_verified = True
                     await db.commit()
-                assert (await client.post(path, headers=owner, json=body)).status_code == 409
+                listed = (await client.get('/api/v1/admin/users?q=customer-1-', headers=owner)).json()['items'][0]
+                assert listed['mobile_shared_count'] == 1
+                refused = await client.post(path, headers=owner, json=body)
+                assert refused.status_code == 409 and 'another account' in refused.json()['detail']
+                assert '+917000000001' not in refused.text
+                shared = await client.post(path, headers=owner, json={**body, 'allow_shared_number': True})
+                assert shared.status_code == 200, shared.text
+                assert shared.json() == {'id': str(customer), 'email_verified': False, 'mobile_verified': True, 'shared_with': 1}
+                async with factory() as db:
+                    assert (await db.get(User, provider)).mobile_verified is True  # the other account keeps its verification
+                undone = await client.post(path, headers=owner, json={**body, 'verified': False, 'reason': 'Undo the shared-number test'})
+                assert undone.status_code == 200 and undone.json()['mobile_verified'] is False
                 # No phone saved, own account and other admins are refused.
                 no_phone = actor_id(headers[0])
                 assert (await client.post(f'/api/v1/admin/users/{no_phone}/contact-verification', headers=owner, json=body)).status_code == 409
@@ -87,7 +98,8 @@ def test_only_superadmin_edits_contact_verification_with_an_audit_reason(monkeyp
                 assert email.status_code == 200 and email.json()['email_verified'] is True
             async with factory() as db:
                 audits = list(await db.scalars(select(AuditLog).where(AuditLog.action == 'admin.contact_verification_changed', AuditLog.entity_id == customer).order_by(AuditLog.created_at)))
-                assert [a.after['channel'] for a in audits] == ['mobile', 'mobile', 'email']
+                assert [a.after['channel'] for a in audits] == ['mobile', 'mobile', 'mobile', 'mobile', 'email']
+                assert audits[2].after['shared_with'] == 1 and 'shared_with' not in audits[0].after
                 assert audits[0].actor_id == owner_id and audits[0].before == {'mobile_verified': False}
                 assert audits[0].after['reason'] == 'Confirmed by phone call with the customer'
                 assert '+917000000001' not in str([a.after for a in audits])

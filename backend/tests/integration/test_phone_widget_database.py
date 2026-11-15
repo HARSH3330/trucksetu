@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock
 
 import httpx
 from sqlalchemy import delete,select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker,create_async_engine
 
 from app.api import phone_verification
@@ -94,13 +93,9 @@ def test_verified_phone_ownership_is_concurrent_exclusive_and_released_on_change
                     records=list(await reader.scalars(select(User).where(User.id.in_(identifiers))))
                     assert sum(record.mobile_verified for record in records)==1
                     assert all([role.role for role in record.roles]==['customer'] for record in records)
-                # No route/advisory lock: the PostgreSQL partial index itself
-                # must reject a second verified owner, not just hidden UI.
-                async with factory() as attempt:
-                    account=await attempt.get(User,identifiers[loser]);account.mobile_verified=True
-                    try:await attempt.commit()
-                    except IntegrityError:await attempt.rollback()
-                    else:raise AssertionError('Database admitted two verified phone owners')
+                # Self-service still refuses a number verified elsewhere (the 409 above, serialized by the
+                # per-number lock). Since migration 30 only a superadmin can deliberately share a number.
+                assert results[loser].status_code==409
                 saved=await client.patch('/api/v1/auth/mobile',headers=headers[winner],json={'mobile':number.lstrip('+'),'password':'FictionalOnly123!'})
                 assert saved.status_code==200 and saved.json()['mobile_verified'] is True
                 changed=await client.patch('/api/v1/auth/mobile',headers=headers[winner],json={'mobile':new_number,'password':'FictionalOnly123!'})

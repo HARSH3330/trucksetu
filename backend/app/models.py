@@ -30,7 +30,6 @@ class VehicleCategory(Base):
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        Index('uq_users_verified_mobile','mobile',unique=True,postgresql_where=text('mobile_verified')),
         CheckConstraint(r"NOT mobile_verified OR (mobile IS NOT NULL AND mobile ~ '^\+[1-9][0-9]{7,14}$')",name='ck_users_verified_mobile_canonical'),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
