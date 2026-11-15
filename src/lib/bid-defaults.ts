@@ -39,3 +39,20 @@ export function bidDateProblems(demand:PickupWindow,pickup:string,delivery:strin
     :Number.isFinite(p)&&d<=p?'Delivery must be after pickup.':null
   return {pickup:pickupProblem,delivery:deliveryProblem}
 }
+
+type TruckPapers={registration_number:string;document_expiries?:Record<string,string>}
+const PAPER_NAMES:Record<string,string>={rc:'RC',insurance:'insurance',fitness:'fitness certificate',pollution:'pollution certificate',permit:'permit'}
+
+/** "16 Nov 2026" for a YYYY-MM-DD date, without shifting it across time zones. */
+export const dateOnly=(value:string)=>new Date(value+'T00:00:00Z').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})
+
+/** The server refuses a bid when any truck paper expires before the delivery date (compared as a UTC date); name the paper first. */
+export function truckPaperProblem(truck:TruckPapers|undefined,delivery:string):string|null{
+  if(!truck?.document_expiries||!delivery)return null
+  const at=new Date(delivery);if(!Number.isFinite(at.getTime()))return null
+  const day=at.toISOString().slice(0,10)
+  const expired=Object.entries(truck.document_expiries).filter(([,until])=>until<day).sort(([,a],[,b])=>a.localeCompare(b))[0]
+  if(!expired)return null
+  const [kind,until]=expired
+  return `Truck ${truck.registration_number}'s ${PAPER_NAMES[kind]||kind} expires on ${dateOnly(until)}. Choose a delivery on or before that date, or upload the renewed ${kind==='rc'||kind==='permit'?'document':'certificate'} under Fleet → Private documents.`
+}

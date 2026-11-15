@@ -1,7 +1,7 @@
 import type {Demand,DemandBid,Selection} from './demand-types'
 
 export type ProviderProfile={id:string;display_name?:string;provider_type?:string;kyc_status:string;active:boolean}
-export type Vehicle={id:string;registration_number:string;maximum_payload_tonnes:string;maximum_volume_m3:string;status:string;document_eligible_today:boolean}
+export type Vehicle={id:string;registration_number:string;maximum_payload_tonnes:string;maximum_volume_m3:string;status:string;document_eligible_today:boolean;document_expiries?:Record<string,string>}
 export type Driver={id:string;full_name:string;active:boolean;kyc_status:string;contact_ready?:boolean}
 export type ProviderWorkspace={demands:Demand[];profile:ProviderProfile|null;canBid:boolean;bids:DemandBid[];selections:Selection[];vehicles:Vehicle[];drivers:Driver[];unavailable:string[]}
 type Fetch=<T>(path:string)=>Promise<T>

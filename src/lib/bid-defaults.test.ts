@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {bidDateProblems,bidDefaults,localInput} from './bid-defaults'
+import {bidDateProblems,bidDefaults,dateOnly,localInput,truckPaperProblem} from './bid-defaults'
 import {dateTime} from './demand-types'
 
 const demand={earliest_pickup_at:'2026-11-10T03:30:00Z',delivery_deadline_at:'2026-11-10T13:30:00Z'}
@@ -39,5 +39,17 @@ describe('bid dates must fit the customer window',()=>{
   it('names the deadline when delivery is late, and asks for delivery after pickup',()=>{
     expect(bidDateProblems(window,at('2026-11-10T05:00:00Z'),at('2026-11-11T14:00:00Z')).delivery).toBe(`Delivery must be by ${dateTime(window.delivery_deadline_at)}, the customer's deadline.`)
     expect(bidDateProblems(window,at('2026-11-10T05:00:00Z'),at('2026-11-10T05:00:00Z')).delivery).toBe('Delivery must be after pickup.')
+  })
+})
+
+describe('truck papers must last until delivery',()=>{
+  const truck={registration_number:'13221',document_expiries:{rc:'2030-11-14',insurance:'2030-11-14',fitness:'2026-11-16',pollution:'2030-11-14',permit:'2030-11-14'}}
+  it('names the paper that expires before delivery',()=>{
+    expect(truckPaperProblem(truck,localInput('2026-11-23T03:30:00Z'))).toBe(`Truck 13221's fitness certificate expires on ${dateOnly('2026-11-16')}. Choose a delivery on or before that date, or upload the renewed certificate under Fleet → Private documents.`)
+  })
+  it('is quiet when papers last until delivery or nothing is chosen',()=>{
+    expect(truckPaperProblem(truck,localInput('2026-11-16T05:00:00Z'))).toBeNull()
+    expect(truckPaperProblem(undefined,localInput('2026-11-23T03:30:00Z'))).toBeNull()
+    expect(truckPaperProblem(truck,'')).toBeNull()
   })
 })
