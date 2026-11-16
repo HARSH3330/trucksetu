@@ -47,7 +47,7 @@ def _scan_path(path):
                 return 'encrypted','encrypted_document'
             if len(document.pages)>200:
                 return 'limits_exceeded','page_limit'
-        elif prefix.startswith(b'\x89PNG\r\n\x1a\n') or prefix.startswith(b'\xff\xd8\xff'):
+        elif prefix.startswith((b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff')):
             Image.MAX_IMAGE_PIXELS=25_000_000
             with Image.open(path) as image:
                 if image.width*image.height>25_000_000:
@@ -62,7 +62,7 @@ def _scan_path(path):
 
 
 def run_engine(path,unsupported=False):
-    result=subprocess.run(['clamdscan','--config-file=/opt/scanner/clamd.conf','--fdpass','--no-summary','--stdout',str(path)],capture_output=True,timeout=120,text=True)
+    result=subprocess.run(['clamdscan','--config-file=/opt/scanner/clamd.conf','--fdpass','--no-summary','--stdout',str(path)],capture_output=True,timeout=120,text=True,check=False)
     if result.returncode==1:
         if 'Heuristics.Limits.Exceeded' in result.stdout:
             return 'limits_exceeded','engine_limit'
@@ -134,7 +134,7 @@ def start_daemon():
         if process.poll() is not None:
             raise RuntimeError('engine_startup_failed')
         try:
-            result=subprocess.run(['clamdscan','--config-file=/opt/scanner/clamd.conf','--ping=1'],capture_output=True,timeout=5)
+            result=subprocess.run(['clamdscan','--config-file=/opt/scanner/clamd.conf','--ping=1'],capture_output=True,timeout=5,check=False)
             if result.returncode==0:
                 engine_evidence()
                 return process

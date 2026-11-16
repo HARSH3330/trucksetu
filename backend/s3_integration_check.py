@@ -117,9 +117,7 @@ def run(execute=False):
         # or ARN/account identifiers from SDK errors. Test keys are above.
         if isinstance(error, ClientError):
             detail = f"AWS {error.response.get('Error',{}).get('Code','unknown')} HTTP {error.response.get('ResponseMetadata',{}).get('HTTPStatusCode','unknown')}; provider message redacted"
-        elif str(error) in {'Expected test bucket/region configuration is missing or mismatched','VersionId missing or null','Upload and metadata VersionId mismatch','Exact-version metadata/encryption mismatch','Unexpected clean tag on test object; missing-scan test cannot be claimed','Unsafe scan gate: nonclean object accepted','Overwrite did not create a distinct version','Original version bytes changed after overwrite'}:
-            detail = str(error)
-        elif re.fullmatch(r'Presigned PUT HTTP \d{3}; response body/URL suppressed|Unsigned GET expected 403, received HTTP \d{3}', str(error)):
+        elif str(error) in {'Expected test bucket/region configuration is missing or mismatched','VersionId missing or null','Upload and metadata VersionId mismatch','Exact-version metadata/encryption mismatch','Unexpected clean tag on test object; missing-scan test cannot be claimed','Unsafe scan gate: nonclean object accepted','Overwrite did not create a distinct version','Original version bytes changed after overwrite'} or re.fullmatch(r'Presigned PUT HTTP \d{3}; response body/URL suppressed|Unsigned GET expected 403, received HTTP \d{3}', str(error)):
             detail = str(error)
         else:
             detail = f'{type(error).__name__}; details redacted'

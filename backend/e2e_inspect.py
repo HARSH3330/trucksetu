@@ -28,6 +28,6 @@ if __name__ == '__main__':
         try:
             print(json.dumps(snapshot(sys.argv[1])))
         except Exception:
-            raise SystemExit('Local KYC state inspection failed; connection details redacted')
+            raise SystemExit('Local KYC state inspection failed; connection details redacted') from None
     else:
         raise SystemExit('Usage: python -m e2e_inspect <application UUID>|owner-required')

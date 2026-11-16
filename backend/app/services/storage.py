@@ -52,7 +52,7 @@ class PrivateDocumentStorage:
             raise ValueError('An immutable document version is required')
         if settings.KYC_SCAN_PROVIDER == 'clamav':
             from app.services.scan_contract import ScanIdentity, result_key, validate_result
-            if not settings.KYC_SCAN_RESULTS_BUCKET or settings.KYC_SCAN_RESULTS_BUCKET == self.bucket:
+            if not settings.KYC_SCAN_RESULTS_BUCKET or self.bucket == settings.KYC_SCAN_RESULTS_BUCKET:
                 raise ValueError('Separate trusted scan-result storage is required')
             identity = ScanIdentity(self.bucket, key, version_id)
             response = self.client.get_object(Bucket=settings.KYC_SCAN_RESULTS_BUCKET, Key=result_key(identity))

@@ -51,7 +51,7 @@ def read_policy(kind='marketplace'):
     model, raw = (MarketplacePolicy, settings.DEMAND_MARKETPLACE_POLICY) if kind == 'marketplace' else (FeePolicy, settings.CONNECTION_FEE_POLICY)
     try:
         value = model.model_validate(json.loads(raw))
-        if value.test_only and not (settings.APP_ENV == 'test'):
+        if value.test_only and settings.APP_ENV != 'test':
             return None
         return value
     except (ValueError, TypeError, ValidationError):

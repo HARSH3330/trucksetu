@@ -16,7 +16,7 @@ def matches_reference(refund, entity):
     notes=entity.get('notes')
     return (entity.get('id')==refund.gateway_refund_id if refund.gateway_refund_id else
             entity.get('receipt')==str(refund.id) or
-            isinstance(notes,dict) and notes.get('connection_refund_request')==str(refund.id))
+            (isinstance(notes,dict) and notes.get('connection_refund_request')==str(refund.id)))
 
 
 def refund_error(refund, item, entity):
@@ -100,7 +100,7 @@ async def execute_refund(factory,identity,gateway=None):
             entries=listing.get('items')
             if not isinstance(entries,list) or len(entries)>=100 or any(not isinstance(r,dict) for r in entries):
                 raise ValueError('refund_listing_requires_review')
-            matches=[r for r in entries if r.get('receipt')==str(identity) or isinstance(r.get('notes'),dict) and r['notes'].get('connection_refund_request')==str(identity)]
+            matches=[r for r in entries if r.get('receipt')==str(identity) or (isinstance(r.get('notes'),dict) and r['notes'].get('connection_refund_request')==str(identity))]
             if len(matches)>1 or any(r not in matches for r in entries):
                 raise ValueError('unrelated_refunds_require_review')
             if matches:entity=await gateway.fetch_refund(payment_id,matches[0]['id'])

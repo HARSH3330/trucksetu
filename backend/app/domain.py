@@ -228,7 +228,7 @@ NUMBER_WORDS={"one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eig
 def fallback_extract(text: str, today: date | None = None) -> dict[str, object | None]:
     today=today or date.today();lower=text.casefold()
     quantity_match=re.search(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+trucks?\b",lower)
-    quantity=int(quantity_match.group(1)) if quantity_match and quantity_match.group(1).isdigit() else NUMBER_WORDS.get(quantity_match.group(1),None) if quantity_match else None
+    quantity=int(quantity_match.group(1)) if quantity_match and quantity_match.group(1).isdigit() else NUMBER_WORDS.get(quantity_match.group(1)) if quantity_match else None
     route=re.search(r"\bfrom\s+(.+?)\s+to\s+(.+?)(?:\s+(?:carrying|with|on|tomorrow|today)|[,.]|$)",text,re.IGNORECASE)
     weight=re.search(r"(?:around\s+|about\s+)?(\d+(?:\.\d+)?)\s*(tonnes?|tons?|kg|kilograms?)",lower)
     cargo=re.search(r"(?:tonnes?|tons?|kg|kilograms?)\s+of\s+([a-z][a-z\s-]+?)(?:\s+each|[,.]|$)",lower)
