@@ -26,6 +26,7 @@ from app.services.demand_marketplace import (
 )
 from app.services.payments import RazorpayGateway, SandboxRazorpayGateway, require_razorpay_sandbox, verify_razorpay_signature
 from app.services.contact_access import verified_contact, selected_contact
+from app.services.route_distance import fill_route_distances
 
 router = APIRouter(prefix='/api/v1', tags=['customer demand marketplace'], route_class=AuthenticationFirstRoute)
 customer = require_roles('customer')
@@ -144,13 +145,15 @@ async def discover_demands(pickup: str = Query('', max_length=100), destination:
     if goods:
         from app.models import CargoItem
         query = query.join(CargoItem).where(CargoItem.category.ilike('%'+goods+'%'))
-    items = await db.scalars(query.order_by(TransportRequest.pickup_date).offset((page-1)*30).limit(30))
+    items = list(await db.scalars(query.order_by(TransportRequest.pickup_date).offset((page-1)*30).limit(30)))
+    await fill_route_distances(items, datetime.now(UTC))
     return [demand_view(item) for item in items]
 
 
 @router.get('/demands/{identity}')
 async def demand_detail(identity: uuid.UUID, db=Depends(get_db), user=Depends(participant)):
     item = await demand_for(db, identity)
+    await fill_route_distances([item], datetime.now(UTC))
     return demand_view(item, item.customer_id == user.id)
 
 

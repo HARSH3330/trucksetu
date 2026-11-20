@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState,type FormEvent} from 'react'
 import {ArrowRight as ArrowRightIcon, Phone as PhoneIcon, Lock as LockIcon, Plus as PlusIcon, RotateCw as ArrowClockwiseIcon} from 'lucide-react'
 import {apiFetch,publicFetch,type CurrentUser} from '../lib/api'
-import {dateTime,money,stateLabel,connectionRefundMessage,type Demand,type DemandBid,type Draft,type MarketplaceConfig,type PurchasedContact,type Selection} from '../lib/demand-types'
+import {dateTime,money,stateLabel,connectionRefundMessage,type Demand,type DemandBid,type Draft,type MarketplaceConfig,type PurchasedContact,type Selection,roadDistance} from '../lib/demand-types'
 import {openConnectionCheckout} from '../lib/connectionCheckout'
 import DemandComposer,{demandForm} from './DemandComposer'
 import {bidDefaults,eligibleTrucks,localInput,bidDateProblems,truckPaperProblem} from '../lib/bid-defaults'
@@ -20,7 +20,7 @@ type Requirement=NonNullable<DemandBid['requirement']>
 const driverOptions=(drivers:Driver[])=>drivers.map(x=>{const choice=driverChoice(x);return <option key={x.id} value={x.id} disabled={!choice.eligible}>{x.full_name}{choice.eligible?'':` — ${choice.reason}`}</option>})
 const messageOf=(error:unknown)=>error instanceof Error?error.message:'This action could not be completed. Your entered details are preserved.'
 
-function RequirementSummary({item}:{item:Demand}){return <><div className="demand-route"><h2>{item.pickup_city} <span aria-label="to">→</span> {item.destination_city}</h2><span className="demand-status">{stateLabel(item.status)}</span></div>{item.stop_count?<p className="demand-stops">{item.stop_count} stop{item.stop_count>1?'s':''} on the way{item.stops?.length?`: ${item.stops.map(stop=>stop.address).join(' → ')}`:''}</p>:null}<p>{item.cargo.category} · {item.cargo.weight_tonnes} tonnes · {item.cargo.volume_m3} m³</p><p>{dateTime(item.earliest_pickup_at)} – {dateTime(item.latest_pickup_at)}</p><small>{item.public_id}</small></>}
+function RequirementSummary({item}:{item:Demand}){return <><div className="demand-route"><h2>{item.pickup_city} <span aria-label="to">→</span> {item.destination_city}</h2><span className="demand-status">{stateLabel(item.status)}</span></div>{item.stop_count?<p className="demand-stops">{item.stop_count} stop{item.stop_count>1?'s':''} on the way{item.stops?.length?`: ${item.stops.map(stop=>stop.address).join(' → ')}`:''}</p>:null}<p className="demand-distance">{roadDistance(item)}</p><p>{item.cargo.category} · {item.cargo.weight_tonnes} tonnes · {item.cargo.volume_m3} m³</p><p>{dateTime(item.earliest_pickup_at)} – {dateTime(item.latest_pickup_at)}</p><small>{item.public_id}</small></>}
 
 function PurchasedConnection({selection:initialSelection,onChanged,provider=false,drivers=[],requirement}:{selection:Selection;onChanged:(verified?:Selection)=>void;provider?:boolean;drivers?:Driver[];requirement?:Requirement}){
  const now=useMinuteClock()

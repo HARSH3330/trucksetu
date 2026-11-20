@@ -1,5 +1,5 @@
 export type DemandCargo={category:string;description:string;weight_tonnes:string;length_m:string;width_m:string;height_m:string;packages:number|null;packaging_type:string|null;dimensions_are_per_package:boolean;loading_assistance:boolean;unloading_assistance:boolean;fragile:boolean;volume_m3:string}
-export type Demand={stop_count?:number;stops?:{address:string;activity:string|null;instructions:string|null;contact_name:string|null}[];id:string;public_id:string;revision:number;status:string;pickup_city:string;destination_city:string;pickup_address?:string;destination_address?:string;pickup_location?:{lat:number;lng:number}|null;destination_location?:{lat:number;lng:number}|null;pickup_date:string;earliest_pickup_at:string;latest_pickup_at:string;delivery_deadline_at:string;flexible_schedule:boolean;budget_amount:string|null;special_instructions?:string|null;cargo:DemandCargo}
+export type Demand={route_distance_km?:string|null;route_duration_minutes?:number|null;stop_count?:number;stops?:{address:string;activity:string|null;instructions:string|null;contact_name:string|null}[];id:string;public_id:string;revision:number;status:string;pickup_city:string;destination_city:string;pickup_address?:string;destination_address?:string;pickup_location?:{lat:number;lng:number}|null;destination_location?:{lat:number;lng:number}|null;pickup_date:string;earliest_pickup_at:string;latest_pickup_at:string;delivery_deadline_at:string;flexible_schedule:boolean;budget_amount:string|null;special_instructions?:string|null;cargo:DemandCargo}
 export type DemandBid={id:string;request_id:string;version:number;request_revision:number;status:string;provider_name:string;provider_verified:boolean;amount:string;currency:string;pickup_at:string;delivery_at:string;expires_at:string;inclusions:string;exclusions:string;notes:string|null;contact_kind:'provider'|'driver';requirement?:{reference:string;pickup_city:string;destination_city:string;cargo_category:string|null};vehicle:{body_type:string;payload_tonnes:string;volume_m3:string}}
 export type Fee={version:string|null;amount:string;total:string;currency:string;basis:string;tax_treatment:string;tax_amount:string|null;tax_rate?:string;tax_confirmed?:boolean;connection_fee_waived?:boolean;waiver_label?:string;waiver_tax_treatment?:string;test_only?:boolean;terms?:string;cancellation_terms?:string;provider_failure_terms?:string;replacement_terms?:string}
 export type MarketplaceConfig={mode:string;enabled:boolean;legacy_provider_operations:boolean;provider_first_publication_available:boolean;publication_available:boolean;checkout_available:boolean;real_checkout_available:boolean;fee:Fee;driver_assignment:string|null}
@@ -19,4 +19,16 @@ export function connectionRefundMessage(status:string,amount:string,currency='IN
  if(status==='processed')return `Refund status recorded as processed: ${full}. Contact access remains blocked.`
  if(status==='no_captured_payment')return 'Connection cancelled. No captured payment is recorded and no refund has been executed.'
  return 'Connection cancelled. Contact was revealed; ordinary cancellation has no refund.'
+}
+
+/** Road distance worked out by Google Routes on the server; never estimated in the browser. */
+export function roadDistance(item:{route_distance_km?:string|null;route_duration_minutes?:number|null}):string{
+  const km=Number(item.route_distance_km)
+  if(!item.route_distance_km||!Number.isFinite(km))return 'Road distance not available yet'
+  const shown=km>=100?String(Math.round(km)):String(Number(km.toFixed(1)))
+  const minutes=item.route_duration_minutes
+  if(!minutes)return `${shown} km by road`
+  const hours=Math.floor(minutes/60),rest=minutes%60
+  const time=hours?`${hours} h${rest?` ${rest} min`:''}`:`${rest} min`
+  return `${shown} km by road · about ${time} drive`
 }

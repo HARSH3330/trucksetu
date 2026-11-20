@@ -13,6 +13,7 @@ from app.models import (
     TransportRequest, Trip, User,
 )
 from app.services.demand_policy import capture_error, public_text
+from app.services.route_distance import route_view
 from app.services.driver_eligibility import require_verified_driver_identity
 
 
@@ -135,6 +136,7 @@ def demand_view(item, private=False):
     stops = sorted(item.stops, key=lambda stop: stop.position)
     # Providers see how many stops to price; addresses stay private like pickup and drop.
     result['stop_count'] = len(stops)
+    result.update(route_view(item))
     if private:
         result['stops'] = [{'address':stop.address,'activity':stop.activity,'instructions':stop.instructions,'contact_name':stop.contact_name} for stop in stops]
         result.update(pickup_address=item.pickup_address, destination_address=item.destination_address, special_instructions=item.special_instructions, pickup_location=item.pickup_location, destination_location=item.destination_location)

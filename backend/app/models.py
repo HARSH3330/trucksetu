@@ -109,6 +109,11 @@ class TransportRequest(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
     pickup_location: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     destination_location: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Road distance from Google Routes for the revision in route_revision; null when not worked out (never guessed).
+    route_distance_km: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    route_duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    route_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    route_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pickup_address: Mapped[str] = mapped_column(Text, nullable=False)
     pickup_city: Mapped[str] = mapped_column(String(100), nullable=False)
     destination_address: Mapped[str] = mapped_column(Text, nullable=False)
