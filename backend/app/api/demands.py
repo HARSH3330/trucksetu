@@ -122,12 +122,15 @@ async def publish_demand(payload: DemandInput, db=Depends(get_db), user=Depends(
         await db.delete(draft)
     audit(db, user.id, 'demand.published', 'transport_request', item.id, {'revision':item.revision})
     await db.commit()
+    # Work out the road distance now so truck owners and the customer see it straight away; saved by get_db.
+    await fill_route_distances([item], datetime.now(UTC))
     return demand_view(item, True)
 
 
 @router.get('/demands/mine')
 async def own_demands(db=Depends(get_db), user=Depends(customer)):
     items = list(await db.scalars(select(TransportRequest).where(TransportRequest.customer_id == user.id, TransportRequest.marketplace_mode == 'customer_demand').options(selectinload(TransportRequest.cargo), selectinload(TransportRequest.stops)).order_by(TransportRequest.created_at.desc()).limit(100)))
+    await fill_route_distances(items, datetime.now(UTC))
     return [demand_view(item, True) for item in items]
 
 
@@ -183,6 +186,7 @@ async def edit_demand(identity: uuid.UUID, payload: DemandInput, db=Depends(get_
     await db.execute(update(Quote).where(Quote.request_id == item.id,Quote.status == 'active').values(status='expired'))
     audit(db,user.id,'demand.edited_bids_expired','transport_request',item.id,{'revision':item.revision})
     await db.commit()
+    await fill_route_distances([item], datetime.now(UTC))
     return demand_view(item,True)
 
 
