@@ -1,0 +1,22 @@
+import {useEffect,useState} from 'react'
+import {apiFetch,publicFetch,type MarketplaceRequest} from '../lib/api'
+
+const fields=[['added_distance_km','Reviewed added distance (km)','500'],['added_time_minutes','Reviewed added time (minutes)','1440'],['route_fit_percent','Reviewed route fit (%)','100'],['additional_toll_permit_cost','Additional toll/permit cost (INR)','999999999'],['handling_waiting_allowance','Handling/waiting allowance (INR)','999999999'],['dedicated_comparable_price','Dedicated comparable price (INR)','999999999'],['proposed_shared_price','Provider final quote amount (INR)','999999999']] as const
+const flags=[['pickup_window_feasible','Pickup window reviewed feasible'],['delivery_deadline_feasible','Delivery deadline reviewed feasible'],['existing_commitments_feasible','Existing commitments reviewed feasible']] as const
+
+export default function SharedMatchReview(){
+  const [requests,setRequests]=useState<MarketplaceRequest[]>([]),[selected,setSelected]=useState(''),[values,setValues]=useState<Record<string,string>>({}),[checks,setChecks]=useState<Record<string,boolean>>({})
+  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[message,setMessage]=useState(''),[error,setError]=useState('')
+  async function load(){setLoading(true);setError('');try{setRequests((await publicFetch<MarketplaceRequest[]>('/requests')).filter(item=>item.booking_mode==='SHARED_CAPACITY'&&item.available_route_id))}catch(error){setError(error instanceof Error?error.message:'Requests unavailable')}finally{setLoading(false)}}
+  useEffect(()=>{void load()},[])
+  async function submit(event:React.FormEvent){
+    event.preventDefault();const request=requests.find(item=>item.id===selected);if(!request||busy)return;setBusy(true);setMessage('')
+    try{
+      const result=await apiFetch<{eligible:boolean;rejection_reasons:string[]}>(`/admin/requests/${request.id}/routes/${request.available_route_id}/evaluate-shared-match`,{method:'POST',body:JSON.stringify({...values,added_time_minutes:Number(values.added_time_minutes),...Object.fromEntries(flags.map(([key])=>[key,Boolean(checks[key])])),source:'admin_review'})})
+      setMessage(result.eligible?'Eligible. Acceptance still rechecks capacity, documents, timing and price.':`Not eligible: ${result.rejection_reasons.join(', ')}. No capacity promised.`)
+    }catch(error){setMessage(error instanceof Error?error.message:'Evaluation unavailable')}
+    finally{setBusy(false)}
+  }
+  async function expire(){if(busy)return;setBusy(true);try{const result=await apiFetch<{released:number}>('/admin/capacity/release-expired',{method:'POST'});setMessage(`Expired holds released: ${result.released}`)}catch(error){setMessage(error instanceof Error?error.message:'Expiry unavailable')}finally{setBusy(false)}}
+  return <details className="panel"><summary>Shared route suitability review</summary><p>Enter reviewed route/timing evidence and the provider final quote amount. These are operational inputs, not generated Maps results. No feasibility checkbox is preselected. Server safety and financial rules cannot be bypassed here.</p><button disabled={busy} onClick={()=>void load()}>Refresh shared review requests</button>{loading?<p>Loading shared requests…</p>:error?<p role="alert">{error}</p>:!requests.length?<p>No published route-selected shared requests.</p>:<form className="fields" onSubmit={submit}><label>Shared request to review<select required disabled={busy} value={selected} onChange={event=>setSelected(event.target.value)}><option value="">Choose request</option>{requests.map(item=><option key={item.id} value={item.id}>{item.public_id}</option>)}</select></label>{fields.map(([key,label,max])=><label key={key}>{label}<input required type="number" min={key.endsWith('price')?'0.01':'0'} max={max} step={key==='added_time_minutes'?'1':'0.01'} disabled={busy} value={values[key]||''} onChange={event=>setValues({...values,[key]:event.target.value})}/></label>)}{flags.map(([key,label])=><label key={key}><input type="checkbox" disabled={busy} checked={Boolean(checks[key])} onChange={event=>setChecks({...checks,[key]:event.target.checked})}/>{label}</label>)}<button disabled={busy}>Record suitability evaluation</button></form>}<p>Expiry releases only unbooked holds whose server expiry has passed. Confirmed bookings retain their cancellation rules.</p><button disabled={busy} onClick={()=>void expire()}>Release expired unbooked holds</button>{message&&<p role="status">{message}</p>}</details>
+}

@@ -1,0 +1,114 @@
+{
+  "classification": "MAPS_CHANGED_SOURCE_ONLY_NOT_ENTIRE_DIRTY_CANDIDATE",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "d81a9bf179a957800982ec29811a39a818909d1a4385378e96e123e682083ec8"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "23c9409bbd1008b31d0c3ee9fa95c2802fbc78b36c8c11d13d5acc33f17c64aa"
+    },
+    {
+      "path": "vite.config.ts",
+      "sha256": "e8fb044d8efa7aa129ea2a4625fb14e49aa1a09cbd3912e5a56ca85651facf5d"
+    },
+    {
+      "path": "src/lib/google-maps.ts",
+      "sha256": "efd744ac94d0af6dcc33fc675e93c43b878c3fcb86badeb8fa596a694e082406"
+    },
+    {
+      "path": "src/lib/demand-location.ts",
+      "sha256": "cbfcccc9ba4b6306fbc05ee822880d7a3a3613f76a9f3b5ae4967439148032f2"
+    },
+    {
+      "path": "src/lib/demand-location.test.ts",
+      "sha256": "a17725b4c855ad40d7ea72a2fe81b36558b9da6b51efe2b4ee3c5a2b5410c5ee"
+    },
+    {
+      "path": "src/lib/demand-types.ts",
+      "sha256": "e7c62373d70e9cc047d1dac25825772c97eeb53ec71d5433bd09309c1aee07a8"
+    },
+    {
+      "path": "src/components/DemandLocationMap.tsx",
+      "sha256": "37e7de09306e7e898a71ebde898573df82c50276b292e5d25a93077cd60a3bc4"
+    },
+    {
+      "path": "src/components/DemandComposer.tsx",
+      "sha256": "1172b7c680fc82a8fe9ed2e1b6b620c64e8c6a5bb9c971c2d04442f4366e0218"
+    },
+    {
+      "path": "src/components/DemandMarketplace.css",
+      "sha256": "337891ccc1b5c27caeca93e8b197bfa8f09811a3eb922904e76dfde1708f9698"
+    },
+    {
+      "path": "backend/app/models.py",
+      "sha256": "e5fd93ff250b49daf2a97eb2b1ba2ade1e2419bb6af480b709bde11baacd992b"
+    },
+    {
+      "path": "backend/app/api/demands.py",
+      "sha256": "c6b1c0c654b2bf34a4679458091144a056fb50eb3ca9332a398bcf4e3604bbea"
+    },
+    {
+      "path": "backend/app/services/demand_schemas.py",
+      "sha256": "d943b18b6d012bf65abfa5311bca99d8101d554bdc6d92c7d645482a15d9583a"
+    },
+    {
+      "path": "backend/app/services/demand_marketplace.py",
+      "sha256": "2e6c54492b7e6005ffaa7bb5bd5cd2e34ea4d3af435abe3ae58c358daa776272"
+    },
+    {
+      "path": "backend/migrations/versions/20261025_29_demand_locations.py",
+      "sha256": "cedac8c13fefea9f59aebf9bd1545a8bfa5502032d0ffb116455a52f08ca6f2f"
+    },
+    {
+      "path": "backend/tests/test_demand_locations.py",
+      "sha256": "3d734d3286114017608176e50267d730ba2964bee4ffe460f47bea477c023e05"
+    },
+    {
+      "path": "backend/tests/test_phase20_migrations.py",
+      "sha256": "21d9be411ffa5998a3262c9e13b748b189f6676fd591c1b0ee28f524333fc9ee"
+    },
+    {
+      "path": "backend/tests/integration/test_demand_locations_database.py",
+      "sha256": "3c25bb7beace4ebc47649c5d56e39a27ce60a2d4e92f2344ba594c1f3a35304e"
+    },
+    {
+      "path": "e2e/maps-harness.html",
+      "sha256": "bb0209e6aad9640b0c6ed8bfc6acc8afc956dd1a3b6e1c5e683b766bbde70d10"
+    },
+    {
+      "path": "e2e/fixtures/mapsHarness.tsx",
+      "sha256": "08d349242d69ddc21f0586497c55393aa0b1b354e73d2f7a76cd523d84fb8aff"
+    },
+    {
+      "path": "e2e/release-demand-maps.spec.ts",
+      "sha256": "e74ac061e6b79c0c9a29fbf0ea9d364b54f03629e34923c344c11d02036559d6"
+    },
+    {
+      "path": "e2e/release-demand-maps-real.spec.ts",
+      "sha256": "7c16f72dc28b96956121fb0f500b7d6442287acb16b9ab72944a2bb4491c4bc0"
+    },
+    {
+      "path": "e2e/serve-maps-harness.mjs",
+      "sha256": "5a2b8197f8a2da3610795503c0e9e3c357ecc5c38755f519c32e523215809fad"
+    },
+    {
+      "path": "playwright.maps.config.ts",
+      "sha256": "236adf76d7ce2e54d28960341396bdba00e940b3e998aadcab7e15b6cd53c01d"
+    },
+    {
+      "path": "playwright.maps-real.config.ts",
+      "sha256": "057159baf807b4961bac8607f670a605fbee332b16337f95fe6a9b01b7e70240"
+    },
+    {
+      "path": "vite.maps-harness.config.ts",
+      "sha256": "dc8323ce5efc848f75a4d1247ea7bd49f4af1b5c70c966a4780d795224ff3b0e"
+    }
+  ],
+  "private_env_excluded": true,
+  "browser_key_present": true,
+  "map_id_present": true,
+  "map_id_is_local_demo": true,
+  "browser_key_literal_absent_from_changed_source": true
+}

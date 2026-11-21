@@ -1,0 +1,9 @@
+**
+!backend/
+!backend/scan_worker.py
+!backend/app/
+!backend/app/services/
+!backend/app/services/scan_contract.py
+!ops/
+!ops/clamav/
+!ops/clamav/clamd.conf

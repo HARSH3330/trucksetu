@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 from app import main
 from app.core.config import Settings
@@ -76,3 +77,23 @@ def test_readiness_returns_controlled_503_without_leaking_exception(monkeypatch)
         "dependencies": {"database": "unavailable", "redis": "not_required"},
     }
     assert "private-host" not in response.text
+
+
+@pytest.mark.parametrize('configured,vercel,expected',[
+    ('local','','unknown'),
+    ('ca','','unknown'),
+    ('release-deadbeef-not-a-commit','','unknown'),
+    ('CCD594DF8A78F56041876C058B522E0624DB4FB6','','ccd594df8a78f56041876c058b522e0624db4fb6'),
+    ('d5f4306','','d5f4306'),
+    ('local','D5F4306697518D7A1335482CE37F49F1D41C4F06','d5f4306697518d7a1335482ce37f49f1d41c4f06'),
+    ('ccd594d','d5f4306697518d7a1335482ce37f49f1d41c4f06','d5f4306697518d7a1335482ce37f49f1d41c4f06'),
+    ('d5f4306','invalid-provider-value','d5f4306'),
+])
+def test_version_reports_only_complete_valid_commit_identifiers(monkeypatch,configured,vercel,expected):
+    monkeypatch.setenv('BUILD_SHA',configured)
+    monkeypatch.setenv('VERCEL_GIT_COMMIT_SHA',vercel)
+    monkeypatch.setattr(main,'settings',Settings(_env_file=None))
+    with TestClient(main.app,base_url='http://localhost') as client:
+        response=client.get('/version')
+    assert response.status_code==200
+    assert response.json()['build']==expected

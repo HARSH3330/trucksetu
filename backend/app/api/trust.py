@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,11 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.services.demand_policy import public_text
 from app.domain import cancellation_snapshot, ensure_review_allowed
-from app.models import ApplicationSetting, AvailableRoute, Booking, BookingAllocation, Cancellation, CapacityReservation, Dispute, DisputeMessage, Payment, ProviderProfile, Review, SafetyReport, Trip, User
+from app.models import ApplicationSetting, AuditLog, AvailableRoute, Booking, BookingAllocation, Cancellation, CapacityReservation, Dispute, DisputeMessage, Payment, ProviderProfile, Review, SafetyReport, Trip, User
 from app.schemas import CancellationCreate, DisputeCreate, DisputeMessageCreate, ReviewCreate, SafetyReportCreate
 from app.services.capacity import release_reservation
-from app.api.auth import current_user, require_roles
+from app.api.auth import current_user
 
 from app.core.routing import AuthenticationFirstRoute
 
@@ -33,6 +33,8 @@ async def _require_participant(db: AsyncSession, booking: Booking, user: User) -
 
 
 async def _cancellation_amounts(db: AsyncSession, booking: Booking) -> tuple[Decimal, dict[str, Decimal]]:
+    if (booking.route_snapshot or {}).get('marketplace_mode') == 'customer_demand':
+        raise HTTPException(409,'Cancel from the load itself. Connection-fee refunds follow their own rules.')
     setting=await db.get(ApplicationSetting,"cancellation_fee_percent_by_status")
     policy=setting.value if setting else {"advance_pending":"0","booking_confirmed":"10","disputed":"0"}
     percent=Decimal(str(policy.get(booking.status,"100")))
@@ -54,7 +56,7 @@ async def trust_activity(db:AsyncSession=Depends(get_db),user:User=Depends(curre
     for booking in bookings:
         provider_rows=list((await db.execute(select(ProviderProfile.user_id,ProviderProfile.display_name).join(BookingAllocation,BookingAllocation.provider_id==ProviderProfile.id).where(BookingAllocation.booking_id==booking.id).distinct())).all())
         if booking.customer_id==user.id:
-            targets=[{"id":str(target_id),"name":name,"role":"provider"} for target_id,name in provider_rows]
+            targets=[{"id":str(target_id),"name":public_text(name),"role":"provider"} for target_id,name in provider_rows]
         else:
             customer=await db.get(User,booking.customer_id)
             targets=[{"id":str(booking.customer_id),"name":customer.full_name if customer else "Customer","role":"customer"}]
@@ -71,7 +73,7 @@ async def cancellation_preview(booking_id:uuid.UUID,db:AsyncSession=Depends(get_
     booking=await db.get(Booking,booking_id)
     if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
     await _require_participant(db,booking,user)
-    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can no longer be cancelled")
+    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can't be cancelled any more.")
     percent,amounts=await _cancellation_amounts(db,booking)
     return {"booking_status":booking.status,"fee_percent":str(percent),"fee":str(amounts["fee"]),"refund":str(amounts["refund"])}
 
@@ -99,10 +101,14 @@ async def raise_dispute(booking_id: uuid.UUID, payload: DisputeCreate, db: Async
     booking=await db.scalar(select(Booking).where(Booking.id==booking_id).with_for_update())
     if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
     if user.id not in await _participants(db,booking):raise HTTPException(status_code=403,detail="Only booking participants can raise a dispute")
-    dispute=Dispute(booking_id=booking.id,raised_by=user.id,category=payload.category,description=payload.description)
+    # Keep the status from before the first open dispute so resolving can return the booking to it.
+    earlier=await db.scalar(select(Dispute.booking_status_before).where(Dispute.booking_id==booking.id,Dispute.status.in_({"open","under_review"}),Dispute.booking_status_before.is_not(None)).order_by(Dispute.created_at).limit(1))
+    previous=booking.status if booking.status!="disputed" else earlier
+    dispute=Dispute(booking_id=booking.id,raised_by=user.id,category=payload.category,description=payload.description,booking_status_before=previous)
     dispute_message=DisputeMessage(sender_id=user.id,message=payload.description,attachment_keys=payload.attachment_keys)
     db.add(dispute);await db.flush();dispute_message.dispute_id=dispute.id;db.add(dispute_message)
     booking.status="disputed"
+    db.add(AuditLog(actor_id=user.id,action="dispute.raised",entity_type="dispute",entity_id=dispute.id,before={"booking_status":previous},after={"booking_status":"disputed","booking_id":str(booking.id),"category":payload.category}))
     return {"id":str(dispute.id),"status":dispute.status}
 
 
@@ -120,7 +126,7 @@ async def cancel_booking(booking_id:uuid.UUID,payload:CancellationCreate,db:Asyn
     booking=await db.scalar(select(Booking).where(Booking.id==booking_id).with_for_update())
     if booking is None:raise HTTPException(status_code=404,detail="Booking not found")
     if user.id not in await _participants(db,booking):raise HTTPException(status_code=403,detail="Only booking participants can cancel")
-    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can no longer be cancelled")
+    if booking.status in {"completed","cancelled"}:raise HTTPException(status_code=409,detail="This booking can't be cancelled any more.")
     percent,amounts=await _cancellation_amounts(db,booking)
     item=Cancellation(booking_id=booking.id,cancelled_by=user.id,reason_code=payload.reason_code,reason_detail=payload.reason_detail,booking_status_snapshot=booking.status,policy_snapshot={"fee_percent":str(percent)},cancellation_fee=amounts["fee"],refund_amount=amounts["refund"])
     if booking.capacity_reservation_id:
@@ -143,11 +149,3 @@ async def safety_report(payload:SafetyReportCreate,db:AsyncSession=Depends(get_d
         if payload.subject_user_id not in participants:raise HTTPException(status_code=422,detail="The reported user is not part of this booking")
     item=SafetyReport(reporter_id=user.id,**payload.model_dump());db.add(item);await db.flush()
     return {"id":str(item.id),"status":item.status}
-
-
-@router.post("/admin/disputes/{dispute_id}/resolve")
-async def resolve_dispute(dispute_id:uuid.UUID,resolution:str,db:AsyncSession=Depends(get_db),user:User=Depends(require_roles("admin", "superadmin")))->dict[str,str]:
-    dispute=await db.scalar(select(Dispute).where(Dispute.id==dispute_id).with_for_update())
-    if dispute is None or dispute.status=="resolved":raise HTTPException(status_code=409,detail="Dispute is already resolved or unavailable")
-    dispute.status,dispute.resolution,dispute.resolved_by,dispute.resolved_at="resolved",resolution,user.id,datetime.now(UTC)
-    return {"status":dispute.status}

@@ -39,7 +39,7 @@ def test_vehicle_internal_volume_is_computed() -> None:
 
 
 def test_declared_vehicle_volume_cannot_exceed_body() -> None:
-    with pytest.raises(ValidationError, match="internal body volume"):
+    with pytest.raises(ValidationError, match="load space"):
         vehicle_input(maximum_volume_m3=Decimal("7"))
 
 

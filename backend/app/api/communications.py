@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.services.demand_policy import public_text, reject_contact
 from app.domain import ensure_chat_allowed
 from app.models import Booking, BookingAllocation, Conversation, ConversationParticipant, Message, Notification, NotificationPreference, ProviderProfile, User
 from app.schemas import ConversationCreate, MessageCreate, NotificationPreferenceUpdate
@@ -31,7 +32,7 @@ async def list_notifications(unread_only:bool=False,db:AsyncSession=Depends(get_
     if unread_only:query=query.where(Notification.read_at.is_(None))
     items=list(await db.scalars(query.order_by(Notification.created_at.desc()).limit(100)))
     unread=await db.scalar(select(func.count(Notification.id)).where(Notification.user_id==user.id,Notification.read_at.is_(None)))
-    return {"unread_count":int(unread or 0),"items":[{"id":str(x.id),"event_type":x.event_type,"title":x.title,"body":x.body,"read":x.read_at is not None,"created_at":x.created_at.isoformat()} for x in items]}
+    return {"unread_count":int(unread or 0),"items":[{"id":str(x.id),"event_type":x.event_type,"title":public_text(x.title),"body":public_text(x.body),"read":x.read_at is not None,"created_at":x.created_at.isoformat()} for x in items]}
 
 
 @router.post("/notifications/{notification_id}/read")
@@ -92,11 +93,12 @@ async def list_messages(conversation_id:uuid.UUID,db:AsyncSession=Depends(get_db
     if participant is None:raise HTTPException(status_code=403,detail="You are not part of this conversation")
     participant.last_read_at=datetime.now(UTC)
     items=list(await db.scalars(select(Message).where(Message.conversation_id==conversation_id,Message.deleted_at.is_(None)).order_by(Message.created_at).limit(500)))
-    return [{"id":str(x.id),"sender_id":str(x.sender_id),"body":x.body,"created_at":x.created_at.isoformat()} for x in items]
+    return [{"id":str(x.id),"sender_id":str(x.sender_id),"body":public_text(x.body),"created_at":x.created_at.isoformat()} for x in items]
 
 
 @router.post("/conversations/{conversation_id}/messages",status_code=status.HTTP_201_CREATED)
 async def send_message(conversation_id:uuid.UUID,payload:MessageCreate,db:AsyncSession=Depends(get_db),user:User=Depends(current_user))->dict[str,str]:
+    reject_contact(payload.body)
     conversation=await db.get(Conversation,conversation_id)
     if conversation is None or conversation.status!="active":raise HTTPException(status_code=409,detail="Conversation is unavailable")
     booking=await db.get(Booking,conversation.booking_id);participants=await _booking_participants(db,booking) if booking else {}

@@ -5,10 +5,11 @@ The quotation confirmation flow loads a popup with an unchecked checkbox. Cancel
 does not create a booking. Acceptance is stored in PostgreSQL and applies across
 devices; the server independently checks acceptance for every booking.
 
-The initial document is the owner's supplied draft, branded TransivoX. It retains
-unconfirmed entity/contact/jurisdiction placeholders and is explicitly marked draft
-pending legal review. Resolve these and obtain legal review before public launch.
-The Terms refer to a Privacy Policy; that policy must also be supplied and published.
+Version `2026-10-08-draft-v1` (`terms-v1.txt`) was the owner's supplied draft and is
+kept unchanged. Version `2026-11-11-v2` (`terms-v2.txt`) is the published final text:
+the owner reported legal confirmation on 2026-11-11 and supplied the courts (Delhi,
+India), contact email and phone. The registered address is left out at the owner's
+request. The page renders headings, bold text and lists instead of raw Markdown.
 
 Apply Alembic migration `20261008_19` before deploying the backend. Frontend and API
 must both be deployed. No production migration or deployment is run by this change.

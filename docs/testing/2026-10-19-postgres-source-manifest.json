@@ -1,0 +1,244 @@
+{
+  "head": "d5f4306697518d7a1335482ce37f49f1d41c4f06",
+  "branch": "codex/release-candidate-hardening",
+  "scope": "Modified/untracked executable source and test/configuration files; excludes documentation, generated egg-info and operational .tmp state. SHA256 of UTF8 path + space + file SHA256 lines, sorted, LF joined without terminal LF.",
+  "fingerprint": "e42ca95a0047606b895ea003243105085aefd7ce948e36a88aee3847f538060b",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "eded759245981926b34becb5afee694b088c8fe274371b93e4054cbac359abba"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "16a4eba1b915bc48e23ba0cdb1fa9813ec8c39a7eca1fd307f4d3ca36a740c74"
+    },
+    {
+      "path": ".github/workflows/playwright.yml",
+      "sha256": "0302a0976890cfeddd3c309ce65e552f1c9b2a8a9a3e992ca4dd2f3628934cc7"
+    },
+    {
+      "path": "backend/app/api/bookings.py",
+      "sha256": "bb3ff1713339b4b4e9b1e306526767a7574cbd2bd5035d81fdd93e018ba2e648"
+    },
+    {
+      "path": "backend/app/api/capacity.py",
+      "sha256": "52892c6014f529decf0de02034d6d898c3f2d60815985cdf345339e84ac77897"
+    },
+    {
+      "path": "backend/app/api/cookie_sessions.py",
+      "sha256": "2a33c1e5cfdd383d5124346c003eaeaa08e28dc3017d7583ad11ddd072bfdb78"
+    },
+    {
+      "path": "backend/app/api/quotes.py",
+      "sha256": "5cb2cb4a7ce5f63e26d793df1e51d5f3f5dbf6d009ce7cc11be459c3c9f1d087"
+    },
+    {
+      "path": "backend/app/api/requests.py",
+      "sha256": "9e520e0b6515479c0e9e34500befdb8d28ee7f047bc14728e299b25050c260cf"
+    },
+    {
+      "path": "backend/app/api/shared_bookings.py",
+      "sha256": "919beca5838eb3203086ebb29189d59142488e7286f69e3cb723d594d5ef4b6c"
+    },
+    {
+      "path": "backend/app/core/config.py",
+      "sha256": "d1b034046d9bd16d3479acc107f7473918bced6d99ffaf181288ec9e627f7a02"
+    },
+    {
+      "path": "backend/app/main.py",
+      "sha256": "d5c70a0e0782f6227c35b77d61ad3f0c6a57e38562450f60a9829d3d6d53dbf6"
+    },
+    {
+      "path": "backend/app/models.py",
+      "sha256": "5810575428f1e9210f01a749d9430cb8a229b1b7026c7544cdf5572170d807f5"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "sha256": "b6e97d5151ed45faf4db41df23e75a82236ae54e2fb85836451ba9b7532ccede"
+    },
+    {
+      "path": "backend/app/services/shared_quotes.py",
+      "sha256": "afbfa6145e07654716d8dd3184e1600d688ff271f711ab2df9b6f83989cf6194"
+    },
+    {
+      "path": "backend/e2e_session_control.py",
+      "sha256": "990ace4d967add46594f8cd37980a052ee8e95f320d205de39fed47479ed30f2"
+    },
+    {
+      "path": "backend/e2e_support.py",
+      "sha256": "851c9e18ca225585104a8a6d2e9cbb0cd9a00b53645ce3de650073ad4bdd2225"
+    },
+    {
+      "path": "backend/migrations/versions/20261014_24_shared_acceptance.py",
+      "sha256": "6b609b036c9d25c42198fb3f6091ce00f4250751e319f40674f19f8bcff784b2"
+    },
+    {
+      "path": "backend/s3_integration_check.py",
+      "sha256": "3d4e0d3df460f4a60f28134c581c1acff6de503501814a77e0859d718aa7a229"
+    },
+    {
+      "path": "backend/tests/integration/_local_release_db.py",
+      "sha256": "024904327b305ddc59932f2a93044f3597faec22fa53442db7844434073cf0fa"
+    },
+    {
+      "path": "backend/tests/integration/test_cookie_session_database.py",
+      "sha256": "34da0127d878e0f42c10cdcdd40a6533e043dbfe35faff746116848840d9c5b1"
+    },
+    {
+      "path": "backend/tests/integration/test_pilot_auth_database.py",
+      "sha256": "1b7e0c4cc9d4631e581c3ba80b046d847ae431c774858445aa37fe50b05a38aa"
+    },
+    {
+      "path": "backend/tests/integration/test_refresh_logout_concurrency.py",
+      "sha256": "664a05f4d2c9a871256a0456b4f19ec2a8ad6a33f97b25254f9df106eeed0940"
+    },
+    {
+      "path": "backend/tests/integration/test_release_migrations.py",
+      "sha256": "3f9d91f9fe2085fb145154fc0ecde78b57e898fc37271a1ae9addc5a52a9f156"
+    },
+    {
+      "path": "backend/tests/integration/test_shared_booking_database.py",
+      "sha256": "e325ac6e16b04d469bc741b0e3601f9cdeb9cc30282d9e04888552855e37f399"
+    },
+    {
+      "path": "backend/tests/test_capacity_expiry_audit.py",
+      "sha256": "69aac8926ab5a539e82352ba969919f7bc47437daf11affbb50ade9f73350f63"
+    },
+    {
+      "path": "backend/tests/test_cookie_sessions.py",
+      "sha256": "29d94b89673a7641b6823cc22562b9f1e575a2a1c4fb163b2ece4e4036c830a7"
+    },
+    {
+      "path": "backend/tests/test_e2e_storage_support.py",
+      "sha256": "c9812bebc22fd25003dc71091921006da39320afbb1cc34995a6990b2d88677f"
+    },
+    {
+      "path": "backend/tests/test_phase18_health.py",
+      "sha256": "81f07c0ce82029ae938b4a08bc96ca680e23480b13cc611369c6565a344f3cd5"
+    },
+    {
+      "path": "backend/tests/test_phase20_migrations.py",
+      "sha256": "1b4e9180e950a571dea679012eb12570b3df1b4998735f66584313d4ee35e378"
+    },
+    {
+      "path": "backend/tests/test_s3_integration_check.py",
+      "sha256": "d4693a055cc8e51669bae74a697f735f784a81715ce2ca424c39fca1b0bad976"
+    },
+    {
+      "path": "backend/tests/test_shared_acceptance.py",
+      "sha256": "bbb0fabd7ca92e3256d5b25fbdd227fa549ec57966c58a3a16847e24f91d40e3"
+    },
+    {
+      "path": "backend/tests/test_shared_quote_contract.py",
+      "sha256": "bb91c09bc64e50cffb4ddeb8ea9a84e62bf57b26e8090e894eb41789fc8e42fc"
+    },
+    {
+      "path": "backend/tests/test_shared_quote_revision.py",
+      "sha256": "1c1a35eb6156ab25b6fc4ad1246348e486e4017f11b10fce38165be3abe8ea7c"
+    },
+    {
+      "path": "backend/tests/test_signin_error_mapping.py",
+      "sha256": "208ab3f06c614278fe0a7e455a1dbe8e247e504cb9e8a8c1be810f22fba202fd"
+    },
+    {
+      "path": "backend/tests/test_vehicle_assignment_lock.py",
+      "sha256": "e8ad5c0acb7bd5ae048721f3b9bed747f94aaa58807ab0d95c46985961abe2b9"
+    },
+    {
+      "path": "e2e/fixtures/api.ts",
+      "sha256": "300ca587b109409f639ecdd94837b44c76400e781330823eca59b9010e6c87b8"
+    },
+    {
+      "path": "e2e/fixtures/shared_database.py",
+      "sha256": "7c9ae4ad42aa16aca51cfe8d42ec6e549cd1d87b8c6e16892b4c7219f55b4551"
+    },
+    {
+      "path": "e2e/public-followup.spec.ts",
+      "sha256": "f31df5907e504d62266b3b04071ff8ada2bb16e432de03f3a7fb1e5ed410d8da"
+    },
+    {
+      "path": "e2e/public-session.spec.ts",
+      "sha256": "b339768738eca623606b44ad88c333ddead55379ba6a65cda0fae27fd6ac3765"
+    },
+    {
+      "path": "e2e/public-shared.spec.ts",
+      "sha256": "b320ccc569ef6e847ee18b660230163015ebf9866ee978ff361a94a650049a72"
+    },
+    {
+      "path": "e2e/public-ux.spec.ts",
+      "sha256": "0a9dd933d844c9faca01c8877262f43692a575d2625ce44b328c5835753f3660"
+    },
+    {
+      "path": "e2e/release-session.spec.ts",
+      "sha256": "bd9020fed890c196e8b781cd353c8ab0acdf0d61fa6483bdb899596d7392afb5"
+    },
+    {
+      "path": "e2e/release-shared.spec.ts",
+      "sha256": "49134ad1e53f066eb5e648c1aa5df5dcbf8dd01afeafc04b49ecf49d1a59d5f1"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "94e6aac63ad51e1e759d6abefbe30d7dc283bed7553276a6df108cab08eae705"
+    },
+    {
+      "path": "playwright.public.config.ts",
+      "sha256": "b92625260cfed62c7fda95d49de94aebaee8b10dac519bd1fba4bb5dfb1eb8cd"
+    },
+    {
+      "path": "scripts/check-migrations.ps1",
+      "sha256": "61b4b0193737ca26d8633321d229f46c9ce0ed28a44f9db1f3fe244283994f15"
+    },
+    {
+      "path": "src/components/LiveAdmin.tsx",
+      "sha256": "35b07d904fbca084e969bb9ac2be47c6e7cd268998d2ccd186c0a341cfa52e82"
+    },
+    {
+      "path": "src/components/LiveCapacity.tsx",
+      "sha256": "823d82141dcff05ea7e84f6cb2b7d2fe0a6b3ccc4347cbc1aa145980239dde8d"
+    },
+    {
+      "path": "src/components/LiveQuoteComparison.tsx",
+      "sha256": "989e8467d413939cf47c600ec632f81da3f764314dfa4882e215ea7fcba9c792"
+    },
+    {
+      "path": "src/components/SharedCapacityRequest.tsx",
+      "sha256": "33cf906e70b4ff137afe330d04710051768008d0f3d10bdbf84c3a864a904f66"
+    },
+    {
+      "path": "src/components/SharedMatchReview.tsx",
+      "sha256": "ce1f9ccacdf71bde0fdbf89802a5e5ac575ec5c4a9e41c772ceab77d16182460"
+    },
+    {
+      "path": "src/components/SharedProviderQuotes.tsx",
+      "sha256": "09b5ac3bff3d656d0649e5f07d8fc2150ca894ecaf02eab5419c6f685d76b366"
+    },
+    {
+      "path": "src/components/SharedQuoteAcceptance.tsx",
+      "sha256": "810c87ae598dece26d63a91f0e94bb8b7e206d17bfa4d43fc3d2964ea605515d"
+    },
+    {
+      "path": "src/components/SharedQuoteRevisions.tsx",
+      "sha256": "1a4d3e643b6e8c4bc4f1a3b640ed1f2a7aa5659263085b15debf30022dfd1a26"
+    },
+    {
+      "path": "src/lib/api.test.ts",
+      "sha256": "bf8480ef17fc80c1ed220b49899033dca5aaa54d768020d67c272f7004defdbe"
+    },
+    {
+      "path": "src/lib/api.ts",
+      "sha256": "cf9f8924e5a92e24ab7e4a1d2f3d26c7073e81e942bdc3b947c62405ac94f46c"
+    },
+    {
+      "path": "src/lib/cookie-session.test.ts",
+      "sha256": "b9b20d228016a024f7767ca1231a7c6dc18a251c87713097aedc69e4468a5f68"
+    },
+    {
+      "path": "src/main.tsx",
+      "sha256": "6dc646589c0262e0379276efcf9fa8fff4486f15ad72978f24962b5a64cc4371"
+    },
+    {
+      "path": "vite.config.ts",
+      "sha256": "03ab48c74ad77c1fc5c3ae23c7a3e4004705dbe6ef14273b0b0e8c19703ed437"
+    }
+  ]
+}

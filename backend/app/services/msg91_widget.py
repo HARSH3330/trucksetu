@@ -13,6 +13,15 @@ class WidgetVerificationUnavailable(RuntimeError):
     pass
 
 
+def typed_mobile(value:object)->str|None:
+    """Accepts a person's typed number ("+91 98765 43210", "98765-43210") and returns it in canonical +CC form."""
+    if value is None or (isinstance(value,str) and not value.strip()):return None
+    cleaned=re.sub(r'[\s().-]','',value) if isinstance(value,str) and len(value)<=25 else ''
+    if not re.fullmatch(r'\+?[1-9][0-9]{7,14}',cleaned):
+        raise ValueError('Enter a valid mobile number, for example +91 98765 43210')
+    return canonical_mobile(cleaned)
+
+
 def canonical_mobile(value:str)->str:
     if not isinstance(value,str) or not re.fullmatch(r'\+?[1-9][0-9]{7,14}',value):
         raise InvalidWidgetVerification('Invalid mobile identifier')
@@ -35,13 +44,13 @@ class Msg91WidgetVerifier:
             if response.status_code>=500 or response.status_code in {301,302,307,308,429}:
                 raise WidgetVerificationUnavailable('Phone verification is unavailable')
             if response.status_code!=200:
-                raise InvalidWidgetVerification('Invalid or expired phone verification')
+                raise InvalidWidgetVerification('Phone verification did not work. Please try again.')
             payload=response.json()
         except (httpx.HTTPError,ValueError) as exc:
             if isinstance(exc,InvalidWidgetVerification):raise
             raise WidgetVerificationUnavailable('Phone verification is unavailable') from exc
         if not isinstance(payload,dict) or payload.get('type')!='success':
-            raise InvalidWidgetVerification('Invalid or expired phone verification')
+            raise InvalidWidgetVerification('Phone verification did not work. Please try again.')
         # MSG91's documented success message is the verified identifier, NOT
         # a human success phrase. Reject emails, missing or malformed identifiers.
         return canonical_mobile(payload.get('message'))

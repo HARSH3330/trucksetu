@@ -54,6 +54,7 @@ Never describe money as escrow unless a legally valid regulated escrow arrangeme
 8. Keep frontend types, API contracts, database models, migrations, tests, and documentation synchronized.
 9. Verify with fresh command output before claiming anything works.
 10. Report limitations and unrun checks explicitly. Never convert “not tested” into “working.”
+11. Perform every action you can safely complete yourself within the authorized task, including starting required local apps, development servers and isolated test services, and performing verification, instead of asking the user to do it. Ask for user involvement only when credentials, unavailable access, a business decision or explicit approval is genuinely required. Existing Git, production, external-service and database safeguards still apply.
 
 ## Git and External-Change Policy
 
