@@ -94,7 +94,7 @@ async def test_legacy_document_cannot_be_submitted_approved_or_downloaded(tmp_pa
     assert error.value.status_code == 409 and application.status == 'registered'
     application.status = 'under_review'
     with pytest.raises(HTTPException) as error:
-        await kyc.review(application.id, kyc.ReviewInput(decision='verified', reason='Harmless fixture review', document_decisions={kind:'accepted' for kind in ['aadhaar','pan','vehicle_rc']}), user, db, storage)
+        await kyc.review(application.id, kyc.ReviewInput(decision='verified', reason='Harmless fixture review', document_decisions={kind:'accepted' for kind in ['aadhaar','pan','vehicle_rc']}), SimpleNamespace(id=uuid.uuid4()), db, storage)  # independent reviewer
     assert error.value.status_code == 409 and provider.kyc_status == 'registered'
     with pytest.raises(HTTPException) as error:
         await kyc.download(application.documents[0].id, user, db, storage)

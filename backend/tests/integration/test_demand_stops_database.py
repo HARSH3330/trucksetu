@@ -21,9 +21,11 @@ def test_stops_are_saved_private_to_the_customer_and_editable(monkeypatch):
                 item=created.json()
                 assert [s['address'] for s in item['stops']]==[s['address'] for s in STOPS] and item['stop_count']==3
                 public=next(x for x in (await c.get('/api/v1/demands',headers=headers[2])).json() if x['id']==item['id'])
-                assert public['stop_count']==3 and 'stops' not in public and 'PRIVATE stop' not in str(public)
+                # Verified truck owners see stop addresses (owner decision 2026-11-20), not the instructions.
+                expected=[{'address':x['address'],'activity':x['activity']} for x in STOPS]
+                assert public['stop_count']==3 and public['stops']==expected and 'Collect 4 cartons' not in str(public)
                 detail=(await c.get('/api/v1/demands/'+item['id'],headers=headers[2])).json()
-                assert detail['stop_count']==3 and 'stops' not in detail
+                assert detail['stop_count']==3 and detail['stops']==expected and 'Gate 2' not in str(detail)
                 edited=await c.put('/api/v1/demands/'+item['id'],headers=headers[0],json={**payload,'expected_revision':1,'stops':STOPS[:1]})
                 assert edited.status_code==200,edited.text
                 assert edited.json()['stop_count']==1 and edited.json()['stops'][0]['address']==STOPS[0]['address']

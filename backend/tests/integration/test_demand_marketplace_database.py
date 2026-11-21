@@ -66,7 +66,8 @@ async def prepare_selection(client,headers,payload,bid,before_checkout=None,chec
     identity = demand.json()['id']
     listed = await client.get('/api/v1/demands',headers=headers[2])
     assert listed.status_code == 200
-    assert 'PRIVATE' not in listed.text and 'example.com' not in listed.text
+    # Verified truck owners see the exact address (owner decision 2026-11-20), never the customer's email.
+    assert 'example.com' not in listed.text
     offered = await client.post(f'/api/v1/demands/{identity}/bids',headers=headers[2],json=bid)
     assert offered.status_code == 201, offered.text
     pick = {'quote_id':offered.json()['id'],'expected_quote_version':1,'expected_request_revision':1,'idempotency_key':'select-'+uuid.uuid4().hex,'accepted_fee_policy_version':'local-fee-v1','accept_terms':True}

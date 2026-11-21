@@ -20,7 +20,7 @@ def unverified(monkeypatch):
 @pytest.mark.asyncio
 async def test_unverified_truck_owner_can_browse_open_requirements(monkeypatch):
     user = unverified(monkeypatch)
-    db = SimpleNamespace(scalars=AsyncMock(return_value=[]))
+    db = SimpleNamespace(scalars=AsyncMock(return_value=[]), scalar=AsyncMock(return_value=None))  # no verified profile
     assert await demands.discover_demands("", "", "", 1, db, user) == []
     db.scalars.assert_awaited_once()
 
@@ -30,8 +30,9 @@ async def test_unverified_truck_owner_sees_only_the_public_view_of_a_requirement
     user = unverified(monkeypatch)
     item = SimpleNamespace(id=uuid.uuid4(), customer_id=uuid.uuid4())
     monkeypatch.setattr(demands, "demand_for", AsyncMock(return_value=item))
-    monkeypatch.setattr(demands, "demand_view", lambda current, private=False: {"id": str(current.id), "private": private})
-    assert await demands.demand_detail(item.id, SimpleNamespace(), user) == {"id": str(item.id), "private": False}
+    monkeypatch.setattr(demands, "demand_view", lambda current, private=False, exact_location=False: {"id": str(current.id), "private": private, "exact": exact_location})
+    db = SimpleNamespace(scalar=AsyncMock(return_value=SimpleNamespace(active=True, kyc_status="under_review")))
+    assert await demands.demand_detail(item.id, db, user) == {"id": str(item.id), "private": False, "exact": False}
 
 
 @pytest.mark.asyncio

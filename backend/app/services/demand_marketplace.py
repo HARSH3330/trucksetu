@@ -123,7 +123,9 @@ async def eligible_driver(db, identity, provider_id, pickup, delivery, own_booki
     return driver
 
 
-def demand_view(item, private=False):
+def demand_view(item, private=False, exact_location=False):
+    """private: the customer's own view. exact_location: verified truck owners (owner decision 2026-11-20)
+    see the exact pickup/drop address and pins before bidding, without contact names or instructions."""
     cargo = item.cargo
     result = {'id':str(item.id), 'public_id':item.public_id, 'revision':item.revision, 'status':item.status,
               'pickup_city':public_text(item.pickup_city), 'destination_city':public_text(item.destination_city),
@@ -134,9 +136,11 @@ def demand_view(item, private=False):
     for key in ['category','description','packaging_type']:
         result['cargo'][key] = public_text(result['cargo'][key])
     stops = sorted(item.stops, key=lambda stop: stop.position)
-    # Providers see how many stops to price; addresses stay private like pickup and drop.
     result['stop_count'] = len(stops)
     result.update(route_view(item))
+    if exact_location and not private:
+        result['stops'] = [{'address':public_text(stop.address),'activity':stop.activity} for stop in stops]
+        result.update(pickup_address=public_text(item.pickup_address), destination_address=public_text(item.destination_address), pickup_location=item.pickup_location, destination_location=item.destination_location)
     if private:
         result['stops'] = [{'address':stop.address,'activity':stop.activity,'instructions':stop.instructions,'contact_name':stop.contact_name} for stop in stops]
         result.update(pickup_address=item.pickup_address, destination_address=item.destination_address, special_instructions=item.special_instructions, pickup_location=item.pickup_location, destination_location=item.destination_location)

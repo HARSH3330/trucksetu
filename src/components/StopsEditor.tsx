@@ -8,7 +8,7 @@ export default function StopsEditor({value,onChange}:{value:string;onChange:(val
   const update=(next:Stop[])=>onChange(writeStops(next))
   const change=(index:number,patch:Partial<Stop>)=>update(stops.map((stop,position)=>position===index?{...stop,...patch}:stop))
   return <section className="stops-editor" aria-labelledby="stops-heading">
-    <div className="stops-head"><h3 id="stops-heading">Stops on the way <small>optional</small></h3><p>Add places the truck must stop between pickup and drop. Truck owners see how many stops there are and include them in their quote; exact addresses stay private.</p></div>
+    <div className="stops-head"><h3 id="stops-heading">Stops on the way <small>optional</small></h3><p>Add places the truck must stop between pickup and drop. Verified truck owners see each stop address so they can include it in their quote; contact names and instructions stay private.</p></div>
     {stops.length>0&&<ol className="stops-list">{stops.map((stop,index)=><li key={index} className="stop-row">
       <span className="stop-number" aria-hidden="true">{index+1}</span>
       <div className="stop-fields">

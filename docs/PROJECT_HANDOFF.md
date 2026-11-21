@@ -134,3 +134,106 @@ Preflight reconfirmed `br-polished-surf-axulzu38` as production primary/default 
 This is a material plan/cost change, so earlier approval cannot be stretched into a workaround. Choose either additional Neon snapshot capacity/plan upgrade, or explicitly approve the weaker normal production-child branch plus encrypted logical backup alternative and provide the real private destination. Deleting the preserved incident snapshot remains prohibited.
 
 Application-write freeze also remains a production gate. Frozen source634b41df has no maintenance middleware across95 mutating routes. Celery beat can commit capacity-release writes every60seconds if deployed, and payment/connection webhooks can write state/audits. Before migration choose: (a) implement a reviewed maintenance control, producing a new commit and CI; or (b) approve a full backend traffic pause and require every worker/beat to be stopped plus an active-session check. If execution stops after schema migration, keep traffic/writers frozen and webhooks retryable; do not resume the old API on29, downgrade, or restore/cut over without separate approval.
+
+
+## Admin panel audit and completion — 15 November 2026 IST
+
+Branch `release/customer-first-20261026` at `19949f7` plus **uncommitted** changes from this work. Nothing committed, pushed, deployed or run against production. Local verification only, against the Docker test database `transivox-e2e-postgres` (port 55432).
+
+### Audit
+
+| # | Capability | Status | Evidence |
+|---|---|---|---|
+| 1 | Dashboard counts | Working and verified (extended) | `GET /admin/marketplace-health` counts customers, truck owners, drivers, trucks, KYC queues, requirements, bids, bookings, trips, disputes, paid connections. Added open connection-fee refunds, available/reserved fee credits and offline payments awaiting confirmation. Loading, forbidden and retry states exist. Tests: `test_admin_control_database`, `test_admin_console_database`, `LiveAdmin.test.tsx`. |
+| 1 | Dashboard navigation | Fixed | "Open disputes" and the Disputes nav item opened the participant Trust centre, which cannot resolve anything. They now open the admin dispute queue. |
+| 2 | Users: search, view, suspend/reactivate | Working and verified | Server-side search and pagination; masked phone; reason ≥10 chars; self and privileged accounts refused; suspension revokes refresh sessions and supply eligibility; audited (`test_admin_operations`, `test_admin_control_database`). |
+| 2 | Users: role and status filters | Was missing, now added | `role` (allowlisted, 422 otherwise) and `account_status` filters in API and UI. Browser: Driver filter returned 31 driver-only rows. |
+| 2 | Direct-API permission enforcement | Working and verified | Customer/provider tokens get 403 and unauthenticated calls get 401 on the new endpoints (integration tests; curl against the local API). |
+| 3 | Provider/driver KYC review | Working; one gap fixed | Clean-scan gate before acceptance (`require_bound_clean_scan`), reasons, review events, 5-minute signed downloads with audit. **Fixed:** an admin could review their own provider application (customer KYC already refused this). Now 403. |
+| 3 | Customer KYC review | Working and verified (existing tests) | Self-review refused, clean scan required, decision reasons audited. |
+| 3 | Vehicle document review | Working | Clean-scan and expiry gates, audited. Self-review **not** blocked; see decisions. |
+| 3 | KYC restrictions on publishing/bidding | Working | `require_customer_kyc` on publish/edit; provider and driver verification required for bids, selection and contact checkout. |
+| 4 | Requirements list | Partially implemented | Search, TEST badge, bid count. No per-requirement drill-down into bids/selections in the console. |
+| 4 | Bookings list | Was thin, now extended | Added status filter, truck owner(s), trip statuses, driver-assigned flag, open-dispute count and connection-fee state. No addresses, contacts or messages returned. |
+| 4 | Admin actions follow the trip state machine | Working | Trip status changes go through `ensure_trip_transition`; no admin override endpoint exists. |
+| 4 | Split awards / shared aggregation | Not in approved scope | Single winner per demand per the 21 Oct spec; shared-match review exists separately. |
+| 5 | Connection fee separate from freight | Working and verified | Fee snapshot separate; freight settled directly; UI copy says so. |
+| 5 | Orders, capture, refunds, payment events visible | Working | `/admin/connection-fees` lists selections, refund state and webhook outcomes (read-only). |
+| 5 | Contact locked until payment + reveal; pre-reveal full refund; cancel blocks reveal; no refund after reveal; race protection; webhook idempotency; duplicate-payment guard | Working and verified (existing tests) | `test_connection_fee_policy_database` (5 cases), `test_demand_marketplace_database`, `test_sandbox_refund_database`. |
+| 5 | Refund execution | Blocked by configuration | Executor is Razorpay Test Mode only; real refunds and `ENABLE_REAL_CONNECTION_CHECKOUT` stay off. |
+| 5 | Tax configuration | Blocked by product decision | Fee policy tax is "pending confirmation"; no tax rule invented. |
+| 6 | Provider-failure credit | Working and verified (existing tests) | Admin-only, reason required, independent of the customer, one credit per source selection (unique constraint plus row lock), reserved and redeemed atomically, "Platform connection fee waived" label. |
+| 6 | Checkout block for unresolved waiver tax | Working (kept) | `/order` returns 503 while a credit is applied. |
+| 6 | Credit expiry/transfer/refund rules | Blocked by product decision | Reported as "unresolved" by the API; nothing invented. |
+| 7 | Disputes | **Was broken, now fixed** | Before: no admin list, resolve took an unbounded query string, wrote no audit event, and left the booking `disputed` forever (which also locks contact reveal). Now: `GET /admin/disputes` (status filter, pagination), `POST /admin/disputes/{id}/resolve` with a 10–2000 char JSON reason, row locks, 404/409, audit event with before/after, and the booking returns to its pre-dispute status when no other dispute is open. Raising a dispute is now audited too. Browser-verified end to end. |
+| 7 | Safety reports | Missing | Reports are stored; no admin queue exists. Not built here (needs a small design: who sees reporter identity). |
+| 7 | Cancellations | Working | Customer-demand cancellations go through the connection rules; legacy cancellations through the cancellation preview. |
+| 7 | Audit log | Was API-only, now in the console | `/admin/audit-logs` now paged and filterable (action, entity type, entity id), returns actor name, masked actor email, reason and scalar before→after changes. Raw payloads are not returned. New "Audit log" tab. |
+| 7 | Integration status | Not changed | Health/readiness endpoints exist; no credentials exposed. |
+| 7 | Export / notifications | Not in approved scope | Spec excludes mass export; no admin notification requirement found. |
+| 8 | No non-admin access / escalation | Working and verified | `require_roles` on every `/admin/*` route; role changes are not exposed in the console (spec's superadmin role endpoint was never built — see decisions). |
+| 8 | Actor, time, reason, changes recorded | Working; dispute gap fixed | All admin mutations reviewed write audit or review events. |
+| 8 | Confirmation for destructive/financial actions | Working | Reason fields, explicit confirm buttons, checkbox for refund records. |
+| 8 | No false success | Working | Forms show the API error; success messages come from API responses. |
+| 8 | No secrets in responses | Working | Lists omit password/token/OTP hashes; audit view drops raw payloads. |
+
+### Changes
+
+- `backend/app/api/operations.py`: dispute queue and resolve; paged audit log with reason/changes; user `role` filter; booking `status` filter and operational fields; dashboard refund/credit/offline-payment counts.
+- `backend/app/api/trust.py`: dispute creation records the prior booking status and an audit event; old unaudited resolve removed (same path now served by operations).
+- `backend/app/api/kyc.py`: admins cannot review their own provider application.
+- `backend/app/models.py` + migration `20261120_33_dispute_booking_status.py`: nullable `disputes.booking_status_before`. Additive; downgrade drops the column.
+- `src/components/AdminRecords.tsx/.css`: Disputes and Audit log tabs, role/status filters, richer booking rows, dispute resolve form.
+- `src/components/LiveAdmin.tsx`: new counts, refund attention card, Disputes routing.
+- Tests: `backend/tests/integration/test_admin_console_database.py` (new, 2 cases), `test_kyc_review_regression.py` (+1), `AdminRecords.test.tsx` (+4), `LiveAdmin.test.tsx` (+1). Each new test was seen failing before the fix.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Backend unit (`pytest tests --ignore=tests/integration`) | 483 passed, 1 failed: `test_settlement_snapshots` (already failing before this work). Two existing tests updated for this change: migration head/count now `20261120_33`/31; `test_kyc_versions` now uses a separate reviewer so it still tests the version gate rather than the new self-review refusal. |
+| Backend integration (local PostgreSQL, `tests/integration`) | 83 passed, 2 failed: `test_financial_snapshots` (commission) and `test_request_creation_database`, both on the known pre-existing list. The two local email tests passed this run. New `test_admin_console_database` 2/2 passed. |
+| Ruff (`app tests migrations`), mypy `app/domain.py` | Pass |
+| Migrations | Single head `20261120_33`; full offline `upgrade head --sql` compiles; the new step emits only `ALTER TABLE disputes ADD COLUMN booking_status_before VARCHAR(30)`. Local test database upgraded 29→31. |
+| Frontend `vitest run` | 47 files, 194 tests passed |
+| Frontend `npm run build` | Pass |
+| Browser (local API :18000 + Vite :5174, local test DB) | Signed in as a local-only test superadmin; control centre showed the seeded open dispute and an open connection-fee refund; "Open disputes" opened the queue; resolve form required a reason; resolving returned the booking to `booking confirmed` and emptied the queue; Audit log tab showed actor, reason and changes; Users role filter sent `role=driver` and listed drivers only; Bookings tab showed truck owner, trips, driver and fee state; no horizontal overflow at 375px. |
+| Unauthorized API | Unauthenticated calls to the new endpoints returned 401 (curl); customer/provider tokens return 403 (integration tests). |
+| Not verified | Hosted CI, Playwright browser suite, production or preview deployment, real Razorpay/refund behaviour, the legacy-dispute (NULL prior status) path in a browser. |
+
+### Decisions needed
+
+1. **Dispute outcome.** Resolving now returns the booking to its status before the dispute. If you want admins to be able to cancel or complete a booking as the outcome, that needs a rule (and possibly a refund policy for legacy bookings).
+2. **Self-review of trucks.** Truck document review does not block an admin approving their own truck. Provider KYC now does. If the owner's superadmin account also owns trucks, decide whether a second reviewer is required.
+3. **Provider KYC self-review block.** If the owner's superadmin account has its own provider application under review, it can no longer approve it. Revert the one line in `kyc.py` if that is not wanted.
+4. **Superadmin role management** (`PUT /admin/users/{id}/roles` in the 7 Oct spec) was never built. Build only if you want role changes in the console.
+5. **Safety-report queue**: decide whether admins should see reporter identity.
+6. Unchanged blockers: connection-fee tax treatment, credit expiry/transfer rules, real Razorpay checkout and refunds.
+
+### Release steps (not done)
+
+Production needs migration `20261120_33` before the new API (additive, safe on the old API). Disputes raised before it have no recorded prior status; resolving one leaves the booking `disputed` and the API says so.
+
+### Follow-ups noticed
+
+- Local data shows bookings still `booking_confirmed` after every trip is `completed`; booking status may not advance with trip completion. Not investigated here.
+- `ConnectionFeeReview` pages selections and events together (50 each), so "next" can be misleading.
+
+## Exact pickup and drop for verified truck owners — 20 November 2026 IST
+
+**Owner decision (20 Nov 2026):** every verified truck owner sees the exact pickup and delivery address, map pins and stop addresses before bidding. This reverses the 21 October design ("precise addresses excluded from public listings") and means a truck owner can find the pickup point without paying the connection fee. Uncommitted; not deployed.
+
+| Who | Sees |
+|---|---|
+| Verified truck owner (active profile, KYC `verified`, account active) | Exact pickup/drop address, pickup/drop pins (with Google Maps links), stop addresses and activity — in Open loads, demand detail, and My bids. Phone numbers typed into an address are replaced with "[contact removed]". |
+| Truck owner still under review | Cities, cargo, schedule and stop count only (unchanged). |
+| Admin / superadmin | Full requirement via `GET /demands/{id}`, including special instructions. |
+| Never shown to truck owners before payment | Customer name, phone, email, stop contact names, stop instructions, special instructions. |
+
+Changes: `demand_view(..., exact_location=True)` in `services/demand_marketplace.py`; `sees_exact_location()` in `api/demands.py` used by `/demands`, `/demands/{id}`, `/demand-bids/mine`; new `src/components/DemandPins.tsx`. Customer wording updated in the demand form, stops editor and home page; privacy notice now discloses it and is bumped to `privacy-v5-20261120` (new signups record that version).
+
+Migration renumbered: another session committed `20261120_32_load_road_distance` (also after `20261115_30`), so the dispute migration from 15 Nov is now `20261120_33_dispute_booking_status` after it. Single head `20261120_33`. The local test database was rolled back one step and upgraded through 32 and 33.
+
+Verification: new `test_demand_location_sharing_database` seen failing on the old code, passing now; demand, stops, locations, milestone, connection-fee and admin integration files 36/36 after updating three tests that asserted the old privacy rule; backend unit 488 passed, 1 known failure (`test_settlement_snapshots`); frontend 49 files / 199 tests and build pass; ruff clean. Browser (local production build + local API): a verified test truck owner saw the exact addresses, both pin links (correct coordinates, new tab) and the stop address, not the stop contact name or instructions; no sideways scroll at 375px. Not verified: hosted CI, production.
+
+Owner decision (20 Nov 2026): demands posted before this change also show their exact addresses to verified truck owners; no cut-off by posting date. Customers are not asked to tick a separate consent for address sharing; the privacy notice and form text disclose it. Legal review of the privacy wording is still needed before public launch.

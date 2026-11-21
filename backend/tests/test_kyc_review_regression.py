@@ -53,3 +53,16 @@ async def test_suspended_provider_can_enter_resubmission_but_not_direct_approval
     assert result['status'] == 'resubmit_required'
     assert provider.kyc_status == 'resubmit_required' and provider.active is True
     db.add.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_review_their_own_provider_application():
+    actor = SimpleNamespace(id=uuid.uuid4())
+    item = KYCApplication(id=uuid.uuid4(), provider_id=uuid.uuid4(), legal_name='Fictional test', status='under_review', documents=[])
+    provider = ProviderProfile(user_id=actor.id, provider_type='owner', display_name='Fictional test', kyc_status='under_review')
+    db = SimpleNamespace(scalar=AsyncMock(return_value=item), get=AsyncMock(return_value=provider), add=Mock())
+    with pytest.raises(HTTPException) as error:
+        await review(item.id, ReviewInput(decision='resubmit_required', reason='Reviewing my own documents'), actor, db, SimpleNamespace(require_clean_scan=Mock()))
+    assert error.value.status_code == 403
+    assert item.status == 'under_review' and provider.kyc_status == 'under_review'
+    db.add.assert_not_called()

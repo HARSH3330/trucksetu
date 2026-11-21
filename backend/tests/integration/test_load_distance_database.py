@@ -36,7 +36,8 @@ def test_customers_and_truck_owners_see_road_distance_saved_once_per_revision(mo
                 assert calls[0]['origin'] == {'location': {'latLng': {'latitude': 28.61, 'longitude': 77.2}}}
                 listed = await c.get('/api/v1/demands', headers=headers[2])
                 found = next(x for x in listed.json() if x['id'] == item['id'])
-                assert found['route_distance_km'] == '412.35' and 'pickup_location' not in found  # the pins stay private
+                # Verified truck owners see the exact pins (owner decision 20 Nov 2026) next to the road distance.
+                assert found['route_distance_km'] == '412.35' and found['pickup_location'] == pins['pickup_location']
                 again = await c.get('/api/v1/demands/' + item['id'], headers=headers[2])
                 assert again.json()['route_distance_km'] == '412.35' and len(calls) == 1  # saved, not looked up again
                 edited = await c.put('/api/v1/demands/' + item['id'], headers=headers[0], json={**payload, **pins, 'expected_revision': 1})

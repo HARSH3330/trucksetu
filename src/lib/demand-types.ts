@@ -1,6 +1,6 @@
 export type DemandCargo={category:string;description:string;weight_tonnes:string;length_m:string;width_m:string;height_m:string;packages:number|null;packaging_type:string|null;dimensions_are_per_package:boolean;loading_assistance:boolean;unloading_assistance:boolean;fragile:boolean;volume_m3:string}
 export type Demand={route_distance_km?:string|null;route_duration_minutes?:number|null;stop_count?:number;stops?:{address:string;activity:string|null;instructions:string|null;contact_name:string|null}[];id:string;public_id:string;revision:number;status:string;pickup_city:string;destination_city:string;pickup_address?:string;destination_address?:string;pickup_location?:{lat:number;lng:number}|null;destination_location?:{lat:number;lng:number}|null;pickup_date:string;earliest_pickup_at:string;latest_pickup_at:string;delivery_deadline_at:string;flexible_schedule:boolean;budget_amount:string|null;special_instructions?:string|null;cargo:DemandCargo}
-export type DemandBid={id:string;request_id:string;version:number;request_revision:number;status:string;provider_name:string;provider_verified:boolean;amount:string;currency:string;pickup_at:string;delivery_at:string;expires_at:string;inclusions:string;exclusions:string;notes:string|null;contact_kind:'provider'|'driver';requirement?:{reference:string;pickup_city:string;destination_city:string;cargo_category:string|null};vehicle:{body_type:string;payload_tonnes:string;volume_m3:string}}
+export type DemandBid={id:string;request_id:string;version:number;request_revision:number;status:string;provider_name:string;provider_verified:boolean;amount:string;currency:string;pickup_at:string;delivery_at:string;expires_at:string;inclusions:string;exclusions:string;notes:string|null;contact_kind:'provider'|'driver';requirement?:{reference:string;pickup_city:string;destination_city:string;cargo_category:string|null;pickup_address?:string|null;destination_address?:string|null;pickup_location?:{lat:number;lng:number}|null;destination_location?:{lat:number;lng:number}|null};vehicle:{body_type:string;payload_tonnes:string;volume_m3:string}}
 export type Fee={version:string|null;amount:string;total:string;currency:string;basis:string;tax_treatment:string;tax_amount:string|null;tax_rate?:string;tax_confirmed?:boolean;connection_fee_waived?:boolean;waiver_label?:string;waiver_tax_treatment?:string;test_only?:boolean;terms?:string;cancellation_terms?:string;provider_failure_terms?:string;replacement_terms?:string}
 export type MarketplaceConfig={mode:string;enabled:boolean;legacy_provider_operations:boolean;provider_first_publication_available:boolean;publication_available:boolean;checkout_available:boolean;real_checkout_available:boolean;fee:Fee;driver_assignment:string|null}
 export type Selection={id:string;vehicle_id:string;request_id:string;quote_id:string;booking_id:string;status:string;payment_status:string;expires_at:string;order_state:string;quote:DemandBid;fee:Fee;contact_state:string;contact_revealed_at?:string|null;credit_id?:string|null;contact_kind:'provider'|'driver';contact_label:string;assignment_state:string;freight_payment_separate:boolean;refund?:{id:string;status:string;amount:string;tax_amount:string|null;currency:string}|null}
@@ -31,4 +31,15 @@ export function roadDistance(item:{route_distance_km?:string|null;route_duration
   const hours=Math.floor(minutes/60),rest=minutes%60
   const time=hours?`${hours} h${rest?` ${rest} min`:''}`:`${rest} min`
   return `${shown} km by road · about ${time} drive`
+}
+
+type LoadSchedule={earliest_pickup_at:string;latest_pickup_at?:string|null;delivery_deadline_at?:string|null;budget_amount?:string|null;cargo:{fragile?:boolean}}
+
+/** What and when the customer asked for, in words, for every load card. */
+export function loadDetails(item:LoadSchedule):string[]{
+  const lines=[item.latest_pickup_at?`Pickup between ${dateTime(item.earliest_pickup_at)} and ${dateTime(item.latest_pickup_at)}`:`Pickup from ${dateTime(item.earliest_pickup_at)}`]
+  if(item.delivery_deadline_at)lines.push(`Deliver by ${dateTime(item.delivery_deadline_at)}`)
+  if(item.budget_amount)lines.push(`Customer budget: ${money(item.budget_amount)}`)
+  if(item.cargo.fragile)lines.push('Fragile goods: handle with care')
+  return lines
 }

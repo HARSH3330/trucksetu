@@ -16,3 +16,5 @@
 .admin-status-form label{display:grid;gap:4px}
 .admin-status-form textarea{min-height:80px}
 @media(max-width:640px){.admin-record{grid-template-columns:1fr}.admin-note{text-align:left}}
+.admin-search select{min-height:44px}
+.admin-dispute-text{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}

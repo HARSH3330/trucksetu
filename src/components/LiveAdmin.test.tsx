@@ -3,7 +3,7 @@ import {describe,expect,it} from 'vitest'
 import {AdminOverview} from './LiveAdmin'
 
 const health={verified_providers:2,approved_vehicles:3,open_requests:8,active_quotes:1,active_bookings:0,open_disputes:0,pending_kyc:0,gmv:'0',total_bookings:0,completed_bookings:0,completion_rate:0,
-  open_requirements:5,open_bids:7,requirements_without_bids:2,total_customers:11,total_truck_owners:4,verified_truck_owners:1,total_trucks:6,total_drivers:3,total_trips:9,active_trips:1,completed_trips:8,paid_connections:2,pending_customer_kyc:0,unverified_contacts:0}
+  open_requirements:5,open_bids:7,requirements_without_bids:2,total_customers:11,total_truck_owners:4,verified_truck_owners:1,total_trucks:6,total_drivers:3,total_trips:9,active_trips:1,completed_trips:8,paid_connections:2,pending_customer_kyc:0,unverified_contacts:0,connection_refunds_open:0,credits_available:0,credits_reserved:0,pending_offline_payments:0}
 const noop=()=>{}
 const view=(overrides={})=>renderToStaticMarkup(<AdminOverview health={{...health,...overrides}} openKyc={noop} openVehicles={noop} openDisputes={noop}/>)
 
@@ -33,5 +33,11 @@ describe('control centre overview',()=>{
     const html=view({pending_customer_kyc:2,unverified_contacts:4})
     expect(html).toMatch(/2 verifications waiting/)
     expect(html).toMatch(/4 accounts without a verified email or phone/)
+  })
+  it('flags open connection-fee refunds and shows credits and pending payments',()=>{
+    const html=view({connection_refunds_open:2,credits_available:1,credits_reserved:1,pending_offline_payments:3})
+    expect(html).toMatch(/2 connection-fee refunds open/)
+    expect(html).toMatch(/Fee credits<\/small><strong>1<\/strong><em>1 reserved for checkout/)
+    expect(html).toMatch(/Offline payments<\/small><strong>3<\/strong>/)
   })
 })

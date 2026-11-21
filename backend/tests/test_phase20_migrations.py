@@ -16,9 +16,9 @@ def test_migration_history_is_single_complete_chain() -> None:
     config = Config(str(BACKEND / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND / "migrations"))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["20261120_32"]
+    assert scripts.get_heads() == ["20261120_33"]
     revisions = list(scripts.walk_revisions(base="base", head="heads"))
-    assert len(revisions) == 31
+    assert len(revisions) == 32
     assert revisions[-1].down_revision is None
 
 

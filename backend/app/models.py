@@ -675,6 +675,8 @@ class Dispute(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="open")
     priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
     resolution: Mapped[str | None] = mapped_column(Text)
+    # Booking status when the dispute was raised; resolving restores it (null for disputes raised before 20261120_33).
+    booking_status_before: Mapped[str | None] = mapped_column(String(30))
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -58,3 +58,8 @@
 @media(max-width:800px){.customer-review-form{grid-template-columns:1fr}.customer-review .document-list article{grid-template-columns:38px 1fr}.customer-review .document-list article button,.customer-review .document-list article select{grid-column:2}}
 .admin-verification .kyc-queue:has(>.empty-state:only-child){grid-column:1/-1;padding:0;border:0;background:none}
 .customer-review .document-list select{min-width:190px;min-height:40px}
+.demand-pins{display:grid;gap:4px;margin:6px 0}
+.demand-pin-line{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin:0;overflow-wrap:anywhere}
+.demand-pin-line a{min-height:44px;display:inline-flex;align-items:center;font-weight:600}
+/* Pickup window, deliver-by, budget and fragile flag on every load card. */
+.demand-schedule{margin:6px 0;padding-left:18px;display:grid;gap:2px}

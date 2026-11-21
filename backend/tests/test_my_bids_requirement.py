@@ -21,8 +21,11 @@ def quote():
 async def test_my_bids_names_the_requirement_each_bid_belongs_to(monkeypatch):
     item = quote()
     monkeypatch.setattr(demands, "provider_for", AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4())))
-    rows = SimpleNamespace(all=lambda: [(item, "TS-REQ-2026-ABC123", "Delhi", "Noida", "Electronics")])
-    db = SimpleNamespace(execute=AsyncMock(return_value=rows))
-    result = await demands.my_bids(db, SimpleNamespace(id=uuid.uuid4()))
-    assert result[0]["requirement"] == {"reference": "TS-REQ-2026-ABC123", "pickup_city": "Delhi", "destination_city": "Noida", "cargo_category": "Electronics"}
+    pin = {"lat": 28.6139, "lng": 77.209}
+    rows = SimpleNamespace(all=lambda: [(item, "TS-REQ-2026-ABC123", "Delhi", "Noida", "Electronics", "Gate 3, Okhla", "Plot 14, Sector 63", pin, None)])
+    verified = SimpleNamespace(active=True, kyc_status="verified")
+    db = SimpleNamespace(execute=AsyncMock(return_value=rows), scalar=AsyncMock(return_value=verified))
+    result = await demands.my_bids(db, SimpleNamespace(id=uuid.uuid4(), status="active"))
+    assert result[0]["requirement"] == {"reference": "TS-REQ-2026-ABC123", "pickup_city": "Delhi", "destination_city": "Noida", "cargo_category": "Electronics",
+                                        "pickup_address": "Gate 3, Okhla", "destination_address": "Plot 14, Sector 63", "pickup_location": pin, "destination_location": None}
     assert result[0]["amount"] == "4600.00"

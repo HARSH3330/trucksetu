@@ -15,7 +15,7 @@ from app.core.database import acquire_idempotency_lock, get_db
 from app.core.rate_limit import enforce_rate_limit
 from app.core.routing import AuthenticationFirstRoute
 from app.models import (
-    Booking, BookingAllocation, CargoItem, ConnectionFeeEvent, RequestStop, DemandDraft, DemandSelection, Quote, QuoteVersion, TransportRequest, Trip,
+    Booking, BookingAllocation, CargoItem, ConnectionFeeEvent, RequestStop, DemandDraft, DemandSelection, ProviderProfile, Quote, QuoteVersion, TransportRequest, Trip,
 )
 from app.schemas import DriverAssignment
 from app.services.demand_policy import public_text, read_policy, reject_contact, require_policy
@@ -150,14 +150,24 @@ async def discover_demands(pickup: str = Query('', max_length=100), destination:
         query = query.join(CargoItem).where(CargoItem.category.ilike('%'+goods+'%'))
     items = list(await db.scalars(query.order_by(TransportRequest.pickup_date).offset((page-1)*30).limit(30)))
     await fill_route_distances(items, datetime.now(UTC))
-    return [demand_view(item) for item in items]
+    exact = await sees_exact_location(db, user)
+    return [demand_view(item, exact_location=exact) for item in items]
+
+
+async def sees_exact_location(db, user) -> bool:
+    """Only an active, verified truck-owner profile sees exact addresses and pins before bidding."""
+    profile = await db.scalar(select(ProviderProfile).where(ProviderProfile.user_id == user.id))
+    return bool(profile and profile.active and profile.kyc_status == 'verified' and user.status == 'active')
 
 
 @router.get('/demands/{identity}')
 async def demand_detail(identity: uuid.UUID, db=Depends(get_db), user=Depends(participant)):
     item = await demand_for(db, identity)
     await fill_route_distances([item], datetime.now(UTC))
-    return demand_view(item, item.customer_id == user.id)
+    roles = {role.role for role in user.roles}
+    if item.customer_id == user.id or roles.intersection({'admin','superadmin'}):
+        return demand_view(item, True)
+    return demand_view(item, exact_location=await sees_exact_location(db, user))
 
 
 @router.put('/demands/{identity}')
@@ -237,8 +247,14 @@ async def compare_bids(identity: uuid.UUID, db=Depends(get_db), user=Depends(cus
 async def my_bids(db=Depends(get_db),user=Depends(provider_role)):
     provider = await provider_for(db,user)
     # Name each bid's requirement with the same public fields shown in demand listings.
-    rows = (await db.execute(select(Quote,TransportRequest.public_id,TransportRequest.pickup_city,TransportRequest.destination_city,CargoItem.category).join(TransportRequest,TransportRequest.id == Quote.request_id).outerjoin(CargoItem,CargoItem.request_id == TransportRequest.id).where(Quote.provider_id == provider.id,TransportRequest.marketplace_mode == 'customer_demand').options(selectinload(Quote.provider),selectinload(Quote.vehicle_category),selectinload(Quote.versions)).order_by(Quote.created_at.desc()).limit(100))).all()
-    return [{**bid_view(quote),'requirement':{'reference':reference,'pickup_city':pickup,'destination_city':destination,'cargo_category':category}} for quote,reference,pickup,destination,category in rows]
+    rows = (await db.execute(select(Quote,TransportRequest.public_id,TransportRequest.pickup_city,TransportRequest.destination_city,CargoItem.category,TransportRequest.pickup_address,TransportRequest.destination_address,TransportRequest.pickup_location,TransportRequest.destination_location).join(TransportRequest,TransportRequest.id == Quote.request_id).outerjoin(CargoItem,CargoItem.request_id == TransportRequest.id).where(Quote.provider_id == provider.id,TransportRequest.marketplace_mode == 'customer_demand').options(selectinload(Quote.provider),selectinload(Quote.vehicle_category),selectinload(Quote.versions)).order_by(Quote.created_at.desc()).limit(100))).all()
+    exact = await sees_exact_location(db, user)
+    def requirement(reference,pickup,destination,category,pickup_address,destination_address,pickup_location,destination_location):
+        view = {'reference':reference,'pickup_city':pickup,'destination_city':destination,'cargo_category':category}
+        if exact:
+            view.update(pickup_address=public_text(pickup_address),destination_address=public_text(destination_address),pickup_location=pickup_location,destination_location=destination_location)
+        return view
+    return [{**bid_view(quote),'requirement':requirement(*fields)} for quote,*fields in rows]
 
 
 @router.post('/demand-bids/{identity}/withdraw')

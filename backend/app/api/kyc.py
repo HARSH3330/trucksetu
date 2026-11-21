@@ -185,6 +185,7 @@ async def review(application_id: uuid.UUID, payload: ReviewInput, admin: Annotat
     previous = item.status
     provider = await db.get(ProviderProfile, item.provider_id)
     if not provider: raise HTTPException(404, "Provider profile not found")
+    if provider.user_id == admin.id: raise HTTPException(403, "You cannot review your own verification documents")
     if payload.decision == "verified":
         required = REQUIRED.get(provider.provider_type, REQUIRED["driver"])
         documents = {document.document_type: document for document in item.documents if document.status != "rejected"}

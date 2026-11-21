@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models import AnalyticsEvent, AuditLog, Booking, BookingAllocation, CarrierVehicle, Dispute, KYCApplication, ProviderProfile, Quote, TransportRequest, Trip
 from app.models import CustomerKYCApplication, DemandSelection, User, UserRole
+from app.models import ConnectionFeeCredit, ConnectionFeeRefundRequest, Payment
 from app.models import DriverProfile, RefreshSession
 from app.schemas import AnalyticsEventCreate
 from app.api.auth import require_roles
@@ -26,6 +27,14 @@ router=APIRouter(route_class=AuthenticationFirstRoute, prefix="/api/v1",tags=["a
 class AccountStatus(BaseModel):
     status: Literal['active','suspended']
     reason: str=Field(min_length=10,max_length=2000)
+
+
+ROLE_FILTER=Literal['customer','provider','fleet_owner','driver','admin','superadmin']
+OPEN_DISPUTE={'open','under_review'}
+
+
+class DisputeResolution(BaseModel):
+    resolution: str=Field(min_length=10,max_length=2000)
 
 
 class ContactVerification(BaseModel):
@@ -52,10 +61,11 @@ def mobile_variants(value:str)->set[str]:
 
 
 @router.get('/admin/users')
-async def list_users(q:str=Query(default='',max_length=120),account_status:Literal['active','suspended']|None=None,page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+async def list_users(q:str=Query(default='',max_length=120),account_status:Literal['active','suspended']|None=None,role:ROLE_FILTER|None=None,page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
     filters=[]
     if q:filters.append(or_(User.full_name.icontains(q,autoescape=True),User.email.icontains(q,autoescape=True)))
     if account_status:filters.append(User.status==account_status)
+    if role:filters.append(select(UserRole.id).where(UserRole.user_id==User.id,UserRole.role==role).exists())
     total=int(await db.scalar(select(func.count(User.id)).where(*filters)) or 0)
     customer_kyc=select(CustomerKYCApplication.status).where(CustomerKYCApplication.user_id==User.id).order_by(CustomerKYCApplication.created_at.desc()).limit(1).correlate(User).scalar_subquery()
     provider_kyc=select(ProviderProfile.kyc_status).where(ProviderProfile.user_id==User.id).limit(1).correlate(User).scalar_subquery()
@@ -95,11 +105,31 @@ async def change_contact_verification(user_id:uuid.UUID,payload:ContactVerificat
 
 
 @router.get('/admin/bookings')
-async def list_bookings(q:str=Query(default='',max_length=100),page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+async def list_bookings(q:str=Query(default='',max_length=100),booking_status:str|None=Query(default=None,alias='status',max_length=30),page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+    # Operational relationships only: no addresses, contacts, OTPs or message bodies.
     filters=[Booking.public_id.icontains(q,autoescape=True)] if q else []
+    if booking_status:filters.append(Booking.status==booking_status)
     total=int(await db.scalar(select(func.count(Booking.id)).where(*filters)) or 0)
     items=(await db.execute(select(Booking,User.full_name).join(User,User.id==Booking.customer_id).where(*filters).order_by(Booking.created_at.desc(),Booking.id).offset((page-1)*page_size).limit(page_size))).all()
-    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'reference':item.public_id,'customer_name':name,'status':item.status,'total_amount':str(item.total_amount),'created_at':item.created_at.isoformat()} for item,name in items]}
+    ids=[item.id for item,_ in items]
+    providers:dict[uuid.UUID,set[str]]={}
+    trips:dict[uuid.UUID,list[tuple[str,bool]]]={}
+    disputes:dict[uuid.UUID,int]={}
+    fees:dict[uuid.UUID,DemandSelection]={}
+    if ids:
+        for booking_id,name in (await db.execute(select(BookingAllocation.booking_id,ProviderProfile.display_name).join(ProviderProfile,ProviderProfile.id==BookingAllocation.provider_id).where(BookingAllocation.booking_id.in_(ids)))).all():
+            providers.setdefault(booking_id,set()).add(name)
+        for booking_id,trip_status,driver in (await db.execute(select(BookingAllocation.booking_id,Trip.status,Trip.driver_id).join(Trip,Trip.allocation_id==BookingAllocation.id).where(BookingAllocation.booking_id.in_(ids)))).all():
+            trips.setdefault(booking_id,[]).append((trip_status,driver is not None))
+        disputes={booking_id:int(count) for booking_id,count in (await db.execute(select(Dispute.booking_id,func.count(Dispute.id)).where(Dispute.booking_id.in_(ids),Dispute.status.in_(OPEN_DISPUTE)).group_by(Dispute.booking_id))).all()}
+        for selection in await db.scalars(select(DemandSelection).where(DemandSelection.booking_id.in_(ids)).order_by(DemandSelection.created_at)):
+            fees[selection.booking_id]=selection  # latest selection wins
+    def fee(booking_id:uuid.UUID)->dict[str,object]|None:
+        selection=fees.get(booking_id)
+        return {'status':selection.status,'payment_status':selection.payment_status,'contact_revealed':selection.contact_revealed_at is not None} if selection else None
+    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(item.id),'reference':item.public_id,'customer_name':name,'status':item.status,'total_amount':str(item.total_amount),'created_at':item.created_at.isoformat(),
+        'provider_names':sorted(providers.get(item.id,set())),'trip_statuses':[status for status,_ in trips.get(item.id,[])],'driver_assigned':any(assigned for _,assigned in trips.get(item.id,[])),
+        'open_disputes':disputes.get(item.id,0),'connection_fee':fee(item.id)} for item,name in items]}
 
 
 @router.get('/admin/requirements')
@@ -174,6 +204,10 @@ async def marketplace_health(db:AsyncSession=Depends(get_db),_:User=Depends(requ
         "paid_connections":await count(select(func.count(DemandSelection.id)).where(DemandSelection.payment_status=="captured")),
         "pending_customer_kyc":await count(select(func.count(CustomerKYCApplication.id)).where(CustomerKYCApplication.status=="under_review")),
         "unverified_contacts":await count(select(func.count(User.id)).where(User.status=="active",User.email_verified.is_not(True),User.mobile_verified.is_not(True))),
+        "connection_refunds_open":await count(select(func.count(ConnectionFeeRefundRequest.id)).where(ConnectionFeeRefundRequest.status!="processed")),
+        "credits_available":await count(select(func.count(ConnectionFeeCredit.id)).where(ConnectionFeeCredit.status=="available")),
+        "credits_reserved":await count(select(func.count(ConnectionFeeCredit.id)).where(ConnectionFeeCredit.status=="reserved")),
+        "pending_offline_payments":await count(select(func.count(Payment.id)).where(Payment.status=="pending_confirmation")),
     }
     return {**{key:int(value or 0) for key,value in totals.items()},
         "verified_providers":int(await db.scalar(select(func.count(ProviderProfile.id)).where(ProviderProfile.kyc_status=="verified",ProviderProfile.active.is_(True))) or 0),
@@ -204,7 +238,58 @@ async def funnel(days:int=Query(default=30,ge=1,le=365),db:AsyncSession=Depends(
     return {"period_days":days,"funnel":[{"stage":stage,"count":counts.get(stage,0)} for stage in order]}
 
 
+def audit_changes(before:object,after:object)->dict[str,list[object]]:
+    """Scalar before/after pairs only; nested payloads stay in the database."""
+    if not isinstance(before,dict):return {}
+    later=after if isinstance(after,dict) else {}
+    scalar=(str,int,float,bool,type(None))
+    return {key:[value,later.get(key)] for key,value in before.items() if isinstance(value,scalar) and isinstance(later.get(key),scalar) and later.get(key)!=value}
+
+
+def audit_reason(entry:AuditLog)->str|None:
+    value=entry.after.get('reason') if isinstance(entry.after,dict) else None
+    return value[:500] if isinstance(value,str) else None
+
+
 @router.get("/admin/audit-logs")
-async def audit_logs(limit:int=Query(default=100,ge=1,le=500),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles("admin","superadmin")))->list[dict[str,object]]:
-    items=list(await db.scalars(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)))
-    return [{"id":str(x.id),"actor_id":str(x.actor_id) if x.actor_id else None,"action":x.action,"entity_type":x.entity_type,"entity_id":str(x.entity_id) if x.entity_id else None,"request_id":x.request_id,"created_at":x.created_at.isoformat()} for x in items]
+async def audit_logs(action:str|None=Query(default=None,max_length=100),entity_type:str|None=Query(default=None,max_length=50),entity_id:uuid.UUID|None=None,page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=50,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles("admin","superadmin")))->dict[str,object]:
+    """Read-only, newest first. Raw before/after payloads are not returned; the reason and scalar changes are."""
+    filters=[]
+    if action:filters.append(AuditLog.action==action)
+    if entity_type:filters.append(AuditLog.entity_type==entity_type)
+    if entity_id:filters.append(AuditLog.entity_id==entity_id)
+    total=int(await db.scalar(select(func.count(AuditLog.id)).where(*filters)) or 0)
+    rows=(await db.execute(select(AuditLog,User.full_name,User.email).outerjoin(User,User.id==AuditLog.actor_id).where(*filters).order_by(AuditLog.created_at.desc(),AuditLog.id).offset((page-1)*page_size).limit(page_size))).all()
+    return {'total':total,'page':page,'page_size':page_size,'items':[{"id":str(x.id),"actor_id":str(x.actor_id) if x.actor_id else None,"actor_name":name,"actor_email":masked_email(email) if email else None,"action":x.action,"entity_type":x.entity_type,"entity_id":str(x.entity_id) if x.entity_id else None,
+        "reason":audit_reason(x),"changes":audit_changes(x.before,x.after),"request_id":x.request_id,"created_at":x.created_at.isoformat()} for x,name,email in rows]}
+
+
+@router.get('/admin/disputes')
+async def list_disputes(dispute_status:Literal['open','under_review','resolved']|None=Query(default=None,alias='status'),page:int=Query(default=1,ge=1,le=10000),page_size:int=Query(default=25,ge=1,le=100),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+    """The explicit dispute-review workflow: the case description is shown here, attachments are not."""
+    filters=[Dispute.status==dispute_status] if dispute_status else []
+    total=int(await db.scalar(select(func.count(Dispute.id)).where(*filters)) or 0)
+    raiser=aliased(User)
+    rows=(await db.execute(select(Dispute,Booking.public_id,Booking.status,raiser.full_name).join(Booking,Booking.id==Dispute.booking_id).outerjoin(raiser,raiser.id==Dispute.raised_by).where(*filters).order_by(Dispute.created_at.desc(),Dispute.id).offset((page-1)*page_size).limit(page_size))).all()
+    return {'total':total,'page':page,'page_size':page_size,'items':[{'id':str(d.id),'booking_id':str(d.booking_id),'booking_reference':reference,'booking_status':booking_status,'category':d.category,'description':d.description,'status':d.status,'priority':d.priority,
+        'raised_by_name':name,'resolution':d.resolution,'resolved_at':d.resolved_at.isoformat() if d.resolved_at else None,'created_at':d.created_at.isoformat(),'restores_booking_to':d.booking_status_before} for d,reference,booking_status,name in rows]}
+
+
+@router.post('/admin/disputes/{dispute_id}/resolve')
+async def resolve_dispute(dispute_id:uuid.UUID,payload:DisputeResolution,db:AsyncSession=Depends(get_db),admin:User=Depends(require_roles('admin','superadmin')))->dict[str,object]:
+    dispute=await db.scalar(select(Dispute).where(Dispute.id==dispute_id).with_for_update())
+    if dispute is None:raise HTTPException(404,'Dispute not found')
+    if dispute.status not in OPEN_DISPUTE:raise HTTPException(409,'This dispute is already resolved')
+    booking=await db.scalar(select(Booking).where(Booking.id==dispute.booking_id).with_for_update())
+    others=int(await db.scalar(select(func.count(Dispute.id)).where(Dispute.booking_id==dispute.booking_id,Dispute.id!=dispute.id,Dispute.status.in_(OPEN_DISPUTE))) or 0)
+    previous_status,previous_booking=dispute.status,booking.status if booking else None
+    dispute.status,dispute.resolution,dispute.resolved_by,dispute.resolved_at='resolved',payload.resolution,admin.id,datetime.now(UTC)
+    # Return the booking to where it was only when nothing else keeps it disputed.
+    note=None
+    if booking and booking.status=='disputed':
+        if others:note=f'The booking stays disputed: {others} other open dispute{"s" if others!=1 else ""}.'
+        elif dispute.booking_status_before and dispute.booking_status_before!='disputed':booking.status=dispute.booking_status_before
+        else:note='The booking stays disputed because its earlier status was not recorded. Cancel or complete it through the normal flow.'
+    db.add(AuditLog(actor_id=admin.id,action='dispute.resolved',entity_type='dispute',entity_id=dispute.id,before={'status':previous_status,'booking_status':previous_booking},after={'status':dispute.status,'booking_status':booking.status if booking else None,'booking_id':str(dispute.booking_id),'reason':payload.resolution}))
+    await db.commit()
+    return {'id':str(dispute.id),'status':dispute.status,'booking_status':booking.status if booking else None,'note':note}

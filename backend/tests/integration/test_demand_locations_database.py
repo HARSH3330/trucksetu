@@ -20,8 +20,8 @@ def test_private_draft_publish_edit_locations_and_ownership(monkeypatch):
                 item=created.json();assert item['pickup_location']==p['pickup_location']
                 assert (await c.get('/api/v1/demands/drafts',headers=headers[0])).json()==[]
                 public=await c.get('/api/v1/demands',headers=headers[2]);assert public.status_code==200
-                found=next(x for x in public.json() if x['id']==item['id']);assert 'pickup_location' not in found and 'destination_location' not in found
-                detail=await c.get('/api/v1/demands/'+item['id'],headers=headers[2]);assert 'pickup_location' not in detail.json()
+                found=next(x for x in public.json() if x['id']==item['id']);assert found['pickup_location']==p['pickup_location'] and found['destination_location']==p['destination_location']  # verified truck owner
+                detail=await c.get('/api/v1/demands/'+item['id'],headers=headers[2]);assert detail.json()['pickup_location']==p['pickup_location']
                 assert (await c.put('/api/v1/demands/'+item['id'],headers=headers[1],json={**payload,'expected_revision':1})).status_code==403
                 edited=await c.put('/api/v1/demands/'+item['id'],headers=headers[0],json={**payload,'expected_revision':1,'pickup_location':None,'destination_location':None});assert edited.status_code==200,edited.text
                 assert edited.json()['pickup_location'] is None and edited.json()['revision']==2
