@@ -7,14 +7,14 @@ export function mapLink(pin:Pin){
 }
 
 /**
- * Exact pickup and drop for verified truck owners, admins and the customer (owner decision 2026-11-20).
+ * Map links for the exact pickup and drop shown in the card heading, for verified truck owners, admins and the customer (owner decision 2026-11-20).
  * The API omits these fields for everyone else, so nothing renders for them.
  */
 export default function DemandPins({pickup_address,destination_address,pickup_location,destination_location}:{pickup_address?:string|null;destination_address?:string|null;pickup_location?:Pin;destination_location?:Pin}){
   if(!pickup_address&&!destination_address)return null
-  const line=(label:string,name:string,address:string|null|undefined,pin:Pin)=>{
+  const line=(label:string,name:string,_address:string|null|undefined,pin:Pin)=>{
     const link=mapLink(pin)
-    return <p className="demand-pin-line"><b>{label}: {address||'address not given'}</b>{link?<a href={link} target="_blank" rel="noopener noreferrer">Open {name} pin in Google Maps</a>:<small>No {name} pin; use the address</small>}</p>
+    return <p className="demand-pin-line">{link?<a href={link} target="_blank" rel="noopener noreferrer">Open {name} pin in Google Maps</a>:<small>No {name} pin; use the {label.toLowerCase()} address above</small>}</p>
   }
   return <div className="demand-pins" aria-label="Exact pickup and drop">
     {line('Pickup','pickup',pickup_address,pickup_location)}

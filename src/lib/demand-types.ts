@@ -43,3 +43,9 @@ export function loadDetails(item:LoadSchedule):string[]{
   if(item.cargo.fragile)lines.push('Fragile goods: handle with care')
   return lines
 }
+
+/** Card heading: the exact pickup and drop when the viewer may see them (verified truck owners, the customer), else the cities. */
+export function routeEnds(item:{pickup_city:string;destination_city:string;pickup_address?:string|null;destination_address?:string|null}){
+  const from=item.pickup_address?.trim(),to=item.destination_address?.trim()
+  return from&&to?{from,to,exact:true}:{from:item.pickup_city,to:item.destination_city,exact:false}
+}
