@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import aliased, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +14,7 @@ from app.core.database import get_db
 from app.models import AnalyticsEvent, AuditLog, Booking, BookingAllocation, CarrierVehicle, Dispute, KYCApplication, ProviderProfile, Quote, TransportRequest, Trip
 from app.models import CustomerKYCApplication, DemandSelection, User, UserRole
 from app.models import ConnectionFeeCredit, ConnectionFeeRefundRequest, Payment
-from app.models import DriverProfile, RefreshSession
+from app.models import DriverProfile, RefreshSession, TripStatusHistory
 from app.schemas import AnalyticsEventCreate
 from app.api.auth import require_roles
 from app.api.auth import current_user
@@ -231,11 +231,21 @@ async def capture_event(payload:AnalyticsEventCreate,request:Request,db:AsyncSes
 
 @router.get("/admin/analytics/funnel")
 async def funnel(days:int=Query(default=30,ge=1,le=365),db:AsyncSession=Depends(get_db),_:User=Depends(require_roles("admin","superadmin")))->dict[str,object]:
+    """Counts from real records in the period. Browser events were never sent, so they cannot show drop-offs.
+    Admin accounts and TEST data (@transivox.invalid) are left out."""
     since=datetime.now(UTC)-timedelta(days=days)
-    rows=await db.execute(select(AnalyticsEvent.event_name,func.count(AnalyticsEvent.id)).where(AnalyticsEvent.occurred_at>=since).group_by(AnalyticsEvent.event_name))
-    counts={name:int(count) for name,count in rows}
-    order=["visitor","signup","request_posted","quote_submitted","booking_created","trip_completed"]
-    return {"period_days":days,"funnel":[{"stage":stage,"count":counts.get(stage,0)} for stage in order]}
+    real_user=~User.email.endswith('@transivox.invalid')
+    staff=select(UserRole.user_id).where(UserRole.role.in_(["admin","superadmin"]))
+    demand=and_(TransportRequest.marketplace_mode=="customer_demand",TransportRequest.customer_id.in_(select(User.id).where(real_user)))
+    counts={
+        "signup":select(func.count(User.id)).where(User.created_at>=since,real_user,User.id.not_in(staff)),
+        "customer_verified":select(func.count(CustomerKYCApplication.id)).where(CustomerKYCApplication.status=="verified",CustomerKYCApplication.reviewed_at>=since),
+        "load_posted":select(func.count(TransportRequest.id)).where(demand,TransportRequest.created_at>=since),
+        "bid_received":select(func.count(Quote.id)).join(TransportRequest,TransportRequest.id==Quote.request_id).where(demand,Quote.created_at>=since),
+        "connection_paid":select(func.count(DemandSelection.id)).where(DemandSelection.captured_at>=since),
+        "trip_completed":select(func.count(func.distinct(TripStatusHistory.trip_id))).where(TripStatusHistory.status.in_(["delivered","completed"]),TripStatusHistory.created_at>=since),
+    }
+    return {"period_days":days,"funnel":[{"stage":stage,"count":int(await db.scalar(query) or 0)} for stage,query in counts.items()]}
 
 
 def audit_changes(before:object,after:object)->dict[str,list[object]]:

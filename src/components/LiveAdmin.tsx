@@ -65,6 +65,6 @@ export default function LiveAdmin({openKyc,openVehicles,openOperations,superadmi
     <AdminRecords key={records.key} initialTab={records.tab} superadmin={superadmin}/>
     <ConnectionFeeReview/>
     <SharedMatchReview/>
-    <details className="panel admin-funnel"><summary>{funnel.period_days}-day visitor funnel</summary><div className="funnel-chart">{funnel.funnel.map(item=><div key={item.stage}><span><b>{item.stage.replaceAll('_',' ')}</b><small>{item.count}</small></span><i><em style={{width:`${item.count/max*100}%`}}/></i></div>)}</div></details>
+    <details className="panel admin-funnel"><summary>{funnel.period_days}-day activity funnel (real records; TEST data left out)</summary><div className="funnel-chart">{funnel.funnel.map(item=><div key={item.stage}><span><b>{item.stage.replaceAll('_',' ')}</b><small>{item.count}</small></span><i><em style={{width:`${item.count/max*100}%`}}/></i></div>)}</div></details>
   </main>
 }

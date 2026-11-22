@@ -65,3 +65,8 @@
 .demand-schedule{margin:6px 0;padding-left:18px;display:grid;gap:2px}
 /* Exact addresses in the card heading are longer than city names. */
 .demand-route h2.exact{font-size:1.05rem;line-height:1.35;overflow-wrap:anywhere}
+/* Phase 1: the price you pay first, sort control, details on tap. */
+.bid-sort{display:flex;gap:8px;align-items:center;margin:8px 0}
+.bid-row .price-label{display:block;font-size:13px;font-weight:600;color:var(--muted)}
+.bid-row details{margin-top:6px}
+.bid-row summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}

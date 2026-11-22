@@ -9,7 +9,20 @@ export function PublicFooter(){return <footer className="public-footer"><div><b>
 
 export function PublicFaq(){return <section className="public-faq"><h2>Before you book</h2><details><summary>How are quotations calculated?</summary><p>Providers submit the final transportation quotation. Any TransivoX estimate is advisory. Compare the total, vehicle count and separately listed assistance, waiting and other charges before accepting.</p></details><details><summary>What does provider verification mean?</summary><p>Required documents are reviewed manually after a clean malware scan. This does not guarantee authenticity, vehicle condition, legal compliance or future performance.</p></details><details><summary>Can I book part of a truck?</summary><p>You can search shared truck space and publish a shared-capacity requirement. Route compatibility and available capacity must be confirmed. Direct shared-space reservation is not yet available in this website flow.</p></details><details><summary>What if a transporter cancels?</summary><p>Review the cancellation terms recorded with your booking. Contact support for a booking dispute; refund eligibility and processing depend on the recorded policy and payment status.</p></details></section>}
 
-export function PublicSupport(){return <main className="page public-information"><h1>Safety & support</h1><section><h2>What verification means</h2><p>TransivoX uses private document uploads, malware scanning and manual review of required provider and vehicle documents. A scan-clean file is not an accepted identity document.</p><p>Verification does not guarantee authenticity, vehicle condition, legal compliance or future performance. Review the provider, vehicle, cargo restrictions and quotation before booking.</p></section><section><h2>Help with your booking</h2><p>Sign in to view your bookings and private support cases. Do not send Aadhaar, PAN, bank details or passwords by email.</p><a href="#trust">Open private booking support</a></section><section><h2>Contact TransivoX</h2><a href="mailto:harshagarwal244@gmail.com">harshagarwal244@gmail.com</a><p>Monday–Friday · 10:00–18:00 IST</p><p>Include your booking reference and a brief description. Email support is not an emergency service.</p></section></main>}
+/** phone/whatsapp come from VITE_SUPPORT_PHONE / VITE_SUPPORT_WHATSAPP; each option is hidden until configured. */
+export function PublicSupport({phone,whatsapp}:{phone?:string;whatsapp?:string}={}){
+  const dial=phone?.replace(/[^\d+]/g,''),chat=whatsapp?.replace(/\D/g,'')
+  return <main className="page public-information"><h1>Safety & support</h1>
+  <section className="support-actions"><h2>Get help</h2>
+    <p><a className="button-link" href="#trust">Report a problem on a trip</a> Sign in, choose the booking and describe what happened. It goes straight to the TransivoX team and is linked to your booking.</p>
+    <p><b>Email:</b> <a href="mailto:harshagarwal244@gmail.com">harshagarwal244@gmail.com</a> — include your booking reference.</p>
+    {dial&&<p><b>Call:</b> <a href={`tel:${dial}`}>{phone}</a></p>}
+    {chat&&<p><b>WhatsApp:</b> <a href={`https://wa.me/${chat}`} target="_blank" rel="noopener noreferrer">Chat with TransivoX</a></p>}
+    <p>We read messages Monday–Friday, 10:00–18:00 IST.</p>
+    <p className="demand-note"><b>Accident or emergency on the road?</b> call 112 first, then tell us.</p>
+  </section>
+  <section><h2>What verification means</h2><p>TransivoX uses private document uploads, malware scanning and manual review of required provider and vehicle documents. A scan-clean file is not an accepted identity document.</p><p>Verification does not guarantee authenticity, vehicle condition, legal compliance or future performance. Review the provider, vehicle, cargo restrictions and quotation before booking.</p></section>
+  <section><h2>Keep your data safe</h2><p>Do not send Aadhaar, PAN, bank details or passwords by email or chat.</p></section></main>}
 
 const REFUND_SECTIONS:[keyof MarketplaceConfig['fee'],string][]=[['cancellation_terms','Cancellation'],['provider_failure_terms','If the provider fails to perform'],['replacement_terms','Replacement credit']]
 export function RefundTerms({config}:{config:MarketplaceConfig|null}){
