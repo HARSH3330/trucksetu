@@ -29,6 +29,22 @@ PILOT_DESTINATION_CITIES=Delhi,Gurugram,Noida
 
 Set `REDIS_REQUIRED=true` for the closed pilot after managed Redis is connected. Keep it false only for liveness-only deployments where Redis-backed pilot operations are disabled.
 
+## Release source identification
+
+`GET /version` validates the entire source identifier instead of extracting hex
+characters from an arbitrary label. The API prefers `VERCEL_GIT_COMMIT_SHA` when
+available in the runtime, then a valid `BUILD_SHA`, otherwise returns `unknown`.
+Both are nonsecret API metadata; use the actual release commit, not a deployment
+ID or branch name. Valid identifiers are 7–40 hexadecimal characters or a full
+64-character Git SHA-256 identifier. Matching this response to Vercel's source
+commit is a release check, not proof that integrations are configured correctly.
+
+Do not deploy uncommitted working-tree features by redeploying an older SHA.
+After release authorization, publish the reviewed candidate, migrate once using
+that candidate's migration files, deploy the API first and verify its schema,
+then deploy the frontend from the same reviewed source revision. Run isolated
+database and multi-role gates before authorizing the production sequence.
+
 ## Database migration release step
 
 Run migrations once, before directing traffic to a new API build:

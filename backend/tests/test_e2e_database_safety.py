@@ -59,3 +59,10 @@ def test_forbids_real_aws_and_non_test_modes(monkeypatch: pytest.MonkeyPatch) ->
 def test_accepts_exact_local_test_database(monkeypatch: pytest.MonkeyPatch) -> None:
     configure(monkeypatch)
     assert safe_database_url() == 'postgresql://u:p@127.0.0.1/transivox_e2e'
+
+
+@pytest.mark.parametrize('query', ['host=remote.invalid', 'hostaddr=192.0.2.1', 'dbname=production', 'service=production', 'port=6543', '%68ost=remote.invalid'])
+def test_rejects_driver_connection_target_overrides(monkeypatch, query):
+    configure(monkeypatch, 'postgresql://u:p@127.0.0.1/transivox_e2e?' + query)
+    with pytest.raises(RuntimeError, match='connection option'):
+        safe_database_url()

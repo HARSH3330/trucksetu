@@ -85,7 +85,7 @@ def available_allocation(required: int, allocated: int, requested: int) -> int:
 
 def ensure_provider_can_quote(kyc_status: str, active: bool, request_status: str) -> None:
     if not active or kyc_status != "verified":
-        raise PermissionError("Provider KYC must be verified before quoting")
+        raise PermissionError("Your verification must be approved before you can send a price.")
     if request_status != "published":
         raise ValueError("This request is not accepting quotations")
 

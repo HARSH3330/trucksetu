@@ -12,6 +12,7 @@ const localEnvironment = {
   APP_ENV: 'test', TRANSIVOX_E2E: 'true',
   DATABASE_URL: process.env.E2E_DATABASE_URL || '', MIGRATION_DATABASE_URL: process.env.E2E_DATABASE_URL || '',
   E2E_API_ORIGIN: apiOrigin, E2E_WEB_URL: webUrl,
+  ALLOWED_ORIGINS: new URL(webUrl).origin,
   E2E_CONTROL_TOKEN: process.env.E2E_CONTROL_TOKEN || 'transivox-e2e-control-token',
   SECRET_KEY: process.env.E2E_SECRET_KEY || 'e2e-only-secret-key-not-for-any-real-environment-0123456789',
   DEBUG: 'false', REDIS_REQUIRED: 'false',
@@ -19,7 +20,7 @@ const localEnvironment = {
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: realAws ? '**/*.aws.spec.ts' : '**/kyc*.spec.ts',
+  testMatch: realAws ? '**/*.aws.spec.ts' : ['**/kyc*.spec.ts','**/release-session.spec.ts','**/release-shared.spec.ts','**/release-vehicle.spec.ts'],
   testIgnore: realAws ? [] : ['**/*.aws.spec.ts'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -35,6 +36,8 @@ export default defineConfig({
   ],
   webServer: realAws || !manageServers ? undefined : [
     {command: `"${python}" -m e2e_server --port ${new URL(apiOrigin).port || '8000'}`, cwd: './backend', url: `${apiOrigin}/health/live`, reuseExistingServer: false, env: localEnvironment, timeout: 120_000},
-    {command: `npm run dev -- --port ${new URL(webUrl).port || '5173'}`, url: webUrl, reuseExistingServer: false, env: {...process.env, VITE_API_URL: apiUrl,VITE_MSG91_WIDGET_ID:'',VITE_MSG91_WIDGET_TOKEN_AUTH:''}, timeout: 120_000},
+    // Serve the actual built client, avoiding dev-server HMR/optimizer reloads
+    // during independent browser sessions. API and DB remain real and local.
+    {command: `npm run build -- --outDir dist-e2e && npm run preview -- --outDir dist-e2e --host 127.0.0.1 --port ${new URL(webUrl).port || '5173'} --strictPort`, url: webUrl, reuseExistingServer: false, env: {...process.env, VITE_API_URL: apiUrl,VITE_MSG91_WIDGET_ID:'',VITE_MSG91_WIDGET_TOKEN_AUTH:''}, timeout: 120_000},
   ],
 })

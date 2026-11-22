@@ -78,7 +78,7 @@ async function withActors(browser:Browser,info:TestInfo,scenario:(a:Actor,b:Acto
       const page=await context.newPage();captureApiFailures(page)
       const email=role==='admin'?adminAccount.email:`${role}-${randomUUID()}@example.com`
       const password=role==='admin'?adminAccount.password:providerAccount.password
-      if(role!=='admin')await status(await context.request.post(`${base}/auth/signup`,{data:{full_name:`Fictional ${role}`,email,password,role:'provider'}}),201)
+      if(role!=='admin')await status(await context.request.post(`${base}/auth/signup`,{data:{full_name:`Fictional ${role}`,email,password,role:'provider',mobile:role==='provider-a'?'+919000000101':'+919000000102'}}),201)
       await test.step(`Sign in ${role}`,()=>signIn(page,email,password))
       return {context,page,headers:{Authorization:`Bearer ${await accessToken(page)}`}}
     }

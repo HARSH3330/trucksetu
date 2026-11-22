@@ -100,7 +100,7 @@ async def suggest(payload: SuggestionInput, request: Request, db: AsyncSession =
     await enforce_rate_limit(request, "pricing", settings.PRICING_RATE_LIMIT, 60)
     route = await compute_route(payload); rule = await active_rule(db)
     if (payload.loading or payload.unloading) and payload.package_count < 1:
-        raise HTTPException(422, "Parcel count is required for loading or unloading assistance")
+        raise HTTPException(422, "Enter the number of parcels if you need loading or unloading help.")
     amounts = trip_price_suggestion(Decimal(route["distance_km"]), payload.vehicle_count, len(payload.stops), payload.loading, payload.unloading, payload.package_count, payload.night_trip, payload.expected_waiting_hours, rule)
     breakdown = {key: str(value) for key, value in amounts.items() if key not in {"suggested_low", "suggested_high"}}
     item = TripPriceEstimate(pickup_text=payload.pickup, destination_text=payload.destination, stop_count=len(payload.stops), distance_km=route["distance_km"], duration_minutes=route["duration_minutes"], route_polyline=route["polyline"], rule_snapshot=rule, breakdown=breakdown, suggested_low=amounts["suggested_low"], suggested_high=amounts["suggested_high"])

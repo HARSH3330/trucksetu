@@ -1,0 +1,7 @@
+{
+  "Role": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<APPROVED_GUARDDUTY_SCANNER_ROLE>",
+  "ProtectedResource": {
+    "S3Bucket": {"BucketName": "transivox-kyc-harsh3330", "ObjectPrefixes": ["kyc/"]}
+  },
+  "Actions": {"Tagging": {"Status": "ENABLED"}}
+}

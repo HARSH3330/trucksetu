@@ -60,7 +60,7 @@ test('published requirement shows server reference and keeps success keyboard-co
 })
 
 test('sign-in failure preserves email, clears password and traps keyboard focus',async({page})=>{
-  await page.route('**/auth/login',route=>route.abort('failed'))
+  await page.route('**/auth/session/login',route=>route.abort('failed'))
   await page.goto('/')
   const opener=page.getByRole('button',{name:'Sign in',exact:true})
   await opener.click()
@@ -104,7 +104,7 @@ test('admin review queue remains reachable on mobile',async({page})=>{
   })
   await page.goto('/')
   await expect(page.getByRole('heading',{name:'Marketplace control centre'})).toBeVisible()
-  await expect(page.getByRole('button',{name:'Open queue',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'Open vehicle queue',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'Review now',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Verification review queue'})).toBeVisible()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)

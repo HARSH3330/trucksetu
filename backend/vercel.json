@@ -1,0 +1,7 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "release/customer-first-20261026": false
+    }
+  }
+}

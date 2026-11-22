@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PrivateVersionBoundDocumentIO",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion", "s3:GetObjectTagging", "s3:GetObjectVersionTagging"],
+      "Resource": "arn:aws:s3:::transivox-kyc-harsh3330/kyc/*"
+    },
+    {
+      "Sid": "ApplicationCannotForgeOrEraseScanProof",
+      "Effect": "Deny",
+      "Action": ["s3:PutObjectTagging", "s3:PutObjectVersionTagging", "s3:DeleteObjectTagging", "s3:DeleteObjectVersionTagging"],
+      "Resource": "arn:aws:s3:::transivox-kyc-harsh3330/kyc/*"
+    }
+  ]
+}
